@@ -1,0 +1,7 @@
+{
+  "name": "Reality Selection Tool",
+  "description": "A personalized meditation tool that creates unique sessions based on your patterns and current state.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
