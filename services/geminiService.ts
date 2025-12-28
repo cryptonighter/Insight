@@ -129,7 +129,8 @@ export const runDirectorOrchestration = async (
 export const chatWithInsight = async (
   history: ChatMessage[],
   latestInput: string,
-  userVariables: Record<string, any> = {}
+  userVariables: Record<string, any> = {},
+  directorSuggestion: any = null
 ): Promise<{
   reply: string;
   shouldOfferMeditation: boolean;
@@ -137,7 +138,7 @@ export const chatWithInsight = async (
 }> => {
   try {
     const { data, error } = await supabase.functions.invoke('chat', {
-      body: { history, latestInput, userVariables }
+      body: { history, latestInput, userVariables, directorSuggestion }
     });
 
     if (error) throw error;
@@ -265,6 +266,11 @@ export const generateMeditationStream = async (
             });
 
             const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
+            console.log("TTS Audio Part received:", {
+              hasData: !!audioPart?.inlineData?.data,
+              mime: audioPart?.inlineData?.mimeType,
+              len: audioPart?.inlineData?.data?.length
+            });
             if (audioPart?.inlineData?.data) {
               await onChunkGenerated(audioPart.inlineData.data, i, batch.instructions);
               success = true;
@@ -272,7 +278,7 @@ export const generateMeditationStream = async (
               throw new Error("Empty audio response");
             }
           } catch (e: any) {
-            console.warn(`Batch ${i} failed:`, e);
+            console.warn(`Batch ${i} failed. Error:`, e.message || e);
             if (retries === MAX_RETRIES - 1) {
               const mockAudio = createSilentPCM(3);
               await onChunkGenerated(mockAudio, i, []);
@@ -328,20 +334,8 @@ export function decodeBase64(base64: string): Uint8Array {
 }
 
 export async function decodeAudioData(data: Uint8Array, ctx: BaseAudioContext): Promise<AudioBuffer> {
-  const sampleRate = 24000;
-  const numChannels = 1;
-  let bufferData = data;
-  if (data.byteLength % 2 !== 0) {
-    const newBuffer = new Uint8Array(data.byteLength + 1);
-    newBuffer.set(data);
-    bufferData = newBuffer;
-  }
-  const dataInt16 = new Int16Array(bufferData.buffer, bufferData.byteOffset, bufferData.byteLength / 2);
-  const frameCount = dataInt16.length;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-  const channelData = buffer.getChannelData(0);
-  for (let i = 0; i < frameCount; i++) channelData[i] = dataInt16[i] / 32768.0;
-  return buffer;
+  // Use the native browser decoder to handle WAV headers, MP3, etc.
+  return await ctx.decodeAudioData(data.buffer as ArrayBuffer);
 }
 
 export function bufferToWav(buffer: AudioBuffer): Blob {

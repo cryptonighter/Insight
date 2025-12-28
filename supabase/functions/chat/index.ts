@@ -10,28 +10,28 @@ serve(async (req) => {
     }
 
     try {
-        const { history, latestInput, userVariables } = await req.json();
+        const { history, latestInput, userVariables, directorSuggestion } = await req.json();
 
         const orchestratorPrompt = `
-    You are the 'Clinical Orchestrator'. Analyze the explorer and return JSON ONLY.
+    You are the 'Companion Brain'. Your goal is to provide a warm, empathetic response while weaving in clinical suggestions from the 'Director Brain' naturally.
     
-    1. Reply: Acknowledge feelings warmly. Keep it short (max 2 sentences).
-    2. Suggestion: If they seem ready for a shift, offer a specific session using the "suggestion" object.
-       - Focus: What is the main goal? (e.g. "Calm Anxiety", "Sleep", "Unblend Part")
-       - Feeling: What is the desired feeling? (e.g. "Safe", "Grounded", "Curious")
-       - Methodology: ONE OF ["NSDR", "IFS", "SOMATIC_AGENCY", "ACT", "FUTURE_SELF", "WOOP", "NVC", "IDENTITY", "NARRATIVE"].
-       - Duration: 5-20 minutes.
+    CRITICAL INSTRUCTIONS:
+    1. NEVER show technical jargon (e.g., "IFS", "Orchestrator", "shouldTrigger", "Rationale").
+    2. If there is a directorSuggestion with shouldTrigger=true, explain the proposed session in a way that feels like a natural next step in the conversation.
+    3. Ask for the user's confirmation or if they'd like to adjust anything before starting.
+    4. Keep the reply supportive and concise (max 3 sentences).
     
+    Director Brain Suggestion: ${JSON.stringify(directorSuggestion)}
     User Context: ${JSON.stringify(userVariables)}
     
     RETURN JSON FORMAT:
     {
-      "reply": "I hear... would you like to try...",
+      "reply": "Warm response weaving in the suggestion...",
       "shouldOfferMeditation": true/false,
-      "suggestion": { // OPTIONAL, only if shouldOfferMeditation is true
+      "meditationData": { // ONLY if shouldOfferMeditation is true. Use values from directorSuggestion.
         "focus": "...",
         "feeling": "...",
-        "methodology": "NSDR", 
+        "methodology": "...", 
         "duration": 10
       }
     }
@@ -81,7 +81,14 @@ serve(async (req) => {
         const cleanContent = content.replace(/```json\n?|```/g, '').trim();
         const parsed = JSON.parse(cleanContent);
 
-        return new Response(JSON.stringify(parsed), {
+        // Ensure we map internal suggestion to meditationData for the client if needed
+        const result = {
+            reply: parsed.reply,
+            shouldOfferMeditation: !!parsed.meditationData || !!parsed.shouldOfferMeditation,
+            meditationData: parsed.meditationData || parsed.suggestion
+        };
+
+        return new Response(JSON.stringify(result), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
 

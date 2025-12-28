@@ -166,14 +166,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newInsight: Insight = { id: Date.now().toString(), text, timestamp: Date.now(), type: 'text' };
     const updatedInsights = [newInsight, ...insights];
     setInsights(updatedInsights);
-    // DIRECTOR LOGIC: Run orchestration in parallel or after chat
+    // DIRECTOR LOGIC: Run orchestration FIRST
     const context = await growthContext.getRecentHistory(user.supabaseId || 'mock-user');
+    const directorDecision = await runDirectorOrchestration(text, triage, context);
 
-    // Run both in parallel for optimal speed
-    const [aiResponse, directorDecision] = await Promise.all([
-      chatWithInsight(chatHistory.slice(-5), text, triage.clinicalVariables),
-      runDirectorOrchestration(text, triage, context)
-    ]);
+    // CHAT LOGIC: Use director's decision to form a humanized reply
+    const aiResponse = await chatWithInsight(chatHistory.slice(-5), text, triage.clinicalVariables, directorDecision);
 
     let systemMsg: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -183,21 +181,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       suggestion: aiResponse.shouldOfferMeditation ? (aiResponse.meditationData as any) : undefined
     };
 
-    // If Director has a specific tool call, override suggestion
-    if (directorDecision.type === 'TOOL_CALL' && directorDecision.name === 'select_meditation_protocol') {
-      const args = directorDecision.args;
-
-      if (args && args.shouldTrigger) {
-        systemMsg.suggestion = {
-          focus: args.focus || "",
-          feeling: args.targetFeeling || "",
-          duration: 10,
-          methodology: args.methodology as MethodologyType,
-          intensity: args.intensity as any
-        };
-        systemMsg.text += `\n\n[Director Suggestion: ${args.rationale || 'Optimal protocol identified'}]`;
-      }
-    }
+    // Note: AI Rationale is now woven into the 'reply' by the Chat function ourselves.
 
     if (systemMsg.suggestion?.methodology) {
       setTriage(prev => ({
@@ -252,7 +236,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setMeditations(prev => [newMeditation, ...prev]);
       setActiveMeditationId(tempId);
-      setCurrentView(ViewState.PLAYER);
+      // We don't jump to PLAYER yet; stay in ViewState.CONTEXT (LoadingGeneration)
+      // until the first chunk is ready to play.
 
       // Start streaming process
       const { title, lines } = await generateMeditationStream(
@@ -277,7 +262,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             return m;
           }));
 
-          // BUFFERING STRATEGY:
+          // BUFFERING STRATEGY: 
+          // Transition to the player as soon as the first chunk is ready
+          if (index === 0) {
+            setCurrentView(ViewState.PLAYER);
+          }
           if (index === 1) {
             setPendingMeditationConfig(null);
           }

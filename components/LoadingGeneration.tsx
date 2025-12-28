@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Sparkles, Music, ArrowLeft, Volume2, Mic2, Wind } from 'lucide-react';
 import { VoiceId, MeditationConfig, ViewState } from '../types';
 import { storageService } from '../services/storageService';
+import { CLINICAL_PROTOCOLS } from '../server/protocols';
 
 export const LoadingGeneration: React.FC = () => {
   const {
@@ -10,7 +11,9 @@ export const LoadingGeneration: React.FC = () => {
     finalizeMeditationGeneration,
     soundscapes,
     setView,
-    triage
+    triage,
+    meditations,
+    activeMeditationId
   } = useApp();
 
   const [progress, setProgress] = useState(0);
@@ -133,6 +136,7 @@ export const LoadingGeneration: React.FC = () => {
   };
 
   const isGenerating = progress > 0;
+  const protocol = useMemo(() => CLINICAL_PROTOCOLS[triage.selectedMethodology || 'NSDR'], [triage.selectedMethodology]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-liquid app-text-primary p-6 relative overflow-hidden">
@@ -150,7 +154,7 @@ export const LoadingGeneration: React.FC = () => {
       <div className="z-10 w-full max-w-md flex flex-col items-center animate-fade-in pt-12">
 
         {/* THE BREATHING LOADER */}
-        <div className="relative w-48 h-48 mb-12 flex items-center justify-center">
+        <div className="relative w-48 h-48 mb-8 flex items-center justify-center">
           <div className={`absolute inset-0 rounded-full border-2 border-indigo-400/20 ${isGenerating ? 'animate-breathe' : ''}`}></div>
           <div className={`absolute inset-4 rounded-full border border-teal-400/30 ${isGenerating ? 'animate-spin-reverse' : ''}`}></div>
           <div className={`absolute inset-8 rounded-full bg-gradient-to-tr from-indigo-500/10 to-teal-400/10 backdrop-blur-sm flex items-center justify-center ${isGenerating ? 'animate-breathe' : ''}`}>
@@ -158,14 +162,42 @@ export const LoadingGeneration: React.FC = () => {
           </div>
         </div>
 
-        <div className="h-16 flex flex-col items-center justify-center text-center space-y-2 mb-8">
+        <div className="flex flex-col items-center justify-center text-center space-y-4 mb-8">
           {isGenerating ? (
-            <>
-              <p className="text-indigo-600 text-xs tracking-widest uppercase animate-pulse">{stages[stage]}</p>
-              <h2 className="text-xl font-light text-slate-800 animate-fade-in">
-                Inhale... <span className="opacity-40 italic">Exhale...</span>
-              </h2>
-            </>
+            <div className="animate-fade-in space-y-4 w-full">
+              <div className="space-y-1">
+                <p className="text-indigo-600 text-[10px] tracking-[0.2em] uppercase font-bold">{stages[stage]}</p>
+                <h2 className="text-2xl font-light text-slate-800">
+                  {protocol?.name || "Preparing Session"}
+                </h2>
+              </div>
+
+              <div className="bg-white/40 backdrop-blur-md p-6 rounded-2xl border border-white/50 shadow-sm space-y-4">
+                <p className="text-sm text-slate-600 leading-relaxed italic">
+                  "{protocol?.description}"
+                </p>
+
+                <div className="pt-4 border-t border-indigo-100/50 flex flex-col items-center gap-3">
+                  <span className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Preparation Guide</span>
+                  <div className="flex gap-4 justify-center">
+                    <div className="flex flex-col items-center gap-1 opacity-70">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center"><Wind size={14} /></div>
+                      <span className="text-[9px]">Eyes Closed</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 opacity-70">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center"><Volume2 size={14} /></div>
+                      <span className="text-[9px]">Headphones</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 opacity-70">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center"><Mic2 size={14} /></div>
+                      <span className="text-[9px]">Quiet Space</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 animate-pulse pt-2">Initial audio transmission buffering...</p>
+            </div>
           ) : (
             <>
               <h2 className="text-2xl font-light text-slate-800">Ready your space</h2>
