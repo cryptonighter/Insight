@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { supabase } from "./supabaseClient";
 import {
   Pattern, Insight, ChatMessage, VoiceId, SoundscapeMetadata, SonicInstruction, MethodologyType
 } from "../types";
@@ -136,12 +137,12 @@ export const chatWithInsight = async (
   meditationData?: { focus: string; feeling: string; duration: number; methodology: MethodologyType }
 }> => {
   try {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history, latestInput, userVariables })
+    const { data, error } = await supabase.functions.invoke('chat', {
+      body: { history, latestInput, userVariables }
     });
-    return await response.json();
+
+    if (error) throw error;
+    return data;
   } catch (error) {
     console.error("Chat error", error);
     return { reply: "I hear you. Tell me more.", shouldOfferMeditation: false };
@@ -228,13 +229,14 @@ export const generateMeditationStream = async (
 ): Promise<{ title: string; lines: string[] }> => {
 
   try {
-    const response = await fetch('/api/meditation/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ focus, targetFeeling, durationMinutes, voice, contextInsights, methodology, variables })
+    const { data, error } = await supabase.functions.invoke('generate-meditation', {
+      body: { focus, targetFeeling, durationMinutes, voice, contextInsights, methodology, variables }
     });
 
-    const { title, batches, lines } = await response.json();
+    if (error) throw error;
+
+    // Normalize data structure if needed, or assume it matches
+    const { title, batches, lines } = data;
 
     // The audio generation still happens on the client for the prototype to avoid complex binary streaming backends
     (async () => {
