@@ -1,139 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reality Selection Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <style>
-      :root {
-        --color-background-start: #fdfcfc; /* Very light cream */
-        --color-background-end: #f5f8f9; /* Light blue-grey */
-        --color-glass-bg-light: rgba(255, 255, 255, 0.4);
-        --color-glass-border-light: rgba(255, 255, 255, 0.6);
-        --color-text-dark: #334155; /* Slate-700 */
-        --color-text-light: #64748b; /* Slate-500 */
-        --color-accent-blue: #6366f1; /* Indigo-500 */
-        --color-accent-teal: #2dd4bf; /* Teal-400 */
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reality Selection Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-background-start: #fdfcfc;
+      /* Very light cream */
+      --color-background-end: #f5f8f9;
+      /* Light blue-grey */
+      --color-glass-bg-light: rgba(255, 255, 255, 0.4);
+      --color-glass-border-light: rgba(255, 255, 255, 0.6);
+      --color-text-dark: #334155;
+      /* Slate-700 */
+      --color-text-light: #64748b;
+      /* Slate-500 */
+      --color-accent-blue: #6366f1;
+      /* Indigo-500 */
+      --color-accent-teal: #2dd4bf;
+      /* Teal-400 */
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, var(--color-background-start) 0%, var(--color-background-end) 100%);
+      color: var(--color-text-dark);
+      /* Default text color now dark */
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      /* Prevent horizontal scroll from gradients */
+    }
+
+    #root {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .glass {
+      background: var(--color-glass-bg-light);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--color-glass-border-light);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Custom Scrollbar for hidden look */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* General text color for all app components, overrides body for light theme */
+    .app-text-primary {
+      color: var(--color-text-dark);
+    }
+
+    .app-text-secondary {
+      color: var(--color-text-light);
+    }
+
+    .app-text-accent {
+      color: var(--color-accent-blue);
+    }
+
+    .app-text-white {
+      color: #fff;
+    }
+
+    .app-bg-primary {
+      background-color: var(--color-background-start);
+    }
+
+    /* Keyframe for subtle background movement */
+    @keyframes gradient-move {
+      0% {
+        background-position: 0% 50%;
       }
 
-      body {
-        font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, var(--color-background-start) 0%, var(--color-background-end) 100%);
-        color: var(--color-text-dark); /* Default text color now dark */
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        overflow-x: hidden; /* Prevent horizontal scroll from gradients */
-      }
-      #root {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
+      50% {
+        background-position: 100% 50%;
       }
 
-      .glass {
-        background: var(--color-glass-bg-light);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid var(--color-glass-border-light);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+      100% {
+        background-position: 0% 50%;
       }
-      .glass-card {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
-      }
-      /* Custom Scrollbar for hidden look */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+    }
+
+    /* Subtle gradient background for main content areas */
+    .bg-gradient-liquid {
+      background: linear-gradient(135deg, #e0f2f7, #f0f7f2, #f5e0f7);
+      background-size: 400% 400%;
+      animation: gradient-move 20s ease infinite;
+    }
+
+    /* Animation for fade in */
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
       }
 
-      /* General text color for all app components, overrides body for light theme */
-      .app-text-primary {
-        color: var(--color-text-dark);
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
-      .app-text-secondary {
-        color: var(--color-text-light);
-      }
-      .app-text-accent {
-        color: var(--color-accent-blue);
-      }
-      .app-text-white {
-        color: #fff;
-      }
-      .app-bg-primary {
-        background-color: var(--color-background-start);
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.5s ease-out forwards;
+    }
+
+    @keyframes slide-up {
+      from {
+        opacity: 0;
+        transform: translateY(100%);
       }
 
-      /* Keyframe for subtle background movement */
-      @keyframes gradient-move {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-up {
+      animation: slide-up 0.3s ease-out forwards;
+    }
+
+    /* Breathing & Spin Animations */
+    @keyframes breathe {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.6;
       }
 
-      /* Subtle gradient background for main content areas */
-      .bg-gradient-liquid {
-        background: linear-gradient(135deg, #e0f2f7, #f0f7f2, #f5e0f7);
-        background-size: 400% 400%;
-        animation: gradient-move 20s ease infinite;
+      50% {
+        transform: scale(1.15);
+        opacity: 1;
+      }
+    }
+
+    @keyframes spin-reverse {
+      from {
+        transform: rotate(360deg);
       }
 
-      /* Animation for fade in */
-      @keyframes fade-in {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+      to {
+        transform: rotate(0deg);
       }
-      .animate-fade-in {
-        animation: fade-in 0.5s ease-out forwards;
-      }
-      @keyframes slide-up {
-        from { opacity: 0; transform: translateY(100%); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .animate-slide-up {
-        animation: slide-up 0.3s ease-out forwards;
-      }
+    }
 
-      /* Custom scrollbar track/thumb for light theme */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.4); /* Slate-400 */
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(100, 116, 139, 0.6);
-      }
+    .animate-breathe {
+      animation: breathe 8s ease-in-out infinite;
+    }
 
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
-  }
-}
-</script>
+    .animate-spin-reverse {
+      animation: spin-reverse 6s linear infinite;
+    }
+
+    /* Custom scrollbar track/thumb for light theme */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+      /* Slate-400 */
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+  </style>
 </head>
-  <body>
-    <div id="root"></div>
-  </body>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

@@ -9,8 +9,9 @@ export const Navigation: React.FC = () => {
 
   // Don't show nav during player or loading
   if (
-    currentView === ViewState.PLAYER || 
-    currentView === ViewState.LOADING
+    currentView === ViewState.PLAYER ||
+    currentView === ViewState.LOADING ||
+    currentView === ViewState.TRIAGE
   ) return null;
 
   const navItems = [
@@ -28,9 +29,8 @@ export const Navigation: React.FC = () => {
             <button
               key={item.id}
               onClick={() => setView(item.id)}
-              className={`flex flex-col items-center gap-1 transition-all duration-300 ${
-                isActive ? 'text-indigo-600 scale-110' : 'text-slate-500 hover:text-slate-700'
-              }`}
+              className={`flex flex-col items-center gap-1 transition-all duration-300 ${isActive ? 'text-indigo-600 scale-110' : 'text-slate-500 hover:text-slate-700'
+                }`}
             >
               <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.5} />
               <span className="text-[10px] uppercase tracking-widest font-medium">{item.label}</span>

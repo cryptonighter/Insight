@@ -9,6 +9,9 @@ import { LoadingGeneration } from './components/LoadingGeneration';
 import { Navigation } from './components/Navigation';
 import { Player } from './components/Player';
 import { AdminDashboard } from './components/AdminDashboard';
+import { CardSort } from './components/CardSort';
+import { Reflection } from './components/Reflection';
+import { ContextInterview } from './components/ContextInterview';
 import { ViewState } from './types';
 
 const Main: React.FC = () => {
@@ -22,15 +25,18 @@ const Main: React.FC = () => {
       case ViewState.MEDITATIONS: return <MeditationsView />;
       case ViewState.PLAYER: return <Player />;
       case ViewState.ADMIN: return <AdminDashboard />;
+      case ViewState.TRIAGE: return <CardSort />;
+      case ViewState.REFLECTION: return <Reflection />;
+      case ViewState.CONTEXT: return <ContextInterview />;
       default: return <Home />;
     }
   };
 
   return (
     <div className="antialiased app-text-primary selection:bg-indigo-500/30">
-       {/* Global container */}
-       {renderView()}
-       <Navigation />
+      {/* Global container */}
+      {renderView()}
+      <Navigation />
     </div>
   );
 };
