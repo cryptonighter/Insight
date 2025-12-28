@@ -18,6 +18,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || '' });
 const openRouterKey = process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MODEL = "google/gemini-3-flash-preview";
+const DIRECTOR_MODEL = "google/gemini-3-flash-preview";
 
 async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL, jsonMode: boolean = false) {
     if (!openRouterKey) {
@@ -47,6 +48,11 @@ async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL,
     return data.choices?.[0]?.message?.content || "";
 }
 
+function cleanJson(text: string): string {
+    if (!text) return "{}";
+    return text.replace(/```json\n?|```/g, '').trim();
+}
+
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', openRouterLinked: !!openRouterKey });
 });
@@ -54,6 +60,7 @@ app.get('/health', (req, res) => {
 app.post('/api/chat', async (req, res) => {
     const { history, latestInput, userVariables } = req.body;
 
+    console.log("Chat Request received:", { historyLen: history?.length, latestInput });
     const orchestratorPrompt = `
     You are the 'Clinical Orchestrator'. Analyze the explorer and return JSON ONLY.
     
@@ -83,14 +90,67 @@ app.post('/api/chat', async (req, res) => {
     ];
 
     try {
+        console.log("Sending to OpenRouter...");
         const text = await callOpenRouter(messages, OPENROUTER_MODEL, true);
-        res.json(JSON.parse(text || "{}"));
+        console.log("Raw OpenRouter Text:", text);
+        res.json(JSON.parse(cleanJson(text || "{}")));
     } catch (error) {
         console.error("Chat error FULL DETAILS:", error);
         if (error instanceof Error) {
             console.error("Stack:", error.stack);
         }
         res.status(500).json({ reply: "I hear you. Tell me more.", shouldOfferMeditation: false });
+    }
+});
+
+app.post('/api/director', async (req, res) => {
+    const { input, triage, growthHistory } = req.body;
+
+    const directorTools = [
+        {
+            name: "select_meditation_protocol",
+            description: "Selects the optimal meditation methodology and configuration.",
+            parameters: {
+                type: "object",
+                properties: {
+                    methodology: { type: "string", enum: ["IFS", "SOMATIC_AGENCY", "NSDR", "GENERAL"] },
+                    focus: { type: "string" },
+                    targetFeeling: { type: "string" },
+                    intensity: { type: "string", enum: ["SOFT", "MODERATE", "DEEP"] },
+                    rationale: { type: "string" }
+                },
+                required: ["methodology", "focus", "targetFeeling", "intensity"]
+            }
+        }
+    ];
+
+    const prompt = `
+    You are the "Insight Director". Triage the explorer and select a growth protocol.
+    
+    EXPLORER INPUT: "${input}"
+    STATE: Valence ${triage.valence}, Energy ${triage.arousal}
+    CONTEXT: ${JSON.stringify(growthHistory)}
+
+    If they mention a Part, use IFS. If anxious, use NSDR or Grounding.
+    
+    RETURN JSON ONLY matching this tool schema:
+    ${JSON.stringify(directorTools[0])}
+  `;
+
+    try {
+        const text = await callOpenRouter([{ role: "user", content: prompt }], DIRECTOR_MODEL, true);
+        const parsed = JSON.parse(cleanJson(text || "{}"));
+        res.json(parsed);
+    } catch (error) {
+        console.error("Director error:", error);
+        // Fallback default
+        res.json({
+            methodology: "NSDR",
+            focus: "Grounding",
+            targetFeeling: "Calm",
+            intensity: "MODERATE",
+            rationale: "Fallback due to error"
+        });
     }
 });
 
@@ -127,7 +187,7 @@ app.post('/api/meditation/generate', async (req, res) => {
             { role: "user", content: "Generate session script." }
         ], OPENROUTER_MODEL, true);
 
-        const parsed = JSON.parse(textResponse || "{}");
+        const parsed = JSON.parse(cleanJson(textResponse || "{}"));
         // ... (rest of the batching logic stays same)
         const scriptBlocks = parsed.script || [{ text: "Breathe...", instructions: [] }];
         const title = parsed.title || "Session";

@@ -92,24 +92,17 @@ export const runDirectorOrchestration = async (
   triage: { valence: number; arousal: number },
   growthHistory: { parts: any[]; patterns: any[] }
 ): Promise<any> => {
-  const prompt = `
-    You are the "Insight Director". Triage the explorer and select a growth protocol.
-    
-    EXPLORER INPUT: "${input}"
-    STATE: Valence ${triage.valence}, Energy ${triage.arousal}
-    CONTEXT: ${JSON.stringify(growthHistory)}
-
-    If they mention a Part, use IFS. If anxious, use NSDR or Grounding.
-    
-    RETURN JSON ONLY matching this tool schema:
-    ${JSON.stringify(directorTools[0])}
-  `;
-
   try {
-    const raw = await callOpenRouter([{ role: "user", content: prompt }], DIRECTOR_MODEL, true);
-    const parsed = JSON.parse(raw);
+    const response = await fetch('/api/director', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input, triage, growthHistory })
+    });
 
-    console.log("Director Decision (OpenRouter):", parsed);
+    if (!response.ok) throw new Error("Director API failed");
+
+    const parsed = await response.json();
+    console.log("Director Decision (Server):", parsed);
 
     return {
       type: 'TOOL_CALL',
@@ -118,7 +111,18 @@ export const runDirectorOrchestration = async (
     };
   } catch (e) {
     console.error("Director orchestration failed", e);
-    return { type: 'ERROR', error: e };
+    // Return safe fallback
+    return {
+      type: 'TOOL_CALL',
+      name: 'select_meditation_protocol',
+      args: {
+        methodology: "NSDR",
+        focus: "Grounding",
+        targetFeeling: "Calm",
+        intensity: "MODERATE",
+        rationale: "Fallback due to connectivity error"
+      }
+    };
   }
 };
 
