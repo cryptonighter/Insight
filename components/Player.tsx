@@ -191,6 +191,7 @@ export const Player: React.FC = () => {
     // --- INITIALIZATION ---
     useEffect(() => {
         if (!meditation) return;
+        let isMounted = true;
 
         const initCtx = async () => {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -217,11 +218,13 @@ export const Player: React.FC = () => {
                         if (!base64 || base64.length < 100) {
                             base64 = await storageService.getSoundscapeAudio(sc.id) || '';
                         }
-                        if (base64) {
+                        if (base64 && isMounted) {
                             const bytes = decodeBase64(base64);
                             const buffer = await ctx.decodeAudioData(bytes.buffer);
-                            soundEngineRef.current.playBuffer('atmosphere', buffer, volAtmosphere);
-                            atmosphereLoaded = true;
+                            if (isMounted) {
+                                soundEngineRef.current.playBuffer('atmosphere', buffer, volAtmosphere);
+                                atmosphereLoaded = true;
+                            }
                         }
                     } catch (e) {
                         console.error("Failed soundscape load", e);
@@ -229,20 +232,23 @@ export const Player: React.FC = () => {
                 }
             }
 
-            if (!atmosphereLoaded) {
-                soundEngineRef.current.playTexture('atmosphere', volAtmosphere * 0.8);
+            if (isMounted) {
+                if (!atmosphereLoaded) {
+                    soundEngineRef.current.playTexture('atmosphere', volAtmosphere * 0.8);
+                }
+
+                // Initialize at Beta (14Hz) for alert focus, then drift down
+                soundEngineRef.current.playBinaural('resonance', 110, 14, volResonance);
+
+                setIsPlaying(true);
+                processQueue(0);
             }
-
-            // Initialize at Beta (14Hz) for alert focus, then drift down
-            soundEngineRef.current.playBinaural('resonance', 110, 14, volResonance);
-
-            setIsPlaying(true);
-            processQueue(0);
         };
 
         initCtx();
 
         return () => {
+            isMounted = false;
             stopAll();
             audioContextRef.current?.close();
         };

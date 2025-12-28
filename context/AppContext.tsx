@@ -225,12 +225,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // PROGRESSIVE GENERATION HANDLER
   const finalizeMeditationGeneration = async (config: MeditationConfig) => {
+    const tempId = Date.now().toString();
+
     try {
       const contextTexts = insights.slice(0, 5).map(i => i.text);
       let selectedSoundscape = soundscapes.find(s => s.id === config.soundscapeId) || soundscapes[0];
 
       // Create empty meditation object immediately
-      const tempId = Date.now().toString();
       const newMeditation: Meditation = {
         id: tempId,
         title: "Creating session...",
@@ -312,6 +313,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     } catch (e) {
       console.error("Failed to generate meditation", e);
+      // CLEANUP: Remove the failed incomplete meditation
+      setMeditations(prev => prev.filter(m => m.id !== tempId));
       setCurrentView(ViewState.HOME);
     }
   };

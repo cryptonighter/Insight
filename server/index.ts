@@ -86,7 +86,10 @@ app.post('/api/chat', async (req, res) => {
         const text = await callOpenRouter(messages, OPENROUTER_MODEL, true);
         res.json(JSON.parse(text || "{}"));
     } catch (error) {
-        console.error("Chat error", error);
+        console.error("Chat error FULL DETAILS:", error);
+        if (error instanceof Error) {
+            console.error("Stack:", error.stack);
+        }
         res.status(500).json({ reply: "I hear you. Tell me more.", shouldOfferMeditation: false });
     }
 });
