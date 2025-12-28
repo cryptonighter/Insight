@@ -13,7 +13,7 @@ import { CLINICAL_PROTOCOLS } from './services/protocols';
 export type MethodologyType = keyof typeof CLINICAL_PROTOCOLS;
 
 export interface TriageState {
-  valance: number; // -1 to 1
+  valence: number; // -1 to 1
   arousal: number; // -1 to 1
   selectedMethodology?: MethodologyType;
   clinicalVariables: Record<string, any>;
@@ -44,6 +44,7 @@ export interface ChatMessage {
     feeling: string;
     duration: number;
     methodology?: MethodologyType;
+    intensity?: 'SOFT' | 'MODERATE' | 'DEEP';
   };
 }
 

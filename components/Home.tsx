@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { Mic, Send, Sparkles, StopCircle, ArrowRight, Settings, Loader2 } from 'lucide-react';
 import { ViewState } from '../types';
-import { transcribeAudio } from '../services/geminiService';
+import { VoiceInput } from './VoiceInput';
 
 export const Home: React.FC = () => {
   const { chatHistory, sendChatMessage, startMeditationGeneration, setView } = useApp();
@@ -29,67 +29,18 @@ export const Home: React.FC = () => {
     setIsThinking(false);
   }, [sendChatMessage]);
 
-  // Recording Logic (Robust Gemini Transcription)
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      audioChunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        setIsTranscribing(true);
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-
-        // Convert Blob to Base64
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64String = (reader.result as string).split(',')[1];
-          const transcribedText = await transcribeAudio(base64String);
-
-          if (transcribedText) {
-            setInputText(prev => (prev ? prev + " " + transcribedText : transcribedText));
-          }
-          setIsTranscribing(false);
-        };
-
-        // Clean up tracks
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Microphone access error:", err);
-      alert("Microphone access is required for voice input. Please check your browser permissions.");
-      setIsRecording(false);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const handleRecordToggle = () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  };
-
   const handleSuggestionAccept = (suggestion: { focus: string, feeling: string, duration: number, methodology?: any }) => {
     startMeditationGeneration(suggestion.focus, suggestion.feeling, suggestion.duration, suggestion.methodology);
+  };
+
+  // ... (keeping imports and other state)
+  // Removed inline recording logic: mediaRecorderRef, audioChunksRef, startRecording, stopRecording, handleRecordToggle
+
+  const handleTranscript = (text: string) => {
+    if (text) {
+      // Append text if user is speaking multiple phrases or mixing with typing
+      setInputText(prev => (prev ? prev + " " + text : text).trim());
+    }
   };
 
   return (
@@ -178,16 +129,12 @@ export const Home: React.FC = () => {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(inputText)}
-            placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing audio..." : "Type or speak..."}
-            disabled={isRecording || isTranscribing}
+            placeholder={isThinking ? "Thinking..." : "Type or speak..."}
+            disabled={isThinking}
             className="flex-1 bg-transparent border-none focus:ring-0 text-slate-700 placeholder-slate-400 disabled:opacity-50"
           />
 
-          {isTranscribing ? (
-            <div className="p-3 text-indigo-500 animate-spin">
-              <Loader2 size={20} />
-            </div>
-          ) : inputText.length > 0 ? (
+          {inputText.length > 0 ? (
             <button
               onClick={() => handleSendMessage(inputText)}
               className="p-3 bg-indigo-500 hover:bg-indigo-400 rounded-full text-white transition-colors"
@@ -195,12 +142,7 @@ export const Home: React.FC = () => {
               <Send size={20} />
             </button>
           ) : (
-            <button
-              onClick={handleRecordToggle}
-              className={`p-3 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-500/80 text-white animate-pulse' : 'bg-white/40 text-slate-600 hover:text-slate-800'}`}
-            >
-              {isRecording ? <StopCircle size={20} /> : <Mic size={20} />}
-            </button>
+            <VoiceInput onTranscript={handleTranscript} isProcessing={isThinking} />
           )}
         </div>
       </div>

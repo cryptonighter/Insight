@@ -4,6 +4,7 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 
 let supabaseInstance;
+let isMock = false;
 
 if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
@@ -24,6 +25,8 @@ if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
             signOut: () => Promise.resolve({})
         }
     } as any;
+    isMock = true;
 }
 
 export const supabase = supabaseInstance;
+export const isMockClient = () => isMock;

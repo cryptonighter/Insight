@@ -79,3 +79,39 @@ CREATE TABLE patterns (
   status TEXT CHECK (status IN ('pending', 'active', 'archived')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- RLS POLICIES (Added Phase 1)
+
+-- Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE parts_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE somatic_anchors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE values_inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE session_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patterns ENABLE ROW LEVEL SECURITY;
+
+-- Profiles: Users can read/update their own profile
+CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+-- Note: Insert is handled by trigger usually, or explicit logic
+
+-- Common Policy Generator (Read/Write Own Data)
+CREATE POLICY "Users can view own insights" ON insights FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own insights" ON insights FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own insights" ON insights FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own parts" ON parts_ledger FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own parts" ON parts_ledger FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own parts" ON parts_ledger FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own anchors" ON somatic_anchors FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own anchors" ON somatic_anchors FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own anchors" ON somatic_anchors FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own patterns" ON patterns FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own patterns" ON patterns FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own patterns" ON patterns FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own logs" ON session_logs FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own logs" ON session_logs FOR INSERT WITH CHECK (auth.uid() = user_id);

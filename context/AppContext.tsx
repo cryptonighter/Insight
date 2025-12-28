@@ -5,7 +5,8 @@ import {
   SessionLifecycleState, TriageState, MethodologyType, Part, SomaticAnchor
 } from '../types';
 import { PREBUILT_PATTERNS, MOCK_INSIGHTS } from '../constants';
-import { analyzeInsightsForPatterns, generateMeditationStream, chatWithInsight } from '../services/geminiService';
+import { analyzeInsightsForPatterns, generateMeditationStream, chatWithInsight, runDirectorOrchestration } from '../services/geminiService';
+import { growthContext } from '../services/growthContext';
 import { processBatchWithSilenceSplitting } from '../services/audioEngine';
 import { storageService } from '../services/storageService';
 import { supabase, isMockClient } from '../services/supabaseClient';
@@ -59,6 +60,7 @@ interface AppState {
   saveSessionResults: (sudsAfter: number, insight?: string) => Promise<void>;
   addSoundscape: (sc: Soundscape) => void;
   removeSoundscape: (id: string) => void;
+  setTriage: React.Dispatch<React.SetStateAction<TriageState>>;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -76,7 +78,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [anchors, setAnchors] = useState<SomaticAnchor[]>([]);
 
   const [sessionState, setSessionState] = useState<SessionLifecycleState>(SessionLifecycleState.TRIAGE);
-  const [triage, setTriage] = useState<TriageState>({ valance: 0, arousal: 0, clinicalVariables: {} });
+  const [triage, setTriage] = useState<TriageState>({ valence: 0, arousal: 0, clinicalVariables: {} });
 
   const [pendingMeditationConfig, setPendingMeditationConfig] = useState<Partial<MeditationConfig> | null>(null);
 
@@ -147,10 +149,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newInsight: Insight = { id: Date.now().toString(), text, timestamp: Date.now(), type: 'text' };
     const updatedInsights = [newInsight, ...insights];
     setInsights(updatedInsights);
+    // DIRECTOR LOGIC: Run orchestration in parallel or after chat
+    const context = await growthContext.getRecentHistory(user.supabaseId || 'mock-user');
 
-    const aiResponse = await chatWithInsight(chatHistory.slice(-5), text, triage.clinicalVariables);
+    // Run both in parallel for optimal speed
+    const [aiResponse, directorDecision] = await Promise.all([
+      chatWithInsight(chatHistory.slice(-5), text, triage.clinicalVariables),
+      runDirectorOrchestration(text, triage, context)
+    ]);
 
-    const systemMsg: ChatMessage = {
+    let systemMsg: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
       text: aiResponse.reply,
@@ -158,10 +166,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       suggestion: aiResponse.shouldOfferMeditation ? (aiResponse.meditationData as any) : undefined
     };
 
-    if (aiResponse.meditationData?.methodology) {
+    // If Director has a specific tool call, override suggestion
+    if (directorDecision.type === 'TOOL_CALL' && directorDecision.name === 'select_meditation_protocol') {
+      const args = directorDecision.args;
+      systemMsg.suggestion = {
+        focus: args.focus,
+        feeling: args.targetFeeling,
+        duration: 10,
+        methodology: args.methodology as MethodologyType,
+        intensity: args.intensity as any
+      };
+      systemMsg.text += `\n\n[Director Suggestion: ${args.rationale || 'Optimal protocol identified'}]`;
+    }
+
+    if (systemMsg.suggestion?.methodology) {
       setTriage(prev => ({
         ...prev,
-        selectedMethodology: aiResponse.meditationData?.methodology as MethodologyType
+        selectedMethodology: systemMsg.suggestion?.methodology as MethodologyType
       }));
     }
 
@@ -379,7 +400,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Map Valence/Arousal to 0-10 SUDS scale
     // Valence -1 (Bad) -> High SUDS, 1 (Good) -> Low SUDS
     // Approximate: (1 - valence) * 5
-    const preSuds = Math.round((1 - triage.valance) * 5);
+    const preSuds = Math.round((1 - triage.valence) * 5);
     const deltaSuds = preSuds - sudsAfter;
 
     try {
@@ -461,7 +482,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       rateMeditation,
       syncWithSupabase,
       addSoundscape,
-      removeSoundscape
+      removeSoundscape,
+      setTriage
     }}>
       {children}
     </AppContext.Provider>

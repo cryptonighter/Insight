@@ -5,11 +5,56 @@ import {
 import { CLINICAL_PROTOCOLS } from "./protocols";
 
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const apiKey = process.env.API_KEY || process.env.GOOGLE_API_KEY || '';
+if (!apiKey) {
+  console.warn("Gemini API Key is missing. Please set GEMINI_API_KEY or GOOGLE_API_KEY in your .env file.");
+}
+const ai = new GoogleGenAI({ apiKey });
 
 // Constants for models
 const TEXT_MODEL = "gemini-2.0-pro-exp-02-05";
 const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
+const DIRECTOR_MODEL = "gemini-1.5-flash"; // Highly reliable for function calling
+
+// Director Tool Definitions
+const directorTools = [
+  {
+    functionDeclarations: [
+      {
+        name: "select_meditation_protocol",
+        description: "Selects the optimal meditation methodology and configuration based on the explorer's current state and history.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            methodology: {
+              type: "STRING",
+              enum: ["IFS", "SOMATIC_AGENCY", "NSDR", "GENERAL"],
+              description: "The specific therapeutic protocol to follow."
+            },
+            focus: {
+              type: "STRING",
+              description: "The primary point of focus for the session (e.g., 'Unblending from the Manager Part')."
+            },
+            targetFeeling: {
+              type: "STRING",
+              description: "The desired emotional or physiological state after the session."
+            },
+            intensity: {
+              type: "STRING",
+              enum: ["SOFT", "MODERATE", "DEEP"],
+              description: "How confrontational or deep the exploration should be."
+            },
+            rationale: {
+              type: "STRING",
+              description: "A brief internal explanation of why this protocol was chosen."
+            }
+          },
+          required: ["methodology", "focus", "targetFeeling", "intensity"]
+        }
+      }
+    ]
+  }
+];
 
 // Helper for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -28,6 +73,56 @@ const createSilentPCM = (durationSec: number): string => {
     binary += String.fromCharCode.apply(null, Array.from(chunk));
   }
   return btoa(binary);
+};
+
+export const runDirectorOrchestration = async (
+  input: string,
+  triage: { valence: number; arousal: number },
+  growthHistory: { parts: any[]; patterns: any[] }
+): Promise<any> => {
+  const prompt = `
+    You are the "Insight Director", a deterministic logic layer for a self-actualization tool.
+    Your job is to listen to the explorer's input and triage state, then select the perfect growth protocol.
+
+    EXPLORER INPUT: "${input}"
+    TRIAGE STATE: Valence: ${triage.valence} (-1 to 1), Energy: ${triage.arousal} (-1 to 1)
+    GROWTH CONTEXT: 
+    - Known Parts: ${JSON.stringify(growthHistory.parts)}
+    - Identified Patterns: ${JSON.stringify(growthHistory.patterns)}
+
+    RULES:
+    1. If Valence is very low (<-0.5), prioritize stabilization (NSDR or Grounding).
+    2. If a specific "Part" from history is mentioned, use IFS modality.
+    3. If the user feels "Heated" or "Anxious", use SOMATIC_AGENCY for resourcing.
+    4. Be decisive.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: DIRECTOR_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        tools: directorTools as any
+      }
+    });
+
+    const call = response.candidates?.[0]?.content?.parts?.find(p => p.functionCall);
+    console.log("Director Decision:", call?.functionCall || response.text);
+
+    if (call?.functionCall) {
+      return {
+        type: 'TOOL_CALL',
+        name: call.functionCall.name,
+        args: call.functionCall.args
+      };
+    }
+
+    // Fallback if no tool called
+    return { type: 'TEXT_FALLBACK', text: response.text || "" };
+  } catch (e) {
+    console.error("Director orchestration failed", e);
+    return { type: 'ERROR', error: e };
+  }
 };
 
 export const chatWithInsight = async (

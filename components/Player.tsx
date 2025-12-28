@@ -5,6 +5,7 @@ import { ViewState, FeedbackData, SonicInstruction } from '../types';
 import { Pause, Play, ChevronDown, SkipBack, SkipForward, Settings2, ArrowRight, Layers, Volume2, CloudRain, Waves, Sliders, Radio } from 'lucide-react';
 import { decodeBase64 } from '../services/geminiService';
 import { storageService } from '../services/storageService';
+import { ResonanceCheck } from './ResonanceCheck';
 
 // --- Advanced Multi-Layer Sound Engine ---
 class SoundEngine {
@@ -378,86 +379,10 @@ export const Player: React.FC = () => {
 
     if (phase === 'feedback') {
         return (
-            <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col items-center justify-center p-8 animate-fade-in app-text-primary overflow-y-auto">
-                <div className="max-w-md w-full">
-                    <h2 className="text-2xl font-light mb-2 text-center text-slate-800">Integration</h2>
-                    <p className="text-sm app-text-secondary mb-10 text-center">
-                        We are learning your rhythm. <br />Help us tune the next transmission.
-                    </p>
-
-                    <div className="space-y-8 mb-10">
-                        {/* Pacing Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
-                                <span>Too Slow</span>
-                                <span>Natural Flow</span>
-                                <span>Too Fast</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="100"
-                                value={feedback.pacing}
-                                onChange={(e) => setFeedback({ ...feedback, pacing: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                            />
-                        </div>
-
-                        {/* Immersion Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
-                                <span>Felt Generic</span>
-                                <span>Resonated</span>
-                                <span>Deeply Personal</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="100"
-                                value={feedback.immersion}
-                                onChange={(e) => setFeedback({ ...feedback, immersion: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-500"
-                            />
-                        </div>
-
-                        {/* Voice Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs text-slate-500 mb-2 font-medium">
-                                <span>Distracting</span>
-                                <span>Acceptable</span>
-                                <span>Soothing</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="100"
-                                value={feedback.voice}
-                                onChange={(e) => setFeedback({ ...feedback, voice: parseInt(e.target.value) })}
-                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mb-8">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 block">One adjustment for next time</label>
-                        <textarea
-                            className="w-full h-24 bg-white border border-slate-200 p-4 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-400 text-slate-700 text-sm shadow-sm resize-none placeholder:text-slate-300"
-                            placeholder="Less talking, more silence..."
-                            value={feedback.note}
-                            onChange={(e) => setFeedback({ ...feedback, note: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setView(ViewState.HOME)}
-                            className="flex-1 py-4 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
-                        >
-                            Skip
-                        </button>
-                        <button
-                            onClick={submitFeedback}
-                            className="flex-[2] bg-indigo-600 text-white py-4 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
-                        >
-                            Save & Evolve
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <ResonanceCheck
+                sessionTitle={meditation.title || "Session"}
+                onClose={() => setView(ViewState.HOME)}
+            />
         );
     }
 
