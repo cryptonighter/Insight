@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, Music, ArrowLeft, Volume2, Mic2, Wind } from 'lucide-react';
+import { Sparkles, Music, ArrowLeft, Volume2, Mic2, Wind, Loader2 } from 'lucide-react';
 import { VoiceId, MeditationConfig, ViewState } from '../types';
 import { storageService } from '../services/storageService';
 import { CLINICAL_PROTOCOLS } from '../server/protocols';
@@ -16,8 +16,7 @@ export const LoadingGeneration: React.FC = () => {
     activeMeditationId
   } = useApp();
 
-  const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
 
   // Configuration State
   const [selectedCategory, setSelectedCategory] = useState<string>('Drone');
@@ -98,9 +97,7 @@ export const LoadingGeneration: React.FC = () => {
     if (!pendingMeditationConfig) return;
     if (audioPreviewRef.current) audioPreviewRef.current.pause();
     setPreviewingId(null);
-
-    setStage(0);
-    setProgress(1);
+    setHasStarted(true);
 
     const availableIds = categories[selectedCategory];
     const finalSoundscapeId = availableIds.length > 0
@@ -119,30 +116,26 @@ export const LoadingGeneration: React.FC = () => {
       variables: triage.clinicalVariables
     };
 
-    finalizeMeditationGeneration(config).catch(e => console.error(e));
-
-    const interval = setInterval(() => {
-      setProgress(prev => (prev >= 98 ? 98 : prev + (Math.random() * 0.7)));
-    }, 400);
-
-    const stageInterval = setInterval(() => {
-      setStage(prev => (prev + 1) % stages.length);
-    }, 5000);
-
-    return () => {
-      clearInterval(interval);
-      clearInterval(stageInterval);
-    };
+    finalizeMeditationGeneration(config).catch(e => {
+      console.error(e);
+      setHasStarted(false);
+    });
   };
 
-  const isGenerating = progress > 0;
   const activeMeditation = useMemo(() => meditations.find(m => m.id === activeMeditationId), [meditations, activeMeditationId]);
   const protocol = useMemo(() => CLINICAL_PROTOCOLS[triage.selectedMethodology || 'NSDR'], [triage.selectedMethodology]);
+
+  // Real Progress Logic
+  const queueLength = activeMeditation?.audioQueue?.length || 0;
+  const isGenerating = activeMeditation?.isGenerating || hasStarted;
+  const showBeginButton = queueLength > 0;
+
+  // Don't show misleading progress bars. Just pulsate while working.
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-liquid app-text-primary p-6 relative overflow-hidden">
 
-      {!isGenerating && (
+      {!hasStarted && (
         <button
           onClick={() => setView(ViewState.HOME)}
           className="absolute top-8 left-6 flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors z-20"
@@ -159,15 +152,19 @@ export const LoadingGeneration: React.FC = () => {
           <div className={`absolute inset-0 rounded-full border-2 border-indigo-400/20 ${isGenerating ? 'animate-breathe' : ''}`}></div>
           <div className={`absolute inset-4 rounded-full border border-teal-400/30 ${isGenerating ? 'animate-spin-reverse' : ''}`}></div>
           <div className={`absolute inset-8 rounded-full bg-gradient-to-tr from-indigo-500/10 to-teal-400/10 backdrop-blur-sm flex items-center justify-center ${isGenerating ? 'animate-breathe' : ''}`}>
-            <span className="text-2xl font-light text-slate-800">{isGenerating ? `${Math.round(progress)}%` : <Sparkles className="text-indigo-400" />}</span>
+            <span className="text-2xl font-light text-slate-800">
+              {isGenerating ? <Loader2 className="animate-spin text-indigo-400" size={32} /> : <Sparkles className="text-indigo-400" />}
+            </span>
           </div>
         </div>
 
         <div className="flex flex-col items-center justify-center text-center space-y-4 mb-8">
-          {isGenerating ? (
+          {hasStarted ? (
             <div className="animate-fade-in space-y-4 w-full">
               <div className="space-y-1">
-                <p className="text-indigo-600 text-[10px] tracking-[0.2em] uppercase font-bold">{stages[stage]}</p>
+                <p className="text-indigo-600 text-[10px] tracking-[0.2em] uppercase font-bold">
+                  {queueLength > 0 ? "Transmission Received" : "Synthesizing Experience..."}
+                </p>
                 <h2 className="text-2xl font-light text-slate-800">
                   {protocol?.name || "Preparing Session"}
                 </h2>
@@ -198,7 +195,7 @@ export const LoadingGeneration: React.FC = () => {
               </div>
 
               {/* BEGIN SESSION BUTTON */}
-              {(activeMeditation?.audioQueue?.length || 0) > 0 ? (
+              {showBeginButton ? (
                 <button
                   onClick={() => setView(ViewState.PLAYER)}
                   className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold tracking-wide animate-bounce-slow shadow-xl shadow-indigo-200 flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all mt-4"
@@ -207,7 +204,7 @@ export const LoadingGeneration: React.FC = () => {
                   Begin Experience
                 </button>
               ) : (
-                <p className="text-xs text-slate-400 animate-pulse pt-2">Initial audio transmission buffering...</p>
+                <p className="text-xs text-slate-400 animate-pulse pt-2">Establishing neuro-symbolic link...</p>
               )}
             </div>
           ) : (
@@ -218,7 +215,7 @@ export const LoadingGeneration: React.FC = () => {
           )}
         </div>
 
-        {!isGenerating && (
+        {!hasStarted && (
           <div className="w-full space-y-6 animate-slide-up">
             <div className="glass-card p-6 rounded-2xl space-y-4">
               <div className="flex items-center gap-3 border-b border-indigo-100 pb-2">

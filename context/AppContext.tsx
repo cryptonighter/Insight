@@ -268,235 +268,230 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setPendingMeditationConfig(null);
           }
         },
-        () => {
-          // ON COMPLETE CALLBACK
-          setMeditations(current => current.map(m => {
-            if (m.id === tempId) {
-              return {
-                ...m,
-                isGenerating: false // Done
-              };
-            }
-            return m;
-          }));
-
-          if (lines.length <= 4) {
-            setCurrentView(ViewState.PLAYER);
-            setPendingMeditationConfig(null);
+        // ON COMPLETE CALLBACK
+        setMeditations(current => current.map(m => {
+          if (m.id === tempId) {
+            return {
+              ...m,
+              isGenerating: false // Done
+            };
           }
-        }
+          return m;
+        }));
+
+      setPendingMeditationConfig(null);
       );
 
-      // Initial text metadata update
-      setMeditations(current => current.map(m => {
-        if (m.id === tempId) {
-          return {
-            ...m,
-            title: title,
-            transcript: lines.join('\n'),
-            lines: lines,
-          };
-        }
-        return m;
-      }));
-
-    } catch (e) {
-      console.error("Failed to generate meditation", e);
-      // CLEANUP: Remove the failed incomplete meditation
-      setMeditations(prev => prev.filter(m => m.id !== tempId));
-      setCurrentView(ViewState.HOME);
-    }
-  };
-
-  // Legacy/Quick Create
-  const createMeditation = async (focus: string, feeling: string, minutes: number): Promise<string> => {
-    const config: MeditationConfig = {
-      focus, feeling, duration: minutes, voice: 'Kore', speed: 1.0,
-      soundscapeId: soundscapes[0].id, background: 'deep-space'
+// Initial text metadata update
+setMeditations(current => current.map(m => {
+  if (m.id === tempId) {
+    return {
+      ...m,
+      title: title,
+      transcript: lines.join('\n'),
+      lines: lines,
     };
-    await finalizeMeditationGeneration(config);
-    return "";
-  };
+  }
+  return m;
+}));
 
-  const acceptPattern = (id: string) => {
-    setPatterns(prev => prev.map(p => p.id === id ? { ...p, status: 'active' as const } : p));
-  };
-
-  const updatePatternNote = (id: string, note: string) => {
-    setPatterns(prev => prev.map(p => p.id === id ? { ...p, userNotes: note } : p));
-  };
-
-  const playMeditation = (id: string) => {
-    setActiveMeditationId(id);
-    setCurrentView(ViewState.PLAYER);
-  };
-
-  const rateMeditation = (id: string, feedback: FeedbackData) => {
-    setMeditations(prev => prev.map(m => m.id === id ? { ...m, feedback: feedback } : m));
-  };
-
-  const updatePart = async (id: string, updates: Partial<Part>) => {
-    setParts(prev => prev.map(p => p.id === id ? { ...p, ...updates, lastAccessed: Date.now() } : p));
-    const target = parts.find(p => p.id === id);
-    if (target && user.supabaseId) {
-      await storageService.savePart({
-        ...target,
-        ...updates,
-        user_id: user.supabaseId,
-        last_accessed: new Date().toISOString()
-      });
-    }
-  };
-
-  const updateAnchor = async (id: string, updates: Partial<SomaticAnchor>) => {
-    setAnchors(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-    const target = anchors.find(a => a.id === id);
-    if (target && user.supabaseId) {
-      await storageService.saveSomaticAnchor({
-        ...target,
-        ...updates,
-        user_id: user.supabaseId
-      });
-    }
-  };
-
-  const syncWithSupabase = async () => {
-    if (!user.supabaseId || user.supabaseId === 'mock-user' || isMockClient()) return;
-    try {
-      const [insightsData, partsData, anchorsData] = await Promise.all([
-        supabase.from('insights').select('*').eq('user_id', user.supabaseId),
-        storageService.getParts(user.supabaseId),
-        storageService.getSomaticAnchors(user.supabaseId)
-      ]);
-
-      if (insightsData.data) setInsights(insightsData.data as Insight[]);
-
-      // Map database fields to application types
-      setParts((partsData as any[]).map(p => ({
-        id: p.id,
-        name: p.name,
-        role: p.role,
-        relationshipScore: p.relationship_score,
-        originStory: p.origin_story,
-        somaticLocation: p.somatic_location,
-        createdAt: new Date(p.created_at).getTime(),
-        lastAccessed: new Date(p.last_accessed).getTime()
-      })));
-
-      setAnchors((anchorsData as any[]).map(a => ({
-        id: a.id,
-        type: a.type,
-        description: a.description,
-        efficacyRating: a.efficacy_rating,
-        createdAt: new Date(a.created_at).getTime()
-      })));
-
-      console.log("Supabase sync successful", {
-        parts: partsData.length,
-        anchors: anchorsData.length,
-        insights: insightsData.data?.length
-      });
     } catch (e) {
-      console.error("Supabase sync failed", e);
-    }
+  console.error("Failed to generate meditation", e);
+  // CLEANUP: Remove the failed incomplete meditation
+  setMeditations(prev => prev.filter(m => m.id !== tempId));
+  setCurrentView(ViewState.HOME);
+}
   };
 
-  const saveSessionResults = async (sudsAfter: number, insight?: string) => {
-    if (!user.supabaseId || !activeMeditationId || isMockClient()) return;
-    const meditation = meditations.find(m => m.id === activeMeditationId);
-    if (!meditation) return;
+// Legacy/Quick Create
+const createMeditation = async (focus: string, feeling: string, minutes: number): Promise<string> => {
+  const config: MeditationConfig = {
+    focus, feeling, duration: minutes, voice: 'Kore', speed: 1.0,
+    soundscapeId: soundscapes[0].id, background: 'deep-space'
+  };
+  await finalizeMeditationGeneration(config);
+  return "";
+};
 
-    // Map Valence/Arousal to 0-10 SUDS scale
-    // Valence -1 (Bad) -> High SUDS, 1 (Good) -> Low SUDS
-    // Approximate: (1 - valence) * 5
-    const preSuds = Math.round((1 - triage.valence) * 5);
-    const deltaSuds = preSuds - sudsAfter;
+const acceptPattern = (id: string) => {
+  setPatterns(prev => prev.map(p => p.id === id ? { ...p, status: 'active' as const } : p));
+};
 
-    try {
-      // 1. Log Session
-      await storageService.logSession({
-        user_id: user.supabaseId,
-        modality: meditation.config?.methodology || 'GENERAL',
-        focus: meditation.config?.focus,
-        feeling: meditation.config?.feeling,
-        pre_suds: preSuds,
-        post_suds: sudsAfter,
-        delta_suds: deltaSuds,
-        feedback: {
-          note: insight,
-          ...meditation.feedback
-        },
-        transcript: meditation.transcript
-      });
+const updatePatternNote = (id: string, note: string) => {
+  setPatterns(prev => prev.map(p => p.id === id ? { ...p, userNotes: note } : p));
+};
 
-      // 2. Handle Methodology Specific Persistence
-      const variables = meditation.config?.variables;
-      if (variables) {
-        if (meditation.config?.methodology === 'IFS' && variables.IFS_Part_Label) {
-          await storageService.savePart({
-            user_id: user.supabaseId,
-            name: variables.IFS_Part_Label,
-            role: variables.IFS_Part_Role || 'Protector',
-            relationship_score: variables.IFS_Relationship || 5,
-            origin_story: variables.IFS_Concern,
-            somatic_location: variables.IFS_Somatic,
-            last_accessed: new Date().toISOString()
-          });
-        }
+const playMeditation = (id: string) => {
+  setActiveMeditationId(id);
+  setCurrentView(ViewState.PLAYER);
+};
 
-        if (meditation.config?.methodology === 'SOMATIC_AGENCY' && variables.SOM_Trigger) {
-          await storageService.saveSomaticAnchor({
-            user_id: user.supabaseId,
-            type: variables.SOM_Anchor_Type || 'Kinesthetic',
-            description: `Trigger: ${variables.SOM_Trigger} | Reaction: ${variables.SOM_Reaction} | Commitment: ${variables.SOM_Commitment}`,
-            efficacy_rating: (10 - sudsAfter) / 10 // Higher efficacy if post-suds is low
-          });
-        }
+const rateMeditation = (id: string, feedback: FeedbackData) => {
+  setMeditations(prev => prev.map(m => m.id === id ? { ...m, feedback: feedback } : m));
+};
+
+const updatePart = async (id: string, updates: Partial<Part>) => {
+  setParts(prev => prev.map(p => p.id === id ? { ...p, ...updates, lastAccessed: Date.now() } : p));
+  const target = parts.find(p => p.id === id);
+  if (target && user.supabaseId) {
+    await storageService.savePart({
+      ...target,
+      ...updates,
+      user_id: user.supabaseId,
+      last_accessed: new Date().toISOString()
+    });
+  }
+};
+
+const updateAnchor = async (id: string, updates: Partial<SomaticAnchor>) => {
+  setAnchors(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+  const target = anchors.find(a => a.id === id);
+  if (target && user.supabaseId) {
+    await storageService.saveSomaticAnchor({
+      ...target,
+      ...updates,
+      user_id: user.supabaseId
+    });
+  }
+};
+
+const syncWithSupabase = async () => {
+  if (!user.supabaseId || user.supabaseId === 'mock-user' || isMockClient()) return;
+  try {
+    const [insightsData, partsData, anchorsData] = await Promise.all([
+      supabase.from('insights').select('*').eq('user_id', user.supabaseId),
+      storageService.getParts(user.supabaseId),
+      storageService.getSomaticAnchors(user.supabaseId)
+    ]);
+
+    if (insightsData.data) setInsights(insightsData.data as Insight[]);
+
+    // Map database fields to application types
+    setParts((partsData as any[]).map(p => ({
+      id: p.id,
+      name: p.name,
+      role: p.role,
+      relationshipScore: p.relationship_score,
+      originStory: p.origin_story,
+      somaticLocation: p.somatic_location,
+      createdAt: new Date(p.created_at).getTime(),
+      lastAccessed: new Date(p.last_accessed).getTime()
+    })));
+
+    setAnchors((anchorsData as any[]).map(a => ({
+      id: a.id,
+      type: a.type,
+      description: a.description,
+      efficacyRating: a.efficacy_rating,
+      createdAt: new Date(a.created_at).getTime()
+    })));
+
+    console.log("Supabase sync successful", {
+      parts: partsData.length,
+      anchors: anchorsData.length,
+      insights: insightsData.data?.length
+    });
+  } catch (e) {
+    console.error("Supabase sync failed", e);
+  }
+};
+
+const saveSessionResults = async (sudsAfter: number, insight?: string) => {
+  if (!user.supabaseId || !activeMeditationId || isMockClient()) return;
+  const meditation = meditations.find(m => m.id === activeMeditationId);
+  if (!meditation) return;
+
+  // Map Valence/Arousal to 0-10 SUDS scale
+  // Valence -1 (Bad) -> High SUDS, 1 (Good) -> Low SUDS
+  // Approximate: (1 - valence) * 5
+  const preSuds = Math.round((1 - triage.valence) * 5);
+  const deltaSuds = preSuds - sudsAfter;
+
+  try {
+    // 1. Log Session
+    await storageService.logSession({
+      user_id: user.supabaseId,
+      modality: meditation.config?.methodology || 'GENERAL',
+      focus: meditation.config?.focus,
+      feeling: meditation.config?.feeling,
+      pre_suds: preSuds,
+      post_suds: sudsAfter,
+      delta_suds: deltaSuds,
+      feedback: {
+        note: insight,
+        ...meditation.feedback
+      },
+      transcript: meditation.transcript
+    });
+
+    // 2. Handle Methodology Specific Persistence
+    const variables = meditation.config?.variables;
+    if (variables) {
+      if (meditation.config?.methodology === 'IFS' && variables.IFS_Part_Label) {
+        await storageService.savePart({
+          user_id: user.supabaseId,
+          name: variables.IFS_Part_Label,
+          role: variables.IFS_Part_Role || 'Protector',
+          relationship_score: variables.IFS_Relationship || 5,
+          origin_story: variables.IFS_Concern,
+          somatic_location: variables.IFS_Somatic,
+          last_accessed: new Date().toISOString()
+        });
       }
 
-      // 3. Update local state
-      await syncWithSupabase();
-    } catch (e) {
-      console.error("Failed to save session results", e);
-      throw e;
+      if (meditation.config?.methodology === 'SOMATIC_AGENCY' && variables.SOM_Trigger) {
+        await storageService.saveSomaticAnchor({
+          user_id: user.supabaseId,
+          type: variables.SOM_Anchor_Type || 'Kinesthetic',
+          description: `Trigger: ${variables.SOM_Trigger} | Reaction: ${variables.SOM_Reaction} | Commitment: ${variables.SOM_Commitment}`,
+          efficacy_rating: (10 - sudsAfter) / 10 // Higher efficacy if post-suds is low
+        });
+      }
     }
-  };
 
-  const setView = (view: ViewState) => setCurrentView(view);
+    // 3. Update local state
+    await syncWithSupabase();
+  } catch (e) {
+    console.error("Failed to save session results", e);
+    throw e;
+  }
+};
 
-  return (
-    <AppContext.Provider value={{
-      user,
-      insights,
-      patterns,
-      meditations,
-      currentView,
-      activeMeditationId,
-      chatHistory,
-      pendingMeditationConfig: pendingMeditationConfig as MeditationConfig | null,
-      soundscapes,
-      parts,
-      anchors,
-      sessionState,
-      triage,
-      completeOnboarding,
-      sendChatMessage,
-      startMeditationGeneration,
-      finalizeMeditationGeneration,
-      createMeditation,
-      acceptPattern,
-      updatePatternNote,
-      setView,
-      playMeditation,
-      rateMeditation,
-      syncWithSupabase,
-      addSoundscape,
-      removeSoundscape,
-      setTriage
-    }}>
-      {children}
-    </AppContext.Provider>
-  );
+const setView = (view: ViewState) => setCurrentView(view);
+
+return (
+  <AppContext.Provider value={{
+    user,
+    insights,
+    patterns,
+    meditations,
+    currentView,
+    activeMeditationId,
+    chatHistory,
+    pendingMeditationConfig: pendingMeditationConfig as MeditationConfig | null,
+    soundscapes,
+    parts,
+    anchors,
+    sessionState,
+    triage,
+    completeOnboarding,
+    sendChatMessage,
+    startMeditationGeneration,
+    finalizeMeditationGeneration,
+    createMeditation,
+    acceptPattern,
+    updatePatternNote,
+    setView,
+    playMeditation,
+    rateMeditation,
+    syncWithSupabase,
+    addSoundscape,
+    removeSoundscape,
+    setTriage
+  }}>
+    {children}
+  </AppContext.Provider>
+);
 };
 
 export const useApp = () => {
