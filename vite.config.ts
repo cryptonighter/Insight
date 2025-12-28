@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
       'process.env.GOOGLE_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.API_KEY || env.GOOGLE_API_KEY),
       'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
       'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
+      'process.env.OPENROUTER_API_KEY': JSON.stringify(env.OPENROUTER_API_KEY),
     },
     resolve: {
       alias: {

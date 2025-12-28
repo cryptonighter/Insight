@@ -4,55 +4,61 @@ import {
 } from "../types";
 import { CLINICAL_PROTOCOLS } from "./protocols";
 
-// Initialize Gemini Client
-const apiKey = process.env.API_KEY || process.env.GOOGLE_API_KEY || '';
-if (!apiKey) {
-  console.warn("Gemini API Key is missing. Please set GEMINI_API_KEY or GOOGLE_API_KEY in your .env file.");
-}
-const ai = new GoogleGenAI({ apiKey });
+// Initialize Gemini Client (KEEP for Audio)
+const googleApiKey = process.env.GOOGLE_API_KEY || '';
+const ai = new GoogleGenAI({ apiKey: googleApiKey });
+
+// OpenRouter Config
+const openRouterKey = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Constants for models
+const OPENROUTER_MODEL = "google/gemini-3-flash-preview-search:free"; // Or specialized if needed
 const TEXT_MODEL = "gemini-2.0-pro-exp-02-05";
 const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
-const DIRECTOR_MODEL = "gemini-1.5-flash"; // Highly reliable for function calling
+const DIRECTOR_MODEL = "google/gemini-3-flash-preview-search:free";
+
+async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL, jsonMode: boolean = false) {
+  if (!openRouterKey) {
+    console.warn("OpenRouter API Key is missing");
+    return null;
+  }
+
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${openRouterKey}`,
+      "HTTP-Referer": "https://insight-growth.vercel.app", // Optional
+      "X-Title": "Insight",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      response_format: jsonMode ? { type: "json_object" } : undefined
+    })
+  });
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
+}
 
 // Director Tool Definitions
 const directorTools = [
   {
-    functionDeclarations: [
-      {
-        name: "select_meditation_protocol",
-        description: "Selects the optimal meditation methodology and configuration based on the explorer's current state and history.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            methodology: {
-              type: "STRING",
-              enum: ["IFS", "SOMATIC_AGENCY", "NSDR", "GENERAL"],
-              description: "The specific therapeutic protocol to follow."
-            },
-            focus: {
-              type: "STRING",
-              description: "The primary point of focus for the session (e.g., 'Unblending from the Manager Part')."
-            },
-            targetFeeling: {
-              type: "STRING",
-              description: "The desired emotional or physiological state after the session."
-            },
-            intensity: {
-              type: "STRING",
-              enum: ["SOFT", "MODERATE", "DEEP"],
-              description: "How confrontational or deep the exploration should be."
-            },
-            rationale: {
-              type: "STRING",
-              description: "A brief internal explanation of why this protocol was chosen."
-            }
-          },
-          required: ["methodology", "focus", "targetFeeling", "intensity"]
-        }
-      }
-    ]
+    name: "select_meditation_protocol",
+    description: "Selects the optimal meditation methodology and configuration.",
+    parameters: {
+      type: "object",
+      properties: {
+        methodology: { type: "string", enum: ["IFS", "SOMATIC_AGENCY", "NSDR", "GENERAL"] },
+        focus: { type: "string" },
+        targetFeeling: { type: "string" },
+        intensity: { type: "string", enum: ["SOFT", "MODERATE", "DEEP"] },
+        rationale: { type: "string" }
+      },
+      required: ["methodology", "focus", "targetFeeling", "intensity"]
+    }
   }
 ];
 
@@ -81,44 +87,29 @@ export const runDirectorOrchestration = async (
   growthHistory: { parts: any[]; patterns: any[] }
 ): Promise<any> => {
   const prompt = `
-    You are the "Insight Director", a deterministic logic layer for a self-actualization tool.
-    Your job is to listen to the explorer's input and triage state, then select the perfect growth protocol.
-
+    You are the "Insight Director". Triage the explorer and select a growth protocol.
+    
     EXPLORER INPUT: "${input}"
-    TRIAGE STATE: Valence: ${triage.valence} (-1 to 1), Energy: ${triage.arousal} (-1 to 1)
-    GROWTH CONTEXT: 
-    - Known Parts: ${JSON.stringify(growthHistory.parts)}
-    - Identified Patterns: ${JSON.stringify(growthHistory.patterns)}
+    STATE: Valence ${triage.valence}, Energy ${triage.arousal}
+    CONTEXT: ${JSON.stringify(growthHistory)}
 
-    RULES:
-    1. If Valence is very low (<-0.5), prioritize stabilization (NSDR or Grounding).
-    2. If a specific "Part" from history is mentioned, use IFS modality.
-    3. If the user feels "Heated" or "Anxious", use SOMATIC_AGENCY for resourcing.
-    4. Be decisive.
+    If they mention a Part, use IFS. If anxious, use NSDR or Grounding.
+    
+    RETURN JSON ONLY matching this tool schema:
+    ${JSON.stringify(directorTools[0])}
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: DIRECTOR_MODEL,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        tools: directorTools as any
-      }
-    });
+    const raw = await callOpenRouter([{ role: "user", content: prompt }], DIRECTOR_MODEL, true);
+    const parsed = JSON.parse(raw);
 
-    const call = response.candidates?.[0]?.content?.parts?.find(p => p.functionCall);
-    console.log("Director Decision:", call?.functionCall || response.text);
+    console.log("Director Decision (OpenRouter):", parsed);
 
-    if (call?.functionCall) {
-      return {
-        type: 'TOOL_CALL',
-        name: call.functionCall.name,
-        args: call.functionCall.args
-      };
-    }
-
-    // Fallback if no tool called
-    return { type: 'TEXT_FALLBACK', text: response.text || "" };
+    return {
+      type: 'TOOL_CALL',
+      name: 'select_meditation_protocol',
+      args: parsed
+    };
   } catch (e) {
     console.error("Director orchestration failed", e);
     return { type: 'ERROR', error: e };
@@ -148,10 +139,15 @@ export const chatWithInsight = async (
 };
 
 export const transcribeAudio = async (audioBase64: string): Promise<string> => {
-  const prompt = "Transcribe the spoken audio into text. Return ONLY the transcription, no markdown, no quotes, no labels.";
+  // OpenRouter doesn't always support native webm transcription as a direct model call (it's text-to-text)
+  // For now, keep transcription on Google Native SDK if it's specialized, 
+  // OR we can try to send it as a multimodal part to 1.5-Pro on OpenRouter if supported.
+  // Given user wants 3-flash-preview, we stay on Google Native for audio safety.
+
+  const prompt = "Transcribe the spoken audio into text. Return ONLY the transcription.";
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash", // Direct Google call
       contents: [{
         parts: [
           { inlineData: { mimeType: "audio/webm", data: audioBase64 } },
@@ -161,7 +157,6 @@ export const transcribeAudio = async (audioBase64: string): Promise<string> => {
     });
     return response.text?.trim() || "";
   } catch (e) {
-    console.error("Transcription failed", e);
     return "";
   }
 };
