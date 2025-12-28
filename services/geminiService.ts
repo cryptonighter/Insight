@@ -274,9 +274,9 @@ export const generateMeditationStream = async (
           } catch (e: any) {
             console.warn(`Batch ${i} failed. Error:`, e.message || e);
             if (retries === MAX_RETRIES - 1) {
-              const mockAudio = getSilentMp3Base64();
-              await onChunkGenerated(mockAudio, i, [], 'audio/mp3');
-              success = true;
+              console.error(`Batch ${i} failed after retries.`);
+              // Don't play noise. Just skip or fail.
+              // success = true; // verification: let it fail
             } else {
               retries++;
             }
