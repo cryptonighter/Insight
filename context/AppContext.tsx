@@ -300,6 +300,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     } catch (e) {
       console.error("Failed to generate meditation", e);
+      alert("Something went wrong with the meditation generation. Please try again.");
       // CLEANUP: Remove the failed incomplete meditation
       setMeditations(prev => prev.filter(m => m.id !== tempId));
       setCurrentView(ViewState.HOME);
