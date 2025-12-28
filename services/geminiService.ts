@@ -13,10 +13,10 @@ const openRouterKey = process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Constants for models
-const OPENROUTER_MODEL = "google/gemini-3-flash-preview-search:free"; // Or specialized if needed
+const OPENROUTER_MODEL = "google/gemini-3-flash-preview";
 const TEXT_MODEL = "gemini-2.0-pro-exp-02-05";
 const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
-const DIRECTOR_MODEL = "google/gemini-3-flash-preview-search:free";
+const DIRECTOR_MODEL = "google/gemini-3-flash-preview";
 
 async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL, jsonMode: boolean = false) {
   if (!openRouterKey) {
@@ -38,6 +38,12 @@ async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL,
       response_format: jsonMode ? { type: "json_object" } : undefined
     })
   });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenRouter Error:", errorText);
+    return "";
+  }
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "";

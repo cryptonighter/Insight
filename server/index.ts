@@ -17,7 +17,7 @@ app.use(express.json({ limit: '50mb' }));
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || '' });
 const openRouterKey = process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "google/gemini-3-flash-preview-search:free";
+const OPENROUTER_MODEL = "google/gemini-3-flash-preview";
 
 async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL, jsonMode: boolean = false) {
     if (!openRouterKey) {
@@ -36,7 +36,14 @@ async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL,
             response_format: jsonMode ? { type: "json_object" } : undefined
         })
     });
+
+    if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`OpenRouter API Error (${response.status}):`, errorData);
+        throw new Error(`OpenRouter API Error: ${response.status}`);
+    }
     const data: any = await response.json();
+    console.log("OpenRouter Response:", JSON.stringify(data).slice(0, 200));
     return data.choices?.[0]?.message?.content || "";
 }
 
