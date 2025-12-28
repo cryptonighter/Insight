@@ -94,6 +94,9 @@ app.post('/api/chat', async (req, res) => {
 app.post('/api/meditation/generate', async (req, res) => {
     const { focus, targetFeeling, durationMinutes, contextInsights, methodology, variables } = req.body;
     const protocol = CLINICAL_PROTOCOLS[methodology as MethodologyType] || CLINICAL_PROTOCOLS['NSDR'];
+    if (!protocol) {
+        return res.status(400).json({ error: "Invalid methodology and fallback failed." });
+    }
 
     const generatorPrompt = `
     You are an expert Clinical Generator. Generate a meditation script following the ${protocol.name} protocol.

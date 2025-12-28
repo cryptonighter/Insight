@@ -8,9 +8,9 @@ export enum SessionLifecycleState {
   REFLECTION = 'REFLECTION'
 }
 
-import { CLINICAL_PROTOCOLS } from './services/protocols';
+import { CLINICAL_PROTOCOLS } from './server/protocols.js';
 
-export type MethodologyType = keyof typeof CLINICAL_PROTOCOLS;
+export type MethodologyType = Extract<keyof typeof CLINICAL_PROTOCOLS, string>;
 
 export interface TriageState {
   valence: number; // -1 to 1

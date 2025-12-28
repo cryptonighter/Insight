@@ -1,4 +1,4 @@
-import { SonicInstruction } from '../types';
+import { SonicInstruction } from '../types.js';
 
 export interface ProtocolVariableSchema {
     id: string;
