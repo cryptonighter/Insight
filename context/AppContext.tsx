@@ -236,8 +236,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setMeditations(prev => [newMeditation, ...prev]);
       setActiveMeditationId(tempId);
-      // We don't jump to PLAYER yet; stay in ViewState.CONTEXT (LoadingGeneration)
-      // until the first chunk is ready to play.
+      setCurrentView(ViewState.LOADING);
 
       // Start streaming process
       const { title, lines } = await generateMeditationStream(
@@ -263,10 +262,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }));
 
           // BUFFERING STRATEGY: 
-          // Transition to the player as soon as the first chunk is ready
-          if (index === 0) {
-            setCurrentView(ViewState.PLAYER);
-          }
+          // We no longer transition automatically to the player.
+          // The LoadingGeneration component will show a "Begin" button once index === 0.
           if (index === 1) {
             setPendingMeditationConfig(null);
           }

@@ -136,6 +136,7 @@ export const LoadingGeneration: React.FC = () => {
   };
 
   const isGenerating = progress > 0;
+  const activeMeditation = useMemo(() => meditations.find(m => m.id === activeMeditationId), [meditations, activeMeditationId]);
   const protocol = useMemo(() => CLINICAL_PROTOCOLS[triage.selectedMethodology || 'NSDR'], [triage.selectedMethodology]);
 
   return (
@@ -196,7 +197,18 @@ export const LoadingGeneration: React.FC = () => {
                 </div>
               </div>
 
-              <p className="text-xs text-slate-400 animate-pulse pt-2">Initial audio transmission buffering...</p>
+              {/* BEGIN SESSION BUTTON */}
+              {(activeMeditation?.audioQueue?.length || 0) > 0 ? (
+                <button
+                  onClick={() => setView(ViewState.PLAYER)}
+                  className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold tracking-wide animate-bounce-slow shadow-xl shadow-indigo-200 flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all mt-4"
+                >
+                  <Sparkles size={18} />
+                  Begin Experience
+                </button>
+              ) : (
+                <p className="text-xs text-slate-400 animate-pulse pt-2">Initial audio transmission buffering...</p>
+              )}
             </div>
           ) : (
             <>
