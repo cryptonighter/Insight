@@ -8,35 +8,38 @@ import { PlayableSegment, SonicInstruction } from "../types";
  * UPDATE: Now supports attaching Sonic Instructions to the segment.
  */
 export const processBatchWithSilenceSplitting = async (
-  batchAudioBase64: string,
-  batchIndex: number,
-  instructions: SonicInstruction[] = []
+    batchAudioBase64: string,
+    batchIndex: number,
+    instructions: SonicInstruction[] = []
 ): Promise<PlayableSegment[]> => {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const tempCtx = new AudioContextClass(); 
-    
     try {
-        // Decode the full batch (usually a paragraph or two)
-        const buffer = await decodeAudioData(decodeBase64(batchAudioBase64), tempCtx);
-        
-        // Convert the WHOLE buffer to a single WAV
-        const wavBlob = bufferToWav(buffer);
+        // DIRECT BLOB CREATION (Bypassing redundant decode/encode cycle)
+        // Gemini TTS usually returns MP3 or WAV. We wrap it directly.
+        // Even if the header is missing, browser decoders are robust.
 
-        // Return as a single segment
+        const byteCharacters = atob(batchAudioBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+
+        // Construct Blob (audio/mp3 is standard for Gemini, but works for WAV too in most browsers)
+        const blob = new Blob([byteArray], { type: 'audio/mp3' });
+        const blobUrl = URL.createObjectURL(blob);
+
         const segment: PlayableSegment = {
             id: `batch-${batchIndex}`,
-            audioUrl: URL.createObjectURL(wavBlob),
-            text: "", 
-            duration: buffer.duration,
-            instructions: instructions // Pass the instructions through
+            audioUrl: blobUrl,
+            text: "",
+            duration: 10, // Approximate/Unknown duration until played. Player handles this.
+            instructions: instructions
         };
 
         return [segment];
     } catch (e) {
         console.error("Batch processing failed", e);
         return [];
-    } finally {
-        tempCtx.close();
     }
 };
 
@@ -44,5 +47,5 @@ export const processBatchWithSilenceSplitting = async (
  * Legacy Support for fallback
  */
 export const composeMeditation = async (): Promise<string> => {
-   return "";
+    return "";
 };
