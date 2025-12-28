@@ -19,13 +19,14 @@ serve(async (req) => {
                 parameters: {
                     type: "object",
                     properties: {
+                        shouldTrigger: { type: "boolean", description: "Whether to suggest a session based on the current input context." },
                         methodology: { type: "string", enum: ["IFS", "SOMATIC_AGENCY", "NSDR", "GENERAL"] },
                         focus: { type: "string" },
                         targetFeeling: { type: "string" },
                         intensity: { type: "string", enum: ["SOFT", "MODERATE", "DEEP"] },
                         rationale: { type: "string" }
                     },
-                    required: ["methodology", "focus", "targetFeeling", "intensity"]
+                    required: ["shouldTrigger", "methodology", "focus", "targetFeeling", "intensity"]
                 }
             }
         ];
@@ -37,7 +38,10 @@ serve(async (req) => {
     STATE: Valence ${triage.valence}, Energy ${triage.arousal}
     CONTEXT: ${JSON.stringify(growthHistory)}
 
-    If they mention a Part, use IFS. If anxious, use NSDR or Grounding.
+    CRITICAL RULES:
+    1. If the input is just a greeting (e.g., "Hello", "Hi", "Hey"), set shouldTrigger to FALSE.
+    2. Only set shouldTrigger to TRUE if the user has shared enough emotional depth or a specific problem to address.
+    3. Never return empty strings for "focus" or "targetFeeling".
     
     RETURN JSON ONLY matching this tool schema:
     ${JSON.stringify(directorTools[0])}
@@ -76,6 +80,7 @@ serve(async (req) => {
         console.error("Director Function Error:", error);
         // Fallback
         return new Response(JSON.stringify({
+            shouldTrigger: false,
             methodology: "NSDR",
             focus: "Grounding",
             targetFeeling: "Calm",

@@ -186,14 +186,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // If Director has a specific tool call, override suggestion
     if (directorDecision.type === 'TOOL_CALL' && directorDecision.name === 'select_meditation_protocol') {
       const args = directorDecision.args;
-      systemMsg.suggestion = {
-        focus: args.focus,
-        feeling: args.targetFeeling,
-        duration: 10,
-        methodology: args.methodology as MethodologyType,
-        intensity: args.intensity as any
-      };
-      systemMsg.text += `\n\n[Director Suggestion: ${args.rationale || 'Optimal protocol identified'}]`;
+
+      if (args && args.shouldTrigger) {
+        systemMsg.suggestion = {
+          focus: args.focus || "",
+          feeling: args.targetFeeling || "",
+          duration: 10,
+          methodology: args.methodology as MethodologyType,
+          intensity: args.intensity as any
+        };
+        systemMsg.text += `\n\n[Director Suggestion: ${args.rationale || 'Optimal protocol identified'}]`;
+      }
     }
 
     if (systemMsg.suggestion?.methodology) {
