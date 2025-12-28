@@ -10,7 +10,8 @@ import { PlayableSegment, SonicInstruction } from "../types";
 export const processBatchWithSilenceSplitting = async (
     batchAudioBase64: string,
     batchIndex: number,
-    instructions: SonicInstruction[] = []
+    instructions: SonicInstruction[] = [],
+    mimeType: string = 'audio/mp3'
 ): Promise<PlayableSegment[]> => {
     try {
         // DIRECT BLOB CREATION (Bypassing redundant decode/encode cycle)
@@ -24,8 +25,8 @@ export const processBatchWithSilenceSplitting = async (
         }
         const byteArray = new Uint8Array(byteNumbers);
 
-        // Construct Blob (audio/mp3 is standard for Gemini, but works for WAV too in most browsers)
-        const blob = new Blob([byteArray], { type: 'audio/mp3' });
+        // Construct Blob using the actual mimeType from the AI
+        const blob = new Blob([byteArray], { type: mimeType });
         const blobUrl = URL.createObjectURL(blob);
 
         const segment: PlayableSegment = {

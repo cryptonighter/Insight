@@ -265,6 +265,15 @@ export const Player: React.FC = () => {
         if (index < currentMeditation.audioQueue.length) {
             setCurrentSegmentIndex(index);
             setStatusText(currentMeditation.isGenerating ? "Streaming..." : "Flowing");
+
+            // Safety: Wait if index 0 and audio buffer is not ready
+            if (index === 0 && currentMeditation.audioQueue.length === 0) {
+                if (currentMeditation.isGenerating) {
+                    timeoutRef.current = setTimeout(() => processQueue(0), 1000);
+                    return;
+                }
+            }
+
             const segment = currentMeditation.audioQueue[index];
 
             // 1. EXECUTE SONIC INSTRUCTIONS (The Director)

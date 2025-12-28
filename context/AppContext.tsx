@@ -246,10 +246,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         selectedSoundscape.metadata.description,
         config.voice,
         contextTexts,
-        async (chunkBase64, index, instructions) => {
+        async (chunkBase64, index, instructions, mimeType) => {
           // Callback: Process chunk & Update state
           // Pass the instructions from the AI director to the audio segment
-          const segments = await processBatchWithSilenceSplitting(chunkBase64, index, instructions);
+          const segments = await processBatchWithSilenceSplitting(chunkBase64, index, instructions, mimeType);
 
           setMeditations(current => current.map(m => {
             if (m.id === tempId) {

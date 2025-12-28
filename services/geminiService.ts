@@ -222,7 +222,7 @@ export const generateMeditationStream = async (
   soundscapeDesc: string,
   voice: VoiceId = 'Kore',
   contextInsights: string[],
-  onChunkGenerated: (chunkBase64: string, batchIndex: number, instructions?: SonicInstruction[]) => Promise<void>,
+  onChunkGenerated: (chunkBase64: string, batchIndex: number, instructions?: SonicInstruction[], mimeType?: string) => Promise<void>,
   onComplete: () => void,
   methodology: MethodologyType = 'NSDR',
   variables: Record<string, any> = {}
@@ -272,7 +272,12 @@ export const generateMeditationStream = async (
               len: audioPart?.inlineData?.data?.length
             });
             if (audioPart?.inlineData?.data) {
-              await onChunkGenerated(audioPart.inlineData.data, i, batch.instructions);
+              await onChunkGenerated(
+                audioPart.inlineData.data,
+                i,
+                batch.instructions,
+                audioPart.inlineData.mimeType || 'audio/mp3'
+              );
               success = true;
             } else {
               throw new Error("Empty audio response");
