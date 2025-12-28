@@ -83,9 +83,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [pendingMeditationConfig, setPendingMeditationConfig] = useState<Partial<MeditationConfig> | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('reality_user');
+    // 1. Initial Session Check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(prev => ({ ...prev, supabaseId: session.user.id, email: session.user.email }));
+      }
+    });
 
-    // Always initialize data for the prototype
+    // 2. Auth Listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(prev => ({ ...prev, supabaseId: session.user.id, email: session.user.email }));
+        syncWithSupabase();
+      } else {
+        setUser({ onboardingCompleted: true, clinicalContraindications: [] });
+      }
+    });
+
+    // Legacy loading
+    const savedUser = localStorage.getItem('reality_user');
     setInsights(MOCK_INSIGHTS);
     setPatterns(PREBUILT_PATTERNS.map(p => ({ ...p, status: 'active' })) as Pattern[]);
 
@@ -109,6 +125,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     loadSoundscapes();
 
+    return () => subscription.unsubscribe();
   }, []);
 
   const completeOnboarding = () => {
