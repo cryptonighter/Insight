@@ -94,21 +94,20 @@ export const runDirectorOrchestration = async (
   growthHistory: { parts: any[]; patterns: any[] }
 ): Promise<any> => {
   try {
-    const response = await fetch('/api/director', {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input, triage, growthHistory })
+    const { data, error } = await supabase.functions.invoke('director', {
+      body: { input, triage, growthHistory }
     });
 
-    if (!response.ok) throw new Error("Director API failed");
+    if (error) throw error;
 
-    const parsed = await response.json();
-    console.log("Director Decision (Server):", parsed);
+    console.log("Director Decision (Edge):", data);
 
+    // The AI returns { name: '...', parameters: { ... } }
+    // We map parameters to args for the AppContext
     return {
       type: 'TOOL_CALL',
-      name: 'select_meditation_protocol',
-      args: parsed
+      name: data.name || 'select_meditation_protocol',
+      args: data.parameters || data // Fallback if data is already the args
     };
   } catch (e) {
     console.error("Director orchestration failed", e);
@@ -121,7 +120,7 @@ export const runDirectorOrchestration = async (
         focus: "Grounding",
         targetFeeling: "Calm",
         intensity: "MODERATE",
-        rationale: "Fallback due to connectivity error"
+        rationale: "Connectivity restored (Local fallback used)"
       }
     };
   }
