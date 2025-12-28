@@ -22,6 +22,7 @@ if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
         auth: {
             getUser: () => Promise.resolve({ data: { user: null }, error: null }),
             signInWithPassword: () => Promise.resolve({ data: {}, error: null }),
+            signUp: () => Promise.resolve({ data: { user: { id: 'mock-user' } }, error: null }),
             signOut: () => Promise.resolve({})
         }
     } as any;
