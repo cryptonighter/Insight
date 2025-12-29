@@ -82,7 +82,7 @@ export const Dashboard: React.FC = () => {
                         <p className="text-sm text-slate-500 mt-1">Log your progress. Earn 1 Token.</p>
 
                         <button
-                            onClick={() => setView(ViewState.REFLECTION)} // Placeholder
+                            onClick={() => setView(ViewState.EVENING_REFLECTION)}
                             disabled={isEveningCompleted}
                             className="w-full mt-4 bg-white border border-slate-200 text-slate-700 py-3 rounded-xl font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
                         >

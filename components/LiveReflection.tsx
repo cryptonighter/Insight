@@ -3,39 +3,36 @@ import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
 import { Mic, MicOff, StopCircle, X } from 'lucide-react';
 
-// Hardcoded for MVP as requested
 const API_KEY = "AIzaSyBx3c6VF9JnL-Qbc1rQKbAL-PHBA5anfys";
 const HOST = "generativelanguage.googleapis.com";
-const MODEL = "models/gemini-2.0-flash-exp"; // Use Flash 2.0 Exp for Live
+const MODEL = "models/gemini-2.0-flash-exp";
 
 export const LiveReflection: React.FC = () => {
     const { setView, completeEveningReflection, activeResolution } = useApp();
     const [isConnected, setIsConnected] = useState(false);
     const [isTalking, setIsTalking] = useState(false);
 
-    const videoRef = useRef<HTMLVideoElement>(null);
     const wsRef = useRef<WebSocket | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const nextStartTimeRef = useRef<number>(0);
 
     const [transcript, setTranscript] = useState("");
 
     useEffect(() => {
-        // Cleanup
-        return () => {
-            disconnect();
-        };
+        return () => disconnect();
     }, []);
 
     const connect = async () => {
         try {
-            // 1. Setup Audio
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // 1. Setup Audio Input
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
             mediaStreamRef.current = stream;
 
-            const audioCtx = new AudioContext({ sampleRate: 24000 });
+            const audioCtx = new AudioContext({ sampleRate: 24000 }); // Gemini optimized
             audioContextRef.current = audioCtx;
+            nextStartTimeRef.current = audioCtx.currentTime;
 
             // 2. Setup WebSocket
             const url = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
@@ -44,88 +41,104 @@ export const LiveReflection: React.FC = () => {
 
             ws.onopen = () => {
                 setIsConnected(true);
-                // Send Setup Message
                 ws.send(JSON.stringify({
                     setup: {
                         model: MODEL,
                         generationConfig: {
                             responseModalities: ["AUDIO"],
-                            maxOutputTokens: 200, // Keep it brief
+                            maxOutputTokens: 300,
                         },
                         systemInstruction: {
                             parts: [{
-                                text: `You are an accountability coach. The user's goal is: "${activeResolution?.statement}". 
-              Why: "${activeResolution?.rootMotivation}". 
-              Ask 3 simple questions: 1. Did you do it? 2. How did it feel? 3. Any blockers?
-              Keep it very short. After 3 turns, say "Goodbye" and stop.` }]
+                                text: `You are a warm, concise accountability coach. The user's goal is: "${activeResolution?.statement}". 
+                                Why: "${activeResolution?.rootMotivation}". 
+                                
+                                Your Protocol:
+                                1. Greet warmly (1 sentence).
+                                2. Ask "Did you take action on your goal today?"
+                                3. If yes -> Celebrate briefly. If no -> Ask "What got in the way?"
+                                4. Ask "How do you feel about tomorrow?"
+                                5. Say goodbye and end.
+                                
+                                CRITICAL: Keep responses under 2 sentences. Be encouraging but efficient.`
+                            }]
                         }
                     }
                 }));
-
-                // Start Audio Stream after setup
                 setupAudioProcessing(stream, audioCtx, ws);
             };
 
             ws.onmessage = async (event) => {
-                const msg = await event.data.text(); // Blob -> Text
-                const data = JSON.parse(msg);
+                if (event.data instanceof Blob) {
+                    // Blob handling if needed
+                } else {
+                    const data = JSON.parse(event.data);
 
-                // Handle Audio Output
-                if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                    playAudioResponse(data.serverContent.modelTurn.parts[0].inlineData.data);
-                    setIsTalking(true);
-                }
+                    // Handle Audio Output
+                    if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
+                        const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
+                        playPcmChunk(pcmBase64, audioCtx);
+                        setIsTalking(true);
+                    }
 
-                if (data.serverContent?.turnComplete) {
-                    setIsTalking(false);
+                    if (data.serverContent?.turnComplete) {
+                        setTimeout(() => setIsTalking(false), 1000); // Small buffer
+                    }
                 }
             };
 
             ws.onclose = () => {
                 setIsConnected(false);
-                // Auto-complete if session ends normally
-                completeEveningReflection(transcript || "Session Completed");
+                completeEveningReflection("Session Completed");
                 setView(ViewState.DASHBOARD);
             };
 
         } catch (e) {
             console.error("Live Connection Failed", e);
             alert("Could not connect to Live API");
+            setIsConnected(false);
         }
     };
 
     const setupAudioProcessing = async (stream: MediaStream, ctx: AudioContext, ws: WebSocket) => {
+        // Simple ScriptProcessor fallback for simplicity in this pivot or AudioWorklet if possible.
+        // Using ScriptProcessor for wider compat in quick implementation, or a simpler Worklet.
+        // Let's use a robust Worklet approach for INPUT.
+
         await ctx.audioWorklet.addModule("data:text/javascript," + encodeURIComponent(`
-      class PCMProcessor extends AudioWorkletProcessor {
-        process(inputs) {
-          const input = inputs[0];
-          if (input.length > 0) {
-            const float32 = input[0];
-            const int16 = new Int16Array(float32.length);
-            for (let i = 0; i < float32.length; i++) {
-              int16[i] = Math.max(-1, Math.min(1, float32[i])) * 0x7FFF;
+            class RecorderProcessor extends AudioWorkletProcessor {
+                process(inputs) {
+                    const input = inputs[0];
+                    if (input.length > 0) {
+                        const float32 = input[0];
+                        // Downsample/Convert if needed, but Gemini accepts PCM
+                        // Just sending raw chunks helps
+                        this.port.postMessage(float32);
+                    }
+                    return true;
+                }
             }
-            this.port.postMessage(int16);
-          }
-          return true;
-        }
-      }
-      registerProcessor("pcm-processor", PCMProcessor);
-    `));
+            registerProcessor("recorder-processor", RecorderProcessor);
+        `));
 
         const source = ctx.createMediaStreamSource(stream);
-        const processor = new AudioWorkletNode(ctx, "pcm-processor");
+        const processor = new AudioWorkletNode(ctx, "recorder-processor");
 
+        // Downsampling/Encoding Logic
+        // Gemini expects: 16kHz or 24kHz, 1 channel, PCM s16le usually
+        // We will do a simple Float32 -> Int16 conversion here
         processor.port.onmessage = (e) => {
             if (ws.readyState === WebSocket.OPEN) {
-                // Send Realtime Input
-                const base64 = btoa(String.fromCharCode(...new Uint8Array(e.data.buffer)));
+                const float32 = e.data;
+                const int16 = new Int16Array(float32.length);
+                for (let i = 0; i < float32.length; i++) {
+                    int16[i] = Math.max(-1, Math.min(1, float32[i])) * 0x7FFF;
+                }
+                const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+
                 ws.send(JSON.stringify({
                     realtimeInput: {
-                        mediaChunks: [{
-                            mimeType: "audio/pcm",
-                            data: base64
-                        }]
+                        mediaChunks: [{ mimeType: "audio/pcm", data: base64 }]
                     }
                 }));
             }
@@ -135,27 +148,44 @@ export const LiveReflection: React.FC = () => {
         workletNodeRef.current = processor;
     };
 
-    const playAudioResponse = (base64: string) => {
-        // Playback logic (Simple PCM decode or just use browser if model returns MP3/WAV... 
-        // Live API returns PCM. For MVP, we might skip audio playback IMPLEMENTATION and just trust the transcript 
-        // OR use a simple PCM player. 
-        // For this iteration, let's assume we just want to ensure the CONNECTION works.
-        // Implementing a full PCM stream player is complex.
-        // I'll leave a stub or simple implementation.
-
-        // Simple method: Convert to WAV blob and play (Latency high but works)
+    const playPcmChunk = (base64: string, ctx: AudioContext) => {
         const binary = atob(base64);
         const len = binary.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        // Turn raw bytes into Int16
+        const int16 = new Int16Array(len / 2);
+        const view = new DataView(new Uint8Array(new Uint8Array(len).map((_, i) => binary.charCodeAt(i))).buffer);
 
-        // ... PCM Player logic needed here ...
+        for (let i = 0; i < len / 2; i++) {
+            int16[i] = view.getInt16(i * 2, true); // Little Endian
+        }
+
+        // Convert Int16 -> Float32 for playback
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) {
+            float32[i] = int16[i] / 32768.0;
+        }
+
+        const buffer = ctx.createBuffer(1, float32.length, 24000);
+        buffer.getChannelData(0).set(float32);
+
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+
+        // Schedule Ahead Logic (Jitter Buffer)
+        const now = ctx.currentTime;
+        // Schedule at next available slot, or now if we fell behind (add small latency)
+        const scheduledTime = Math.max(now, nextStartTimeRef.current);
+
+        source.start(scheduledTime);
+        nextStartTimeRef.current = scheduledTime + buffer.duration;
     };
 
     const disconnect = () => {
-        wsRef.current?.close();
-        audioContextRef.current?.close();
-        mediaStreamRef.current?.getTracks().forEach(t => t.stop());
+        if (wsRef.current) wsRef.current.close();
+        if (audioContextRef.current) audioContextRef.current.close();
+        if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
+        setIsConnected(false);
     };
 
     return (

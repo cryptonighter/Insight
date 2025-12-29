@@ -184,14 +184,15 @@ export interface GenerationRequest {
 
 export enum ViewState {
   ONBOARDING = 'ONBOARDING',
-  DASHBOARD = 'DASHBOARD', // Replaces HOME
-  HOME = 'HOME', // Legacy
+  DASHBOARD = 'DASHBOARD',
+  HOME = 'HOME',
   LOADING = 'LOADING',
   CARDS = 'CARDS',
   MEDITATIONS = 'MEDITATIONS',
   PLAYER = 'PLAYER',
   ADMIN = 'ADMIN',
-  REFLECTION = 'REFLECTION',
+  REFLECTION = 'REFLECTION', // Legacy Post-Meditation
+  EVENING_REFLECTION = 'EVENING_REFLECTION', // New Live API Flow
   TRIAGE = 'TRIAGE',
   CONTEXT = 'CONTEXT'
 }
