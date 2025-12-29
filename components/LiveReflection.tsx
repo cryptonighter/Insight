@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
-import { Mic, MicOff, StopCircle, X } from 'lucide-react';
+import { Mic, MicOff, StopCircle, X, Keyboard, Send } from 'lucide-react';
 
 const API_KEY = "AIzaSyBx3c6VF9JnL-Qbc1rQKbAL-PHBA5anfys";
 const HOST = "generativelanguage.googleapis.com";
@@ -9,8 +9,15 @@ const MODEL = "models/gemini-2.0-flash-exp";
 
 export const LiveReflection: React.FC = () => {
     const { setView, completeEveningReflection, activeResolution } = useApp();
+    const [mode, setMode] = useState<'voice' | 'text'>('voice');
+
+    // Voice State
     const [isConnected, setIsConnected] = useState(false);
     const [isTalking, setIsTalking] = useState(false);
+
+    // Text State
+    const [textInput, setTextInput] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const wsRef = useRef<WebSocket | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -18,11 +25,28 @@ export const LiveReflection: React.FC = () => {
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const nextStartTimeRef = useRef<number>(0);
 
-    const [transcript, setTranscript] = useState("");
-
     useEffect(() => {
         return () => disconnect();
     }, []);
+
+    // Switch Handlers
+    const toggleMode = () => {
+        if (mode === 'voice') {
+            disconnect();
+            setMode('text');
+        } else {
+            setMode('voice');
+        }
+    };
+
+    const handleTextSubmit = async () => {
+        if (!textInput.trim()) return;
+        setIsSubmitting(true);
+        // Simulate a brief delay for "processing" feel
+        await new Promise(r => setTimeout(r, 800));
+        await completeEveningReflection(textInput);
+        setView(ViewState.DASHBOARD);
+    };
 
     const connect = async () => {
         try {
@@ -30,7 +54,7 @@ export const LiveReflection: React.FC = () => {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
             mediaStreamRef.current = stream;
 
-            const audioCtx = new AudioContext({ sampleRate: 24000 }); // Gemini optimized
+            const audioCtx = new AudioContext({ sampleRate: 24000 });
             audioContextRef.current = audioCtx;
             nextStartTimeRef.current = audioCtx.currentTime;
 
@@ -82,7 +106,6 @@ export const LiveReflection: React.FC = () => {
                 } else {
                     const data = JSON.parse(event.data);
 
-                    // Handle Audio Output
                     if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
                         const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
                         playPcmChunk(pcmBase64, audioCtx);
@@ -90,15 +113,19 @@ export const LiveReflection: React.FC = () => {
                     }
 
                     if (data.serverContent?.turnComplete) {
-                        setTimeout(() => setIsTalking(false), 1000); // Small buffer
+                        setTimeout(() => setIsTalking(false), 1000);
                     }
                 }
             };
 
             ws.onclose = () => {
                 setIsConnected(false);
-                completeEveningReflection("Session Completed");
-                setView(ViewState.DASHBOARD);
+                if (mode === 'voice') {
+                    // Only auto-complete if we were in voice mode and it closed naturally
+                    // Actually, let's just create a generic summary if voice ends
+                    // completeEveningReflection("Voice Session Completed"); // Optional: Don't auto-complete on accidental close
+                    // setView(ViewState.DASHBOARD);
+                }
             };
 
         } catch (e) {
@@ -109,18 +136,13 @@ export const LiveReflection: React.FC = () => {
     };
 
     const setupAudioProcessing = async (stream: MediaStream, ctx: AudioContext, ws: WebSocket) => {
-        // Simple ScriptProcessor fallback for simplicity in this pivot or AudioWorklet if possible.
-        // Using ScriptProcessor for wider compat in quick implementation, or a simpler Worklet.
-        // Let's use a robust Worklet approach for INPUT.
-
-        await ctx.audioWorklet.addModule("data:text/javascript," + encodeURIComponent(`
+        try {
+            await ctx.audioWorklet.addModule("data:text/javascript," + encodeURIComponent(`
             class RecorderProcessor extends AudioWorkletProcessor {
                 process(inputs) {
                     const input = inputs[0];
                     if (input.length > 0) {
                         const float32 = input[0];
-                        // Downsample/Convert if needed, but Gemini accepts PCM
-                        // Just sending raw chunks helps
                         this.port.postMessage(float32);
                     }
                     return true;
@@ -129,97 +151,137 @@ export const LiveReflection: React.FC = () => {
             registerProcessor("recorder-processor", RecorderProcessor);
         `));
 
-        const source = ctx.createMediaStreamSource(stream);
-        const processor = new AudioWorkletNode(ctx, "recorder-processor");
+            const source = ctx.createMediaStreamSource(stream);
+            const processor = new AudioWorkletNode(ctx, "recorder-processor");
 
-        // Downsampling/Encoding Logic
-        // Gemini expects: 16kHz or 24kHz, 1 channel, PCM s16le usually
-        // We will do a simple Float32 -> Int16 conversion here
-        processor.port.onmessage = (e) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                const float32 = e.data;
-                const int16 = new Int16Array(float32.length);
-                for (let i = 0; i < float32.length; i++) {
-                    int16[i] = Math.max(-1, Math.min(1, float32[i])) * 0x7FFF;
-                }
-                const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-
-                ws.send(JSON.stringify({
-                    realtimeInput: {
-                        mediaChunks: [{ mimeType: "audio/pcm", data: base64 }]
+            processor.port.onmessage = (e) => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    const float32 = e.data;
+                    const int16 = new Int16Array(float32.length);
+                    for (let i = 0; i < float32.length; i++) {
+                        int16[i] = Math.max(-1, Math.min(1, float32[i])) * 0x7FFF;
                     }
-                }));
-            }
-        };
+                    const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
 
-        source.connect(processor);
-        workletNodeRef.current = processor;
+                    ws.send(JSON.stringify({
+                        realtimeInput: {
+                            mediaChunks: [{ mimeType: "audio/pcm", data: base64 }]
+                        }
+                    }));
+                }
+            };
+
+            source.connect(processor);
+            workletNodeRef.current = processor;
+        } catch (e) { console.error("Worklet error", e); }
     };
 
     const playPcmChunk = (base64: string, ctx: AudioContext) => {
-        const binary = atob(base64);
-        const len = binary.length;
-        // Turn raw bytes into Int16
-        const int16 = new Int16Array(len / 2);
-        const view = new DataView(new Uint8Array(new Uint8Array(len).map((_, i) => binary.charCodeAt(i))).buffer);
+        try {
+            const binary = atob(base64);
+            const len = binary.length;
+            const int16 = new Int16Array(len / 2);
+            const view = new DataView(new Uint8Array(new Uint8Array(len).map((_, i) => binary.charCodeAt(i))).buffer);
 
-        for (let i = 0; i < len / 2; i++) {
-            int16[i] = view.getInt16(i * 2, true); // Little Endian
-        }
+            for (let i = 0; i < len / 2; i++) {
+                int16[i] = view.getInt16(i * 2, true);
+            }
 
-        // Convert Int16 -> Float32 for playback
-        const float32 = new Float32Array(int16.length);
-        for (let i = 0; i < int16.length; i++) {
-            float32[i] = int16[i] / 32768.0;
-        }
+            const float32 = new Float32Array(int16.length);
+            for (let i = 0; i < int16.length; i++) {
+                float32[i] = int16[i] / 32768.0;
+            }
 
-        const buffer = ctx.createBuffer(1, float32.length, 24000);
-        buffer.getChannelData(0).set(float32);
+            const buffer = ctx.createBuffer(1, float32.length, 24000);
+            buffer.getChannelData(0).set(float32);
 
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(ctx.destination);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
 
-        // Schedule Ahead Logic (Jitter Buffer)
-        const now = ctx.currentTime;
-        // Schedule at next available slot, or now if we fell behind (add small latency)
-        const scheduledTime = Math.max(now, nextStartTimeRef.current);
+            const now = ctx.currentTime;
+            const scheduledTime = Math.max(now, nextStartTimeRef.current);
 
-        source.start(scheduledTime);
-        nextStartTimeRef.current = scheduledTime + buffer.duration;
+            source.start(scheduledTime);
+            nextStartTimeRef.current = scheduledTime + buffer.duration;
+        } catch (e) { console.error("Playback error", e); }
     };
 
     const disconnect = () => {
-        if (wsRef.current) wsRef.current.close();
+        if (wsRef.current) {
+            wsRef.current.onclose = null; // Prevent triggers
+            wsRef.current.close();
+        }
         if (audioContextRef.current) audioContextRef.current.close();
         if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
         setIsConnected(false);
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50 animate-fade-in">
-            <button onClick={() => { disconnect(); setView(ViewState.DASHBOARD); }} className="absolute top-6 right-6 p-2 bg-white/10 rounded-full text-white">
+        <div className="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50 animate-fade-in text-white p-6">
+            <button onClick={() => { disconnect(); setView(ViewState.DASHBOARD); }} className="absolute top-6 right-6 p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
                 <X />
             </button>
 
-            <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 ${isTalking ? 'bg-indigo-500 scale-110 shadow-[0_0_50px_rgba(99,102,241,0.6)]' : 'bg-slate-700'}`}>
-                {isConnected ? <Mic size={40} className="text-white" /> : <MicOff size={40} className="text-slate-400" />}
+            {/* Mode Switcher */}
+            <div className="absolute top-6 left-6 flex bg-slate-800 rounded-full p-1 border border-slate-700">
+                <button
+                    onClick={() => mode !== 'voice' && toggleMode()}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${mode === 'voice' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                    <Mic size={14} /> Voice
+                </button>
+                <button
+                    onClick={() => mode !== 'text' && toggleMode()}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${mode === 'text' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                    <Keyboard size={14} /> Text
+                </button>
             </div>
 
-            <h2 className="mt-8 text-2xl font-light text-white">Evening Reflection</h2>
-            <p className="text-slate-400 mt-2">{isConnected ? "Listening..." : "Connecting..."}</p>
+            {mode === 'voice' ? (
+                <>
+                    <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 mb-8 ${isTalking ? 'bg-indigo-500 scale-110 shadow-[0_0_50px_rgba(99,102,241,0.6)]' : 'bg-slate-700'}`}>
+                        {isConnected ? <Mic size={40} className="text-white" /> : <MicOff size={40} className="text-slate-400" />}
+                    </div>
 
-            {!isConnected && (
-                <button onClick={connect} className="mt-8 px-8 py-3 bg-indigo-500 hover:bg-indigo-400 text-white rounded-full font-medium transition-all">
-                    Start Conversation
-                </button>
-            )}
+                    <h2 className="text-2xl font-light text-white mb-2">Evening Reflection</h2>
+                    <p className="text-slate-400 mb-8">{isConnected ? "Listening..." : "Connecting..."}</p>
 
-            {isConnected && (
-                <button onClick={disconnect} className="mt-8 px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2">
-                    <StopCircle size={20} />
-                    End Session
-                </button>
+                    {!isConnected && (
+                        <button onClick={connect} className="px-8 py-3 bg-indigo-500 hover:bg-indigo-400 text-white rounded-full font-medium transition-all shadow-lg hover:shadow-indigo-500/25">
+                            Start Conversation
+                        </button>
+                    )}
+
+                    {isConnected && (
+                        <button onClick={disconnect} className="px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2">
+                            <StopCircle size={20} />
+                            End Session
+                        </button>
+                    )}
+                </>
+            ) : (
+                <div className="w-full max-w-md animate-fade-in">
+                    <h2 className="text-2xl font-light text-white mb-6">Evening Reflection</h2>
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <label className="text-xs uppercase tracking-widest text-slate-500 font-semibold mb-2 block">How was your progress today?</label>
+                        <textarea
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            placeholder="I made progress by..."
+                            className="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white placeholder-slate-500 min-h-[150px] mb-4 outline-none focus:border-indigo-500 transition-colors resize-none"
+                            autoFocus
+                        />
+                        <button
+                            onClick={handleTextSubmit}
+                            disabled={!textInput.trim() || isSubmitting}
+                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isSubmitting ? <span className="animate-pulse">Saving...</span> : <>Complete & Earn Token <Send size={16} /></>}
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
