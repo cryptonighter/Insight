@@ -145,16 +145,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const createNewResolution = async (statement: string, motivation: string) => {
     if (!user.supabaseId) return;
 
-    // Archive old ones
+    // 1. Archive old ones
     await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', user.supabaseId);
 
-    // Create new
+    // 2. Create new Resolution
     const { data, error } = await supabase.from('resolutions').insert({
       user_id: user.supabaseId,
       statement,
       root_motivation: motivation,
       status: 'active'
     }).select().single();
+
+    // 3. Initialize Economy (The Commitment Grant) - Upsert to be safe
+    const { error: ecoError } = await supabase.from('user_economy').upsert({
+      user_id: user.supabaseId,
+      balance: 5, // Start with 5
+      last_daily_grant: new Date().toISOString()
+    }, { onConflict: 'user_id' }); // If exists, reset/ignore? Let's just ensure it exists.
 
     if (data && !error) {
       setActiveResolution({
@@ -164,6 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         status: 'active',
         createdAt: data.created_at
       });
+      setUserEconomy(prev => ({ ...prev, balance: 5 })); // Optimistic update
       setView(ViewState.DASHBOARD);
     }
   };

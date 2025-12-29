@@ -1,24 +1,52 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
-import { Sparkles, Moon, Sun, Lock, Unlock, Zap } from 'lucide-react';
+import { Sparkles, Moon, Sun, Lock, Unlock, Zap, Loader2 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-    const { setView } = useApp();
+    const {
+        setView,
+        userEconomy,
+        activeResolution,
+        todaysEntry,
+        startMorningSession,
+        user
+    } = useApp();
 
-    // Mock Data (To be replaced with AppContext)
-    const tokenBalance = 5;
-    const activeResolution = {
-        statement: "I want to launch my startup MVP",
-        motivation: "To prove to myself I can build something of value."
-    };
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
+    // Redirect to Onboarding if no active resolution found after sync
+    useEffect(() => {
+        if (user.supabaseId && activeResolution === null) {
+            // Small delay to allow sync to complete to avoid flash
+            const timer = setTimeout(() => {
+                // Double check
+                if (activeResolution === null) {
+                    setIsRedirecting(true);
+                    setView(ViewState.ONBOARDING);
+                }
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [activeResolution, user.supabaseId, setView]);
 
     const currentHour = new Date().getHours();
-    const isMorning = currentHour < 12; // Simple logic for now
+    const isMorning = currentHour < 12;
 
-    // States
-    const isMorningCompleted = false;
-    const isEveningCompleted = false;
+    // Derived States from real data
+    const isMorningCompleted = todaysEntry?.morningGenerated || false;
+    const isEveningCompleted = todaysEntry?.eveningCompleted || false;
+
+    if (isRedirecting) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-500"><Loader2 className="animate-spin" /></div>;
+
+    if (!activeResolution) {
+        return (
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 gap-2">
+                <Loader2 className="animate-spin" size={20} />
+                <span>Syncing Reality...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex flex-col items-center bg-gradient-liquid app-text-primary p-6 relative overflow-hidden">
@@ -27,7 +55,7 @@ export const Dashboard: React.FC = () => {
             <div className="w-full max-w-md flex justify-between items-center z-10 mb-8">
                 <div className="flex items-center gap-2 bg-white/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/50 shadow-sm">
                     <Zap size={16} className="text-amber-500 fill-amber-500" />
-                    <span className="font-bold text-slate-800">{tokenBalance} Tokens</span>
+                    <span className="font-bold text-slate-800">{userEconomy.balance} Tokens</span>
                 </div>
                 <button className="p-2 opacity-50 hover:opacity-100 transition-opacity">
                     S
@@ -41,7 +69,7 @@ export const Dashboard: React.FC = () => {
                 <div className="glass-card p-6 rounded-2xl border-l-4 border-indigo-500">
                     <h3 className="text-xs uppercase tracking-widest text-slate-500 mb-2 font-semibold">Current Resolution</h3>
                     <p className="text-lg font-medium text-slate-800 leading-snug">"{activeResolution.statement}"</p>
-                    <p className="text-sm text-slate-500 italic mt-2">because {activeResolution.motivation}</p>
+                    <p className="text-sm text-slate-500 italic mt-2">because {activeResolution.rootMotivation}</p>
                 </div>
 
                 {/* The Action Loop */}
@@ -59,7 +87,7 @@ export const Dashboard: React.FC = () => {
                         <p className="text-sm text-slate-500 mt-1">Visualize the path. 1 Token.</p>
 
                         <button
-                            onClick={() => setView(ViewState.LOADING)} // Or context check
+                            onClick={startMorningSession}
                             disabled={isMorningCompleted || (!isMorning && !isMorningCompleted)}
                             className="w-full mt-4 bg-slate-900 text-white py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
                         >

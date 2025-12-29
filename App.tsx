@@ -17,6 +17,7 @@ import { ViewState } from './types';
 
 import { Dashboard } from './components/Dashboard';
 import { LiveReflection } from './components/LiveReflection';
+import { OnboardingWizard } from './components/OnboardingWizard';
 
 const Main: React.FC = () => {
   const { currentView, user } = useApp();
@@ -32,6 +33,7 @@ const Main: React.FC = () => {
 
   const renderView = () => {
     switch (currentView) {
+      case ViewState.ONBOARDING: return <OnboardingWizard />;
       case ViewState.DASHBOARD: return <Dashboard />;
       case ViewState.HOME: return <Home />; // Legacy Chat
       case ViewState.LOADING: return <LoadingGeneration />;
