@@ -5,8 +5,26 @@ import { Mic, Send, Sparkles, StopCircle, ArrowRight, Settings, Loader2 } from '
 import { ViewState } from '../types';
 import { VoiceInput } from './VoiceInput';
 
+import { Dashboard } from './Dashboard';
+import { LiveReflection } from './LiveReflection';
+
 export const Home: React.FC = () => {
-  const { chatHistory, sendChatMessage, startMeditationGeneration, setView } = useApp();
+  const { currentView, chatHistory, sendChatMessage, startMeditationGeneration, setView } = useApp();
+  // ... (keep state for legacy Chat if needed, or simply render Dashboard)
+
+  // VIEW ROUTER
+  if (currentView === ViewState.DASHBOARD) {
+    return <Dashboard />;
+  }
+
+  if (currentView === ViewState.REFLECTION) {
+    return <LiveReflection />;
+  }
+
+  // Legacy Chat (Fallback for HOME or TRIAGE)
+  // For now, I'll keep the legacy chat accessible via the 'HOME' state for testing.
+
+  // ... (rest of legacy chat render)
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);

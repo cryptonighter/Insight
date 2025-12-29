@@ -184,7 +184,8 @@ export interface GenerationRequest {
 
 export enum ViewState {
   ONBOARDING = 'ONBOARDING',
-  HOME = 'HOME',
+  DASHBOARD = 'DASHBOARD', // Replaces HOME
+  HOME = 'HOME', // Legacy
   LOADING = 'LOADING',
   CARDS = 'CARDS',
   MEDITATIONS = 'MEDITATIONS',
@@ -193,4 +194,32 @@ export enum ViewState {
   REFLECTION = 'REFLECTION',
   TRIAGE = 'TRIAGE',
   CONTEXT = 'CONTEXT'
+}
+
+// --- RESOLUTION ENGINE TYPES ---
+
+export interface UserEconomy {
+  userId: string;
+  balance: number;
+  lastDailyGrant?: string; // ISO Date "YYYY-MM-DD"
+}
+
+export interface Resolution {
+  id: string;
+  statement: string; // "I want to X"
+  rootMotivation: string; // "Because Y"
+  status: 'active' | 'archived' | 'completed';
+  createdAt: string;
+}
+
+export interface DailyEntry {
+  id: string;
+  resolutionId: string;
+  date: string; // "YYYY-MM-DD"
+
+  eveningCompleted: boolean;
+  reflectionSummary?: string;
+
+  morningGenerated: boolean;
+  morningMeditationId?: string;
 }

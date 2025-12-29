@@ -115,3 +115,69 @@ CREATE POLICY "Users can update own patterns" ON patterns FOR UPDATE USING (auth
 
 CREATE POLICY "Users can view own logs" ON session_logs FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own logs" ON session_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- RESOLUTION ENGINE PIVOT TABLES --
+
+-- 1. User Economy (Wallet)
+create table if not exists user_economy (
+  user_id uuid primary key references auth.users not null,
+  balance int default 5, -- Start with 5 tokens
+  last_daily_grant date,
+  created_at timestamptz default now()
+);
+
+-- 2. Resolutions (The Goals)
+create table if not exists resolutions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  statement text not null, -- "I want to run a marathon"
+  root_motivation text, -- "To prove I am strong"
+  status text default 'active', -- 'active', 'archived', 'completed'
+  created_at timestamptz default now()
+);
+
+-- 3. Daily Entries (The Loop)
+create table if not exists daily_entries (
+  id uuid primary key default gen_random_uuid(),
+  resolution_id uuid references resolutions not null,
+  user_id uuid references auth.users not null, -- Denormalized for easier queries
+  date date not null default CURRENT_DATE,
+  
+  -- Evening Reflection Data
+  evening_completed boolean default false,
+  reflection_summary text,
+  reflection_audio_url text, -- Optional: if we save the Live session audio later
+  
+  -- Morning Alignment Data
+  morning_generated boolean default false,
+  morning_meditation_id uuid, -- Link to the generated audio
+  
+  created_at timestamptz default now(),
+  unique(resolution_id, date)
+);
+
+-- RLS POLICIES (Simple: Users own their own data)
+alter table user_economy enable row level security;
+alter table resolutions enable row level security;
+alter table daily_entries enable row level security;
+
+create policy "Users can view own economy" on user_economy
+  for select using (auth.uid() = user_id);
+create policy "Users can update own economy" on user_economy
+  for update using (auth.uid() = user_id);
+create policy "Users can insert own economy" on user_economy
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can view own resolutions" on resolutions
+  for select using (auth.uid() = user_id);
+create policy "Users can insert own resolutions" on resolutions
+  for insert with check (auth.uid() = user_id);
+create policy "Users can update own resolutions" on resolutions
+  for update using (auth.uid() = user_id);
+
+create policy "Users can view own entries" on daily_entries
+  for select using (auth.uid() = user_id);
+create policy "Users can insert own entries" on daily_entries
+  for insert with check (auth.uid() = user_id);
+create policy "Users can update own entries" on daily_entries
+  for update using (auth.uid() = user_id);
