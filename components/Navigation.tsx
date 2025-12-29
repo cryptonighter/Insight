@@ -2,7 +2,7 @@
 import React from 'react';
 import { ViewState } from '../types';
 import { useApp } from '../context/AppContext';
-import { Mic, Archive, PlayCircle } from 'lucide-react';
+import { Mic, Archive, PlayCircle, LayoutDashboard } from 'lucide-react';
 
 export const Navigation: React.FC = () => {
   const { currentView, setView } = useApp();
@@ -15,9 +15,8 @@ export const Navigation: React.FC = () => {
   ) return null;
 
   const navItems = [
-    { id: ViewState.HOME, label: 'Stream', icon: Mic },
-    { id: ViewState.CARDS, label: 'Registry', icon: Archive },
-    { id: ViewState.MEDITATIONS, label: 'Library', icon: PlayCircle },
+    { id: ViewState.DASHBOARD, label: 'Dashboard', icon: Mic }, // Mic icon for now, simpler
+    // { id: ViewState.MEDITATIONS, label: 'Library', icon: PlayCircle }, // Hidden for clutter reduction
   ];
 
   return (

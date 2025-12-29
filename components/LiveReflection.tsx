@@ -39,6 +39,12 @@ export const LiveReflection: React.FC = () => {
             const ws = new WebSocket(url);
             wsRef.current = ws;
 
+            ws.onerror = (e) => {
+                console.error("Live API Error:", e);
+                alert("Connection failed. Check console for details.");
+                setIsConnected(false);
+            };
+
             ws.onopen = () => {
                 setIsConnected(true);
                 ws.send(JSON.stringify({
