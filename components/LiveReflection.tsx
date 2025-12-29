@@ -34,6 +34,8 @@ export const LiveReflection: React.FC = () => {
             audioContextRef.current = audioCtx;
             nextStartTimeRef.current = audioCtx.currentTime;
 
+            await audioCtx.resume();
+
             // 2. Setup WebSocket
             const url = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
             const ws = new WebSocket(url);

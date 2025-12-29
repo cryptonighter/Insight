@@ -16,7 +16,7 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 // Constants for models
 const OPENROUTER_MODEL = "google/gemini-3-flash-preview";
 const TEXT_MODEL = "gemini-2.0-pro-exp-02-05";
-const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
+const AUDIO_MODEL = "models/gemini-2.0-flash-exp";
 const DIRECTOR_MODEL = "google/gemini-3-flash-preview";
 
 async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL, jsonMode: boolean = false) {

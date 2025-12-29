@@ -15,7 +15,7 @@ export const Navigation: React.FC = () => {
   ) return null;
 
   const navItems = [
-    { id: ViewState.DASHBOARD, label: 'Dashboard', icon: Mic }, // Mic icon for now, simpler
+    { id: ViewState.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard }, // Mic icon for now, simpler
     // { id: ViewState.MEDITATIONS, label: 'Library', icon: PlayCircle }, // Hidden for clutter reduction
   ];
 
