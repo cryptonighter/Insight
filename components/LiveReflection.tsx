@@ -68,7 +68,16 @@ export const LiveReflection: React.FC = () => {
             mediaStreamRef.current.getTracks().forEach(t => t.stop());
         }
 
-        // 3. Send Summary Request
+        // 3. SAFETY TIMEOUT (Unblock UI if summary fails)
+        setTimeout(() => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                console.log("Summary Timeout - Forcing Exit");
+                disconnect();
+                setView(ViewState.DASHBOARD);
+            }
+        }, 5000);
+
+        // 4. Send Summary Request
         wsRef.current.send(JSON.stringify({
             clientContent: {
                 turns: [{

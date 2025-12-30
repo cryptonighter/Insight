@@ -211,22 +211,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await supabase.from('user_economy').update({ balance: userEconomy.balance + 1, last_daily_grant: new Date().toISOString() }).eq('user_id', user.supabaseId);
     setUserEconomy(prev => ({ ...prev, balance: prev.balance + 1 }));
 
-    // Update Entry
+    // Update or Create Entry
+    const today = new Date().toISOString().split('T')[0];
     if (todaysEntry) {
       await supabase.from('daily_entries').update({ evening_completed: true, reflection_summary: summary }).eq('id', todaysEntry.id);
       setTodaysEntry(prev => prev ? ({ ...prev, eveningCompleted: true }) : null);
-
-      // TRIGGER MEMORY AUDIT (Fire & Forget for speed)
-      supabase.functions.invoke('audit-reflection', {
-        body: { reflection: summary, user_id: user.supabaseId }
-      }).then(({ error }) => {
-        if (error) console.error("Auditor Failed:", error);
-        else console.log("Auditor Triggered");
-      });
-
     } else {
-      // Create entry if late logic...
+      // Create a fresh entry for today
+      const { data: newEntry } = await supabase.from('daily_entries').insert({
+        user_id: user.supabaseId,
+        resolution_id: activeResolution.id,
+        date: today,
+        evening_completed: true,
+        reflection_summary: summary
+      }).select().single();
+
+      if (newEntry) {
+        setTodaysEntry({
+          id: newEntry.id,
+          resolutionId: activeResolution.id,
+          date: newEntry.date,
+          eveningCompleted: true,
+          morningGenerated: false
+        });
+      }
     }
+
+    // TRIGGER MEMORY AUDIT (Fire & Forget for speed)
+    supabase.functions.invoke('audit-reflection', {
+      body: { reflection: summary, user_id: user.supabaseId }
+    }).then(({ error }) => {
+      if (error) console.error("Auditor Failed:", error);
+      else console.log("Auditor Triggered");
+    });
   };
 
   const completeOnboarding = () => { /* ... */ };
