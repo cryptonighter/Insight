@@ -9,7 +9,7 @@ const HOST = "generativelanguage.googleapis.com";
 const MODEL = "models/gemini-2.0-flash-exp";
 
 export const LiveReflection: React.FC = () => {
-    const { setView, completeEveningReflection, activeResolution } = useApp();
+    const { setView, completeEveningReflection, activeResolution, user } = useApp();
     const [mode, setMode] = useState<'voice' | 'text'>('voice');
 
     // Voice State
@@ -95,7 +95,8 @@ export const LiveReflection: React.FC = () => {
 
     // --- MEMORY RETRIEVAL ---
     const fetchContext = async () => {
-        if (!activeResolution) return "";
+        if (!activeResolution || !user.supabaseId) return "";
+        console.log("🔍 Fetching memory context for user:", user.supabaseId);
 
         try {
             // A. Embed Current Goal
@@ -103,8 +104,8 @@ export const LiveReflection: React.FC = () => {
 
             // B. Fetch Buckets
             const [explicit, contextual, recent] = await Promise.all([
-                // Bucket C: Explicit Mandates (The Law) - Filter by 'explicit' (or 'core' if we treat them similarly)
-                supabase.from('memories').select('content').eq('user_id', useApp().user.supabaseId).eq('type', 'explicit'),
+                // Bucket C: Explicit Mandates (The Law)
+                supabase.from('memories').select('content').eq('user_id', user.supabaseId).eq('type', 'explicit'),
 
                 // Bucket A: Contextual (Vector Search)
                 embedding ? supabase.rpc('match_memories', {
@@ -116,11 +117,17 @@ export const LiveReflection: React.FC = () => {
                 // Bucket D: Recent Narrative (Last 3 entries)
                 supabase.from('daily_entries')
                     .select('date, reflection_summary')
-                    .eq('user_id', useApp().user.supabaseId)
+                    .eq('user_id', user.supabaseId)
                     .neq('reflection_summary', null)
                     .order('date', { ascending: false })
                     .limit(3)
             ]);
+
+            console.log("📊 Context Stats:", {
+                explicit: explicit.data?.length,
+                contextual: contextual.data?.length,
+                recent: recent.data?.length
+            });
 
             // C. Format Output
             const mandates = explicit.data?.map(m => `- [MANDATE]: ${m.content}`).join('\n') || "None";
@@ -187,11 +194,12 @@ export const LiveReflection: React.FC = () => {
             wsRef.current = ws;
 
             ws.onerror = (e) => {
-                console.error("Live API Error:", e);
+                console.error("🚨 WebSocket Error:", e);
                 setIsConnected(false);
             };
 
             ws.onopen = async () => {
+                console.log("🌐 WebSocket Connected. Initializing setup...");
                 setIsConnected(true);
 
                 // 1. Fetch Memory Context
@@ -321,6 +329,7 @@ export const LiveReflection: React.FC = () => {
             };
 
             ws.onclose = (e) => {
+                console.warn(`🔌 WebSocket Closed (Code: ${e.code}, Reason: ${e.reason})`);
                 setIsConnected(false);
             };
 
