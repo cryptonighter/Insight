@@ -16,7 +16,7 @@ export const LiveReflection: React.FC = () => {
     const [isTalking, setIsTalking] = useState(false);
     // DEBUG STATE
     const [debugLog, setDebugLog] = useState<string[]>([]);
-    const addLog = (msg: string) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
+    const addLog = (msg: string) => setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]); // Keep last 5 logs
 
     // Text State
     const [textInput, setTextInput] = useState("");
@@ -85,6 +85,8 @@ export const LiveReflection: React.FC = () => {
             ws.onopen = () => {
                 addLog("WebSocket Connected!");
                 setIsConnected(true);
+
+                // 1. Send Setup
                 ws.send(JSON.stringify({
                     setup: {
                         model: MODEL,
@@ -110,6 +112,19 @@ export const LiveReflection: React.FC = () => {
                     }
                 }));
                 addLog("Sent Setup Message.");
+
+                // 2. Force Hello (Kickstart)
+                ws.send(JSON.stringify({
+                    clientContent: {
+                        turns: [{
+                            role: "user",
+                            parts: [{ text: "Hello, I am ready to reflect." }]
+                        }],
+                        turnComplete: true
+                    }
+                }));
+                addLog("Sent Kickstart Message ('Hello').");
+
                 setupAudioProcessing(stream, audioCtx, ws);
             };
 
@@ -121,11 +136,15 @@ export const LiveReflection: React.FC = () => {
 
                     if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
                         const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
+                        const size = pcmBase64.length;
+                        // Throttle logs: only log larger chunks or occasionally
+                        if (Math.random() < 0.1) addLog(`Rx Audio: ${size} bytes`);
                         playPcmChunk(pcmBase64, audioCtx);
                         setIsTalking(true);
                     }
 
                     if (data.serverContent?.turnComplete) {
+                        addLog("AI Turn Complete.");
                         setTimeout(() => setIsTalking(false), 1000);
                     }
                 }
@@ -172,6 +191,11 @@ export const LiveReflection: React.FC = () => {
                         int16[i] = Math.max(-1, Math.min(1, float32[i])) * 0x7FFF;
                     }
                     const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+
+                    // Throttle Tx Log
+                    if (Math.random() < 0.05) {
+                        // console.log("Sending Audio chunk..."); 
+                    }
 
                     ws.send(JSON.stringify({
                         realtimeInput: {
