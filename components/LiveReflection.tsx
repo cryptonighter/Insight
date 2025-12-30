@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
-import { Mic, MicOff, StopCircle, X, Keyboard, Send } from 'lucide-react';
+import { Mic, MicOff, StopCircle, X, Keyboard, Send, Loader2 } from 'lucide-react';
 
-const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A"; // Correct Key
+const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A";
 const HOST = "generativelanguage.googleapis.com";
-// PROTOCOL FIX: Try without 'models/' prefix for WebSocket if 'models/' fails
 const MODEL = "models/gemini-2.0-flash-exp";
 
 export const LiveReflection: React.FC = () => {
@@ -15,6 +14,8 @@ export const LiveReflection: React.FC = () => {
     // Voice State
     const [isConnected, setIsConnected] = useState(false);
     const [isTalking, setIsTalking] = useState(false);
+    const [isWrappingUp, setIsWrappingUp] = useState(false); // New state for summary phase
+
     // DEBUG STATE
     const [debugLog, setDebugLog] = useState<string[]>([]);
     const addLog = (msg: string) => setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
@@ -28,6 +29,7 @@ export const LiveReflection: React.FC = () => {
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const nextStartTimeRef = useRef<number>(0);
+    const summaryAccumulator = useRef<string>("");
 
     useEffect(() => {
         return () => disconnect();
@@ -46,10 +48,30 @@ export const LiveReflection: React.FC = () => {
     const handleTextSubmit = async () => {
         if (!textInput.trim()) return;
         setIsSubmitting(true);
-        // Simulate a brief delay for "processing" feel
         await new Promise(r => setTimeout(r, 800));
         await completeEveningReflection(textInput);
         setView(ViewState.DASHBOARD);
+    };
+
+    const handleEndSession = () => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+            disconnect();
+            return;
+        }
+
+        setIsWrappingUp(true);
+        addLog("Requesting Summary...");
+
+        // Send Summary Request
+        wsRef.current.send(JSON.stringify({
+            clientContent: {
+                turns: [{
+                    role: "user",
+                    parts: [{ text: "SESSION_END: Summarize our conversation in one concise first-person sentence starting with 'I realized...' or 'I focused on...' for my journal. Reply in TEXT ONLY." }]
+                }],
+                turnComplete: true
+            }
+        }));
     };
 
     const connect = async () => {
@@ -149,19 +171,34 @@ export const LiveReflection: React.FC = () => {
                         data = JSON.parse(event.data);
                     }
 
-                    // Log Raw
-                    // addLog(`Msg: ${JSON.stringify(data).slice(0, 30)}...`);
-
-                    if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                        const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
-                        if (Math.random() < 0.1) addLog(`Rx Audio: ${pcmBase64.length}b`);
-                        playPcmChunk(pcmBase64, audioCtx);
-                        setIsTalking(true);
+                    // 1. Capture Text (Usage for Summary)
+                    const textPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
+                    if (textPart) {
+                        summaryAccumulator.current += textPart;
+                        addLog(`Rx Text: ${textPart.slice(0, 20)}...`);
                     }
 
+                    // 2. Handle Audio (Ignore if wrapping up)
+                    if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
+                        if (!isWrappingUp) { // Only play audio if not wrapping up
+                            const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
+                            playPcmChunk(pcmBase64, audioCtx);
+                            setIsTalking(true);
+                        }
+                    }
+
+                    // 3. Turn Complete
                     if (data.serverContent?.turnComplete) {
                         addLog("AI Turn Complete.");
                         setTimeout(() => setIsTalking(false), 1000);
+
+                        // If wrapping up, we assume the text we got is the summary
+                        if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
+                            addLog("Summary Received. Saving...");
+                            await completeEveningReflection(summaryAccumulator.current);
+                            disconnect();
+                            setView(ViewState.DASHBOARD);
+                        }
                     }
                 } catch (e) {
                     addLog(`Msg Parse Error: ${e}`);
@@ -178,23 +215,6 @@ export const LiveReflection: React.FC = () => {
             addLog(`Conn Failed: ${e.message}`);
             alert("Connection Failed: " + e.message);
             setIsConnected(false);
-        }
-    };
-
-    const sendPing = () => {
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            addLog("Ping Sent.");
-            wsRef.current.send(JSON.stringify({
-                clientContent: {
-                    turns: [{
-                        role: "user",
-                        parts: [{ text: "Can you hear me?" }]
-                    }],
-                    turnComplete: true
-                }
-            }));
-        } else {
-            addLog("Ping Failed: Not Connected.");
         }
     };
 
@@ -218,7 +238,7 @@ export const LiveReflection: React.FC = () => {
             const processor = new AudioWorkletNode(ctx, "recorder-processor");
 
             processor.port.onmessage = (e) => {
-                if (ws.readyState === WebSocket.OPEN) {
+                if (ws.readyState === WebSocket.OPEN && !isWrappingUp) { // Stop sending audio if wrapping up
                     const float32 = e.data;
                     const int16 = new Int16Array(float32.length);
                     for (let i = 0; i < float32.length; i++) {
@@ -236,7 +256,7 @@ export const LiveReflection: React.FC = () => {
 
             source.connect(processor);
             workletNodeRef.current = processor;
-            // addLog("Audio Up.");
+
         } catch (e: any) {
             console.error("Worklet error", e);
             addLog(`Worklet Err: ${e.message}`);
@@ -282,6 +302,8 @@ export const LiveReflection: React.FC = () => {
         if (audioContextRef.current) audioContextRef.current.close();
         if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
         setIsConnected(false);
+        setIsWrappingUp(false);
+        summaryAccumulator.current = "";
     };
 
     return (
@@ -313,7 +335,7 @@ export const LiveReflection: React.FC = () => {
                     </div>
 
                     <h2 className="text-2xl font-light text-white mb-2">Evening Reflection</h2>
-                    <p className="text-slate-400 mb-8">{isConnected ? "Listening..." : "Connecting..."}</p>
+                    <p className="text-slate-400 mb-8">{isConnected ? (isWrappingUp ? "Generating Summary..." : "Listening...") : "Connecting..."}</p>
 
                     {!isConnected && (
                         <div className="flex flex-col gap-4 items-center">
@@ -325,12 +347,13 @@ export const LiveReflection: React.FC = () => {
 
                     {isConnected && (
                         <div className="flex flex-col gap-4 items-center animate-fade-in">
-                            <button onClick={disconnect} className="px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2">
-                                <StopCircle size={20} />
-                                End Session
-                            </button>
-                            <button onClick={sendPing} className="text-xs text-slate-500 hover:text-white border border-slate-700 px-3 py-1 rounded-full uppercase tracking-wider hover:border-slate-500 transition-colors">
-                                FORCE RESPONSE (Ping)
+                            <button
+                                onClick={handleEndSession}
+                                disabled={isWrappingUp}
+                                className="px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2"
+                            >
+                                {isWrappingUp ? <Loader2 className="animate-spin" size={20} /> : <StopCircle size={20} />}
+                                {isWrappingUp ? "Saving..." : "End Session"}
                             </button>
                         </div>
                     )}
