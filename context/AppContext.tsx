@@ -261,7 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // TRIGGER MEMORY AUDIT (Fire & Forget for speed)
     console.log("🧠 Triggering Memory Auditor...");
     supabase.functions.invoke('audit-reflection', {
-      body: { reflection: summary, user_id: user.supabaseId }
+      body: { reflection: summary, transcript, user_id: user.supabaseId }
     }).then(({ data, error }) => {
       if (error) console.error("❌ Auditor Invocation Failed:", error);
       else console.log("✅ Auditor Response:", data);

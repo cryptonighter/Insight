@@ -13,7 +13,7 @@ serve(async (req) => {
     }
 
     try {
-        const { reflection, user_id } = await req.json();
+        const { reflection, transcript, user_id } = await req.json();
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -31,8 +31,8 @@ serve(async (req) => {
       - "Type": 'core' (identity/values), 'explicit' (user said "remember this"), or 'general'.
       - "Confidence": 0.0 to 1.0.
 
-      REFLECTION:
-      "${reflection}"
+      REFLECTION/TRANSCRIPT:
+      "${transcript || reflection}"
 
       RETURN JSON ARRAY:
       [{ "content": "string", "type": "general"|"core"|"explicit", "importance": 1-10 }]
