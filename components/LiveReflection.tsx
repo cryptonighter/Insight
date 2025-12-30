@@ -14,6 +14,9 @@ export const LiveReflection: React.FC = () => {
     // Voice State
     const [isConnected, setIsConnected] = useState(false);
     const [isTalking, setIsTalking] = useState(false);
+    // DEBUG STATE
+    const [debugLog, setDebugLog] = useState<string[]>([]);
+    const addLog = (msg: string) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
 
     // Text State
     const [textInput, setTextInput] = useState("");
@@ -50,28 +53,37 @@ export const LiveReflection: React.FC = () => {
 
     const connect = async () => {
         try {
+            addLog("Starting connection sequence...");
+
             // 1. Setup Audio Input
+            addLog("Requesting microphone permissions...");
             const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
             mediaStreamRef.current = stream;
+            addLog("Microphone access granted.");
 
+            addLog("Initializing AudioContext...");
             const audioCtx = new AudioContext({ sampleRate: 24000 });
             audioContextRef.current = audioCtx;
             nextStartTimeRef.current = audioCtx.currentTime;
 
+            addLog("Resuming AudioContext...");
             await audioCtx.resume();
+            addLog("AudioContext active.");
 
             // 2. Setup WebSocket
             const url = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
+            addLog(`Connecting to WebSocket (${HOST})...`);
             const ws = new WebSocket(url);
             wsRef.current = ws;
 
             ws.onerror = (e) => {
                 console.error("Live API Error:", e);
-                alert("Connection failed. Check console for details.");
+                addLog("WebSocket Error occurred (check console).");
                 setIsConnected(false);
             };
 
             ws.onopen = () => {
+                addLog("WebSocket Connected!");
                 setIsConnected(true);
                 ws.send(JSON.stringify({
                     setup: {
@@ -97,6 +109,7 @@ export const LiveReflection: React.FC = () => {
                         }
                     }
                 }));
+                addLog("Sent Setup Message.");
                 setupAudioProcessing(stream, audioCtx, ws);
             };
 
@@ -119,24 +132,21 @@ export const LiveReflection: React.FC = () => {
             };
 
             ws.onclose = () => {
+                addLog("WebSocket Closed.");
                 setIsConnected(false);
-                if (mode === 'voice') {
-                    // Only auto-complete if we were in voice mode and it closed naturally
-                    // Actually, let's just create a generic summary if voice ends
-                    // completeEveningReflection("Voice Session Completed"); // Optional: Don't auto-complete on accidental close
-                    // setView(ViewState.DASHBOARD);
-                }
             };
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("Live Connection Failed", e);
-            alert("Could not connect to Live API");
+            addLog(`Connection Failed: ${e.message}`);
+            alert("Could not connect to Live API: " + e.message);
             setIsConnected(false);
         }
     };
 
     const setupAudioProcessing = async (stream: MediaStream, ctx: AudioContext, ws: WebSocket) => {
         try {
+            addLog("Setting up Audio Worklet...");
             await ctx.audioWorklet.addModule("data:text/javascript," + encodeURIComponent(`
             class RecorderProcessor extends AudioWorkletProcessor {
                 process(inputs) {
@@ -173,7 +183,11 @@ export const LiveReflection: React.FC = () => {
 
             source.connect(processor);
             workletNodeRef.current = processor;
-        } catch (e) { console.error("Worklet error", e); }
+            addLog("Audio Processing Active.");
+        } catch (e: any) {
+            console.error("Worklet error", e);
+            addLog(`Worklet Error: ${e.message}`);
+        }
     };
 
     const playPcmChunk = (base64: string, ctx: AudioContext) => {
@@ -260,6 +274,15 @@ export const LiveReflection: React.FC = () => {
                             End Session
                         </button>
                     )}
+
+                    {/* DEBUG LOG */}
+                    <div className="absolute bottom-6 left-6 right-6 h-32 overflow-y-auto bg-black/50 rounded-lg p-2 text-[10px] font-mono text-green-400 border border-green-900/50 backdrop-blur-sm">
+                        {debugLog.length === 0 && <span className="text-slate-500">Debug log waiting for connection...</span>}
+                        {debugLog.map((log, i) => (
+                            <div key={i}>{log}</div>
+                        ))}
+                        <div className="h-4" />
+                    </div>
                 </>
             ) : (
                 <div className="w-full max-w-md animate-fade-in">
