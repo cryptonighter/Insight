@@ -170,7 +170,7 @@ const connect = async () => {
             setIsConnected(false);
         };
 
-        ws.onopen = () => {
+        ws.onopen = async () => {
             setIsConnected(true);
 
             // 1. Fetch Memory Context
