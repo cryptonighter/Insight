@@ -125,7 +125,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           .select('*')
           .eq('resolution_id', res.id)
           .eq('date', today)
-          .single();
+          .maybeSingle();
 
         if (entry) {
           setTodaysEntry({

@@ -231,17 +231,17 @@ export const LiveReflection: React.FC = () => {
                 ws.send(JSON.stringify({
                     setup: {
                         model: MODEL,
-                        generation_config: {
-                            response_modalities: ["AUDIO"],
-                            speech_config: {
-                                voice_config: {
-                                    prebuilt_voice_config: {
-                                        voice_name: "Charon" // Deeper, more mature voice
+                        generationConfig: {
+                            responseModalities: ["AUDIO", "TEXT"],
+                            speechConfig: {
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: {
+                                        voiceName: "Charon" // Deeper, more mature voice
                                     }
                                 }
                             }
                         },
-                        system_instruction: {
+                        systemInstruction: {
                             parts: [{ text: systemPrompt }]
                         }
                     }
