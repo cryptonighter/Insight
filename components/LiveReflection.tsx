@@ -27,6 +27,7 @@ export const LiveReflection: React.FC = () => {
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const nextStartTimeRef = useRef<number>(0);
     const summaryAccumulator = useRef<string>("");
+    const transcriptAccumulator = useRef<string>("");
 
     useEffect(() => {
         return () => disconnect();
@@ -46,7 +47,7 @@ export const LiveReflection: React.FC = () => {
         if (!textInput.trim()) return;
         setIsSubmitting(true);
         await new Promise(r => setTimeout(r, 800));
-        await completeEveningReflection(textInput);
+        await completeEveningReflection(textInput, textInput);
         setView(ViewState.DASHBOARD);
     };
 
@@ -237,11 +238,13 @@ export const LiveReflection: React.FC = () => {
                 // 2. Force Hello (Kickstart) with DELAY
                 setTimeout(() => {
                     if (ws.readyState === WebSocket.OPEN) {
+                        const kickstartText = "I'm ready for the debrief. Let's start.";
+                        transcriptAccumulator.current += `Explorer: ${kickstartText}\n\n`;
                         ws.send(JSON.stringify({
                             clientContent: {
                                 turns: [{
                                     role: "user",
-                                    parts: [{ text: "I'm ready for the debrief. Let's start." }] // Serious kickstart
+                                    parts: [{ text: kickstartText }] // Serious kickstart
                                 }],
                                 turnComplete: true
                             }
@@ -262,15 +265,24 @@ export const LiveReflection: React.FC = () => {
                         data = JSON.parse(event.data);
                     }
 
-                    // 1. Capture Text (Usage for Summary)
+                    // 1. Capture Text (Usage for Summary & Transcript)
                     const parts = data.serverContent?.modelTurn?.parts;
                     if (parts) {
+                        let turnText = "";
                         parts.forEach((p: any) => {
                             if (p.text) {
                                 console.log("📝 Text received:", p.text);
-                                summaryAccumulator.current += p.text;
+                                turnText += p.text;
                             }
                         });
+
+                        if (turnText) {
+                            if (isWrappingUp) {
+                                summaryAccumulator.current += turnText;
+                            } else {
+                                transcriptAccumulator.current += `Advisor: ${turnText}\n`;
+                            }
+                        }
                     }
 
                     // 2. Handle Audio (Ignore if wrapping up)
@@ -290,13 +302,17 @@ export const LiveReflection: React.FC = () => {
                         if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
                             console.log("✅ Final Summary Captured:", summaryAccumulator.current);
                             // BACKGROUND THE EXTRACTION: Fire and forget so UI doesn't freeze
-                            completeEveningReflection(summaryAccumulator.current).catch(err => {
+                            completeEveningReflection(summaryAccumulator.current, transcriptAccumulator.current).catch(err => {
                                 console.error("❌ Failed to complete reflection:", err);
                             });
 
                             // IMMEDIATE UI EXIT
                             disconnect();
                             setView(ViewState.DASHBOARD);
+                        }
+
+                        if (!isWrappingUp) {
+                            transcriptAccumulator.current += "\n";
                         }
                     }
                 } catch (e) {

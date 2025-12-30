@@ -146,6 +146,7 @@ create table if not exists daily_entries (
   -- Evening Reflection Data
   evening_completed boolean default false,
   reflection_summary text,
+  transcript text, -- Full session transcript for future analysis
   reflection_audio_url text, -- Optional: if we save the Live session audio later
   
   -- Morning Alignment Data

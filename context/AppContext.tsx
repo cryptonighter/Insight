@@ -203,7 +203,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await finalizeMeditationGeneration(config);
   };
 
-  const completeEveningReflection = async (summary: string) => {
+  const completeEveningReflection = async (summary: string, transcript?: string) => {
     if (!user.supabaseId || !activeResolution) return;
     console.log("DEBUG: completeEveningReflection called");
 
@@ -226,7 +226,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const today = new Date().toISOString().split('T')[0];
     if (todaysEntry) {
       console.log("Updating existing entry:", todaysEntry.id);
-      const { error: updateError } = await supabase.from('daily_entries').update({ evening_completed: true, reflection_summary: summary }).eq('id', todaysEntry.id);
+      const { error: updateError } = await supabase.from('daily_entries').update({
+        evening_completed: true,
+        reflection_summary: summary,
+        transcript: transcript
+      }).eq('id', todaysEntry.id);
       if (updateError) console.error("❌ Entry update failed:", updateError);
       else {
         console.log("✅ Entry updated successfully");
@@ -239,7 +243,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         resolution_id: activeResolution.id,
         date: today,
         evening_completed: true,
-        reflection_summary: summary
+        reflection_summary: summary,
+        transcript: transcript
       }).select().single();
 
       if (newEntry) {
