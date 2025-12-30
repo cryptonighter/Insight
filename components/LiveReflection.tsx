@@ -129,6 +129,10 @@ export const LiveReflection: React.FC = () => {
                 recent: recent.data?.length
             });
 
+            if (explicit.error) console.error("❌ Explicit Memory Error:", explicit.error);
+            if (contextual.error) console.error("❌ Contextual Memory Error:", contextual.error);
+            if (recent.error) console.error("❌ Recent Entry Error:", recent.error);
+
             // C. Format Output
             const mandates = explicit.data?.map(m => `- [MANDATE]: ${m.content}`).join('\n') || "None";
             const context = contextual.data?.map((m: any) => `- [CONTEXT]: ${m.content}`).join('\n') || "None";
@@ -215,10 +219,11 @@ export const LiveReflection: React.FC = () => {
                 ${memoryContext}
 
                 YOUR ROLE:
-                - You are a collaborative ally. The user is the lead; you are the navigator helping them stay on course.
+                - You are a collaborative ally. The user is the lead; you are the navigator.
+                - BE PATIENT. Wait for the user to finish their thoughts. Do not interrupt mid-sentence.
                 - Be deeply professional, mature, and grounded. 
                 - Avoid robotic confirmations like "Understood", "Copy", or "Acknowledged".
-                - Focus on shared progress. Instead of "demanding" results, ask insightful questions that help the user find their own way through bottlenecks.
+                - Focus on shared progress. Instead of "demanding" results, ask insightful questions.
                 - Speak with the presence of a senior advisor: calm, steady, and high-gravity.
                 - UNCERTAINTY PROTOCOL: If you are unsure about a preference or fact, ASK. Do not guess.
 
@@ -228,24 +233,26 @@ export const LiveReflection: React.FC = () => {
                 `;
 
                 // 2. Send Setup
-                ws.send(JSON.stringify({
+                const setupFrame = {
                     setup: {
                         model: MODEL,
-                        generationConfig: {
-                            responseModalities: ["AUDIO", "TEXT"],
-                            speechConfig: {
-                                voiceConfig: {
-                                    prebuiltVoiceConfig: {
-                                        voiceName: "Charon" // Deeper, more mature voice
+                        generation_config: {
+                            response_modalities: ["AUDIO"],
+                            speech_config: {
+                                voice_config: {
+                                    prebuilt_voice_config: {
+                                        voice_name: "Charon"
                                     }
                                 }
                             }
                         },
-                        systemInstruction: {
+                        system_instruction: {
                             parts: [{ text: systemPrompt }]
                         }
                     }
-                }));
+                };
+                console.log("📤 Sending Setup:", setupFrame);
+                ws.send(JSON.stringify(setupFrame));
 
                 // 2. Force Hello (Kickstart) with DELAY
                 setTimeout(() => {
