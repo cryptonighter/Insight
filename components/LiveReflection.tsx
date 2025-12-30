@@ -146,8 +146,8 @@ export const LiveReflection: React.FC = () => {
             `;
 
         } catch (e) {
-            console.error("Memory Fetch Failed", e);
-            return "";
+            console.error("📭 Memory Fetch Failed (Supabase likely not updated):", e);
+            return "No memory context available (Database sync pending).";
         }
     };
 
@@ -233,11 +233,10 @@ export const LiveReflection: React.FC = () => {
                 ws.send(JSON.stringify({
                     setup: {
                         model: MODEL,
-                        generationConfig: {
-                            responseModalities: ["AUDIO", "TEXT"],
-                            maxOutputTokens: 500,
+                        generation_config: {
+                            response_modalities: ["AUDIO"],
                         },
-                        systemInstruction: {
+                        system_instruction: {
                             parts: [{ text: systemPrompt }]
                         }
                     }
