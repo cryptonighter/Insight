@@ -58,12 +58,17 @@ export const LiveReflection: React.FC = () => {
 
         setIsWrappingUp(true);
 
-        // IMMEDIATE AUDIO SILENCE
+        // 1. IMMEDIATE AUDIO SILENCE (Output)
         if (audioContextRef.current) {
-            audioContextRef.current.suspend(); // Freeze any upcoming scheduled audio
+            audioContextRef.current.suspend();
         }
 
-        // Send Summary Request
+        // 2. IMMEDIATE MIC STOP (Input)
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(t => t.stop());
+        }
+
+        // 3. Send Summary Request
         wsRef.current.send(JSON.stringify({
             clientContent: {
                 turns: [{
@@ -266,7 +271,10 @@ export const LiveReflection: React.FC = () => {
 
                         // If wrapping up, we assume the text we got is the summary
                         if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
-                            await completeEveningReflection(summaryAccumulator.current);
+                            // BACKGROUND THE EXTRACTION: Fire and forget so UI doesn't freeze
+                            completeEveningReflection(summaryAccumulator.current).catch(console.error);
+
+                            // IMMEDIATE UI EXIT
                             disconnect();
                             setView(ViewState.DASHBOARD);
                         }
