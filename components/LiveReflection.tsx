@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
 import { Mic, MicOff, StopCircle, X, Keyboard, Send } from 'lucide-react';
 
-// CORRECT KEY from .env
+// CORRECT KEY from .env (Verified)
 const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A";
 const HOST = "generativelanguage.googleapis.com";
 const MODEL = "models/gemini-2.0-flash-exp";
@@ -84,47 +84,35 @@ export const LiveReflection: React.FC = () => {
             };
 
             ws.onopen = () => {
-                addLog("WebSocket Connected!");
+                addLog(`WebSocket Connected! KeySuffix: ...${API_KEY.slice(-4)}`);
                 setIsConnected(true);
 
-                // 1. Send Setup
-                ws.send(JSON.stringify({
+                // 1. Send Setup (TEXT ONLY DEBUG PREFERENCE)
+                // We are stripping system instructions and forcing text modality to see if the pipe works at all.
+                const setupMsg = {
                     setup: {
                         model: MODEL,
                         generationConfig: {
-                            responseModalities: ["AUDIO"],
+                            responseModalities: ["TEXT"], // FORCE TEXT
                             maxOutputTokens: 300,
                         },
-                        systemInstruction: {
-                            parts: [{
-                                text: `You are a warm, concise accountability coach. The user's goal is: "${activeResolution?.statement}". 
-                                Why: "${activeResolution?.rootMotivation}". 
-                                
-                                Your Protocol:
-                                1. Greet warmly (1 sentence).
-                                2. Ask "Did you take action on your goal today?"
-                                3. If yes -> Celebrate briefly. If no -> Ask "What got in the way?"
-                                4. Ask "How do you feel about tomorrow?"
-                                5. Say goodbye and end.
-                                
-                                CRITICAL: Keep responses under 2 sentences. Be encouraging but efficient.`
-                            }]
-                        }
+                        // System Instruction REMOVED for isolation
                     }
-                }));
-                addLog("Sent Setup Message.");
+                };
+                ws.send(JSON.stringify(setupMsg));
+                addLog("Sent Setup (TEXT ONLY MODE).");
 
                 // 2. Force Hello (Kickstart)
                 ws.send(JSON.stringify({
                     clientContent: {
                         turns: [{
                             role: "user",
-                            parts: [{ text: "Hello, I am ready to reflect." }]
+                            parts: [{ text: "System Test: Are you online?" }]
                         }],
                         turnComplete: true
                     }
                 }));
-                addLog("Sent Kickstart Message ('Hello').");
+                addLog("Sent Ping Text.");
 
                 setupAudioProcessing(stream, audioCtx, ws);
             };
@@ -135,11 +123,13 @@ export const LiveReflection: React.FC = () => {
                         // Blob
                     } else {
                         const data = JSON.parse(event.data);
+
                         // Log ANY server content so we know it's alive
                         if (!data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                            addLog(`Rx Msg: ${JSON.stringify(data).slice(0, 50)}...`);
+                            addLog(`Rx Msg: ${JSON.stringify(data).slice(0, 100)}...`);
                         }
 
+                        // Audio Handling (Should not trigger in TEXT mode, but kept just in case)
                         if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
                             const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
                             if (Math.random() < 0.1) addLog(`Rx Audio: ${pcmBase64.length} bytes`);
