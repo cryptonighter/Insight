@@ -232,7 +232,7 @@ export const LiveReflection: React.FC = () => {
                     setup: {
                         model: MODEL,
                         generation_config: {
-                            response_modalities: ["AUDIO"],
+                            response_modalities: ["AUDIO", "TEXT"],
                             speech_config: {
                                 voice_config: {
                                     prebuilt_voice_config: {
@@ -424,7 +424,9 @@ export const LiveReflection: React.FC = () => {
             wsRef.current.onclose = null; // Prevent triggers
             wsRef.current.close();
         }
-        if (audioContextRef.current) audioContextRef.current.close();
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close().catch(e => console.error("AudioContext close error:", e));
+        }
         if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
         setIsConnected(false);
         setIsWrappingUp(false);

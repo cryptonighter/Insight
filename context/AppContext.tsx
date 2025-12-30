@@ -122,7 +122,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // 3. Fetch Today's Entry
         const today = new Date().toISOString().split('T')[0];
         const { data: entry } = await supabase.from('daily_entries')
-          .select('*')
+          .select('id, date, evening_completed, morning_generated, reflection_summary, transcript')
           .eq('resolution_id', res.id)
           .eq('date', today)
           .single();
