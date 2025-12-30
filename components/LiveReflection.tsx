@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
-import { Mic, MicOff, StopCircle, X, Keyboard, Send, Loader2 } from 'lucide-react';
+import { Mic, MicOff, StopCircle, X, Keyboard, Send, Loader2, Sparkles } from 'lucide-react';
 
 const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A";
 const HOST = "generativelanguage.googleapis.com";
@@ -14,11 +14,7 @@ export const LiveReflection: React.FC = () => {
     // Voice State
     const [isConnected, setIsConnected] = useState(false);
     const [isTalking, setIsTalking] = useState(false);
-    const [isWrappingUp, setIsWrappingUp] = useState(false); // New state for summary phase
-
-    // DEBUG STATE
-    const [debugLog, setDebugLog] = useState<string[]>([]);
-    const addLog = (msg: string) => setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
+    const [isWrappingUp, setIsWrappingUp] = useState(false);
 
     // Text State
     const [textInput, setTextInput] = useState("");
@@ -60,7 +56,6 @@ export const LiveReflection: React.FC = () => {
         }
 
         setIsWrappingUp(true);
-        addLog("Requesting Summary...");
 
         // Send Summary Request
         wsRef.current.send(JSON.stringify({
@@ -76,8 +71,6 @@ export const LiveReflection: React.FC = () => {
 
     const connect = async () => {
         try {
-            addLog("Starting connection sequence...");
-
             // 1. Setup Audio Input with Echo Cancellation
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -89,7 +82,6 @@ export const LiveReflection: React.FC = () => {
                 }
             });
             mediaStreamRef.current = stream;
-            addLog("Mic granted (Echo Cancel Active).");
 
             const audioCtx = new AudioContext({ sampleRate: 24000 });
             audioContextRef.current = audioCtx;
@@ -98,18 +90,15 @@ export const LiveReflection: React.FC = () => {
 
             // 2. Setup WebSocket
             const url = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
-            addLog(`Connecting to ws...`);
             const ws = new WebSocket(url);
             wsRef.current = ws;
 
             ws.onerror = (e) => {
                 console.error("Live API Error:", e);
-                addLog("WebSocket Error (Check Console)");
                 setIsConnected(false);
             };
 
             ws.onopen = () => {
-                addLog(`Connected! Sending Setup...`);
                 setIsConnected(true);
 
                 // 1. Send Setup
@@ -122,25 +111,24 @@ export const LiveReflection: React.FC = () => {
                         },
                         systemInstruction: {
                             parts: [{
-                                text: `You are a strategic executive partner for the user's life work. 
-                                User's Current Goal: "${activeResolution?.statement}". 
+                                text: `You are a serious, high-performance executive partner. 
+                                User's Goal: "${activeResolution?.statement}". 
                                 Motivation: "${activeResolution?.rootMotivation}".
 
                                 YOUR ROLE:
-                                - Focus on the BIG PICTURE: Momentum, blockers, and strategic adjustments.
-                                - Avoid technical minutiae unless explicitly asked.
-                                - Be concise (1-2 sentences max per turn).
-                                - Voice Tone: Calm, authoritative, low-arousal, wisdom-focused.
+                                - NO fluff. NO cheerleading. NO robotic pleasantries.
+                                - Be direct, concise, and professional. 
+                                - Focus exclusively on execution, bottlenecks, and results.
+                                - If the user makes excuses, challenge them politely but firmly.
+                                - Speak like a senior advisor: Low arousal, slow pace, high gravity.
 
-                                YOUR PROTOCOL:
-                                1. Ask impactful questions about today's progress relative to the big goal.
-                                2. If they are stuck, zoom out and ask about the strategy.
-                                3. If they succeeded, anchor that feeling of victory.`
+                                OPENING:
+                                - Do not say "Hello". 
+                                - Acknowledge the goal and ask a specific question about today's execution.`
                             }]
                         }
                     }
                 }));
-                addLog("Setup Sent (Strategic Persona).");
 
                 // 2. Force Hello (Kickstart) with DELAY
                 setTimeout(() => {
@@ -149,12 +137,11 @@ export const LiveReflection: React.FC = () => {
                             clientContent: {
                                 turns: [{
                                     role: "user",
-                                    parts: [{ text: "Hello, I am ready." }]
+                                    parts: [{ text: "I am ready for my evening debrief." }] // Serious kickstart
                                 }],
                                 turnComplete: true
                             }
                         }));
-                        addLog("Sent Kickstart (Hello) after 500ms.");
                     }
                 }, 500);
 
@@ -175,7 +162,6 @@ export const LiveReflection: React.FC = () => {
                     const textPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
                     if (textPart) {
                         summaryAccumulator.current += textPart;
-                        addLog(`Rx Text: ${textPart.slice(0, 20)}...`);
                     }
 
                     // 2. Handle Audio (Ignore if wrapping up)
@@ -189,30 +175,26 @@ export const LiveReflection: React.FC = () => {
 
                     // 3. Turn Complete
                     if (data.serverContent?.turnComplete) {
-                        addLog("AI Turn Complete.");
                         setTimeout(() => setIsTalking(false), 1000);
 
                         // If wrapping up, we assume the text we got is the summary
                         if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
-                            addLog("Summary Received. Saving...");
                             await completeEveningReflection(summaryAccumulator.current);
                             disconnect();
                             setView(ViewState.DASHBOARD);
                         }
                     }
                 } catch (e) {
-                    addLog(`Msg Parse Error: ${e}`);
+                    console.error(e);
                 }
             };
 
             ws.onclose = (e) => {
-                addLog(`Closed: ${e.code} ${e.reason}`);
                 setIsConnected(false);
             };
 
         } catch (e: any) {
             console.error("Live Connection Failed", e);
-            addLog(`Conn Failed: ${e.message}`);
             alert("Connection Failed: " + e.message);
             setIsConnected(false);
         }
@@ -259,7 +241,6 @@ export const LiveReflection: React.FC = () => {
 
         } catch (e: any) {
             console.error("Worklet error", e);
-            addLog(`Worklet Err: ${e.message}`);
         }
     };
 
@@ -330,19 +311,20 @@ export const LiveReflection: React.FC = () => {
 
             {mode === 'voice' ? (
                 <>
-                    <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 mb-8 ${isTalking ? 'bg-indigo-500 scale-110 shadow-[0_0_50px_rgba(99,102,241,0.6)]' : 'bg-slate-700'}`}>
-                        {isConnected ? <Mic size={40} className="text-white" /> : <MicOff size={40} className="text-slate-400" />}
+                    <h2 className="text-2xl font-light text-white mb-2 tracking-wide">Evening Protocol</h2>
+                    <p className="text-slate-500 mb-12 text-sm uppercase tracking-widest">{isConnected ? (isWrappingUp ? "GENERATING INSIGHT..." : "RECORDING") : "READY TO CONNECT"}</p>
+
+                    <div className={`w-40 h-40 rounded-full flex items-center justify-center transition-all duration-700 mb-12 relative ${isTalking ? 'bg-indigo-500/20 shadow-[0_0_80px_rgba(99,102,241,0.4)]' : 'bg-slate-800'}`}>
+                        {/* Pulse Ring */}
+                        {isTalking && <div className="absolute inset-0 rounded-full border border-indigo-500/50 animate-ping opacity-20" />}
+
+                        {isConnected ? <Mic size={48} className={`transition-colors duration-300 ${isTalking ? "text-indigo-400" : "text-white"}`} /> : <MicOff size={48} className="text-slate-600" />}
                     </div>
 
-                    <h2 className="text-2xl font-light text-white mb-2">Evening Reflection</h2>
-                    <p className="text-slate-400 mb-8">{isConnected ? (isWrappingUp ? "Generating Summary..." : "Listening...") : "Connecting..."}</p>
-
                     {!isConnected && (
-                        <div className="flex flex-col gap-4 items-center">
-                            <button onClick={connect} className="px-8 py-3 bg-indigo-500 hover:bg-indigo-400 text-white rounded-full font-medium transition-all shadow-lg hover:shadow-indigo-500/25">
-                                Start Conversation
-                            </button>
-                        </div>
+                        <button onClick={connect} className="px-10 py-4 bg-white text-slate-900 rounded-full font-medium transition-all hover:scale-105 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                            Begin Debrief
+                        </button>
                     )}
 
                     {isConnected && (
@@ -350,22 +332,15 @@ export const LiveReflection: React.FC = () => {
                             <button
                                 onClick={handleEndSession}
                                 disabled={isWrappingUp}
-                                className="px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2"
+                                className="px-8 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full font-medium transition-all flex items-center gap-2 group"
                             >
-                                {isWrappingUp ? <Loader2 className="animate-spin" size={20} /> : <StopCircle size={20} />}
-                                {isWrappingUp ? "Saving..." : "End Session"}
+                                {isWrappingUp ? <Loader2 className="animate-spin" size={18} /> :
+                                    (isTalking ? <StopCircle size={18} className="text-red-400 group-hover:text-red-300" /> : <Sparkles size={18} />)
+                                }
+                                {isWrappingUp ? "Processing Insight..." : "Complete Session"}
                             </button>
                         </div>
                     )}
-
-                    {/* DEBUG LOG */}
-                    <div className="absolute bottom-6 left-6 right-6 h-32 overflow-y-auto bg-black/50 rounded-lg p-2 text-[10px] font-mono text-green-400 border border-green-900/50 backdrop-blur-sm">
-                        {debugLog.length === 0 && <span className="text-slate-500">Debug log waiting for connection...</span>}
-                        {debugLog.map((log, i) => (
-                            <div key={i}>{log}</div>
-                        ))}
-                        <div className="h-4" />
-                    </div>
                 </>
             ) : (
                 <div className="w-full max-w-md animate-fade-in">
