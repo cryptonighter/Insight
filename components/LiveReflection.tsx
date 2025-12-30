@@ -232,7 +232,7 @@ export const LiveReflection: React.FC = () => {
                     setup: {
                         model: MODEL,
                         generation_config: {
-                            response_modalities: ["AUDIO", "TEXT"],
+                            response_modalities: ["AUDIO"],
                             speech_config: {
                                 voice_config: {
                                     prebuilt_voice_config: {
