@@ -206,6 +206,7 @@ export const LiveReflection: React.FC = () => {
 
                 YOUR ROLE:
                 - NO fluff. NO cheerleading. NO robotic pleasantries.
+                - NEVER start a response with "Understood", "Copy", "Acknowledged", or similar robotic confirmations.
                 - Be direct, concise, and professional. 
                 - Focus exclusively on execution, bottlenecks, and results.
                 - If the user makes excuses, challenge them politely but firmly.
@@ -214,7 +215,8 @@ export const LiveReflection: React.FC = () => {
 
                 OPENING:
                 - Do not say "Hello". 
-                - Acknowledge the goal and ask a specific question about today's execution.
+                - Do not wait for the user to speak first.
+                - Immediately acknowledge the active goal and ask a specific, pointed question about one concrete action taken today.
                 `;
 
                 // 2. Send Setup
@@ -238,7 +240,7 @@ export const LiveReflection: React.FC = () => {
                             clientContent: {
                                 turns: [{
                                     role: "user",
-                                    parts: [{ text: "I am ready for my evening debrief." }] // Serious kickstart
+                                    parts: [{ text: "I'm ready for the debrief. Let's start." }] // Serious kickstart
                                 }],
                                 turnComplete: true
                             }
