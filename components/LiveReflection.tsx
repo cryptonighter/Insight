@@ -3,9 +3,9 @@ import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
 import { Mic, MicOff, StopCircle, X, Keyboard, Send } from 'lucide-react';
 
-// CORRECT KEY from .env (Verified)
-const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A";
+const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A"; // Correct Key
 const HOST = "generativelanguage.googleapis.com";
+// PROTOCOL FIX: Try without 'models/' prefix for WebSocket if 'models/' fails
 const MODEL = "models/gemini-2.0-flash-exp";
 
 export const LiveReflection: React.FC = () => {
@@ -57,90 +57,90 @@ export const LiveReflection: React.FC = () => {
             addLog("Starting connection sequence...");
 
             // 1. Setup Audio Input
-            addLog("Requesting microphone permissions...");
             const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
             mediaStreamRef.current = stream;
-            addLog("Microphone access granted.");
+            addLog("Mic granted.");
 
-            addLog("Initializing AudioContext...");
             const audioCtx = new AudioContext({ sampleRate: 24000 });
             audioContextRef.current = audioCtx;
             nextStartTimeRef.current = audioCtx.currentTime;
-
-            addLog("Resuming AudioContext...");
             await audioCtx.resume();
-            addLog("AudioContext active.");
 
             // 2. Setup WebSocket
             const url = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
-            addLog(`Connecting to WebSocket (${HOST})...`);
+            addLog(`Connecting to ws...`);
             const ws = new WebSocket(url);
             wsRef.current = ws;
 
             ws.onerror = (e) => {
                 console.error("Live API Error:", e);
-                addLog("WebSocket Error occurred (check console).");
+                addLog("WebSocket Error (Check Console)");
                 setIsConnected(false);
             };
 
             ws.onopen = () => {
-                addLog(`WebSocket Connected! KeySuffix: ...${API_KEY.slice(-4)}`);
+                addLog(`Connected! Sending Setup...`);
                 setIsConnected(true);
 
-                // 1. Send Setup (TEXT ONLY DEBUG PREFERENCE)
-                // We are stripping system instructions and forcing text modality to see if the pipe works at all.
-                const setupMsg = {
+                // 1. Send Setup
+                ws.send(JSON.stringify({
                     setup: {
                         model: MODEL,
                         generationConfig: {
-                            responseModalities: ["TEXT"], // FORCE TEXT
-                            maxOutputTokens: 300,
+                            responseModalities: ["AUDIO"],
+                            maxOutputTokens: 500,
                         },
-                        // System Instruction REMOVED for isolation
-                    }
-                };
-                ws.send(JSON.stringify(setupMsg));
-                addLog("Sent Setup (TEXT ONLY MODE).");
-
-                // 2. Force Hello (Kickstart)
-                ws.send(JSON.stringify({
-                    clientContent: {
-                        turns: [{
-                            role: "user",
-                            parts: [{ text: "System Test: Are you online?" }]
-                        }],
-                        turnComplete: true
+                        systemInstruction: {
+                            parts: [{
+                                text: `You are a coach. User goal: "${activeResolution?.statement}". ask ONE question to check progress.`
+                            }]
+                        }
                     }
                 }));
-                addLog("Sent Ping Text.");
+                addLog("Setup Sent.");
+
+                // 2. Force Hello (Kickstart) with DELAY
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            clientContent: {
+                                turns: [{
+                                    role: "user",
+                                    parts: [{ text: "Hello, I am ready." }]
+                                }],
+                                turnComplete: true
+                            }
+                        }));
+                        addLog("Sent Kickstart (Hello) after 500ms.");
+                    }
+                }, 500);
 
                 setupAudioProcessing(stream, audioCtx, ws);
             };
 
             ws.onmessage = async (event) => {
                 try {
+                    let data;
                     if (event.data instanceof Blob) {
-                        // Blob
+                        const text = await event.data.text();
+                        data = JSON.parse(text);
                     } else {
-                        const data = JSON.parse(event.data);
+                        data = JSON.parse(event.data);
+                    }
 
-                        // Log ANY server content so we know it's alive
-                        if (!data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                            addLog(`Rx Msg: ${JSON.stringify(data).slice(0, 100)}...`);
-                        }
+                    // Log Raw
+                    // addLog(`Msg: ${JSON.stringify(data).slice(0, 30)}...`);
 
-                        // Audio Handling (Should not trigger in TEXT mode, but kept just in case)
-                        if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                            const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
-                            if (Math.random() < 0.1) addLog(`Rx Audio: ${pcmBase64.length} bytes`);
-                            playPcmChunk(pcmBase64, audioCtx);
-                            setIsTalking(true);
-                        }
+                    if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
+                        const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
+                        if (Math.random() < 0.1) addLog(`Rx Audio: ${pcmBase64.length}b`);
+                        playPcmChunk(pcmBase64, audioCtx);
+                        setIsTalking(true);
+                    }
 
-                        if (data.serverContent?.turnComplete) {
-                            addLog("AI Turn Complete.");
-                            setTimeout(() => setIsTalking(false), 1000);
-                        }
+                    if (data.serverContent?.turnComplete) {
+                        addLog("AI Turn Complete.");
+                        setTimeout(() => setIsTalking(false), 1000);
                     }
                 } catch (e) {
                     addLog(`Msg Parse Error: ${e}`);
@@ -148,38 +148,37 @@ export const LiveReflection: React.FC = () => {
             };
 
             ws.onclose = (e) => {
-                addLog(`WebSocket Closed. Code: ${e.code}, Reason: ${e.reason}`);
+                addLog(`Closed: ${e.code} ${e.reason}`);
                 setIsConnected(false);
             };
 
         } catch (e: any) {
             console.error("Live Connection Failed", e);
-            addLog(`Connection Failed: ${e.message}`);
-            alert("Could not connect to Live API: " + e.message);
+            addLog(`Conn Failed: ${e.message}`);
+            alert("Connection Failed: " + e.message);
             setIsConnected(false);
         }
     };
 
     const sendPing = () => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            addLog("Manual Ping Sent.");
+            addLog("Ping Sent.");
             wsRef.current.send(JSON.stringify({
                 clientContent: {
                     turns: [{
                         role: "user",
-                        parts: [{ text: "Are you there?" }]
+                        parts: [{ text: "Can you hear me?" }]
                     }],
                     turnComplete: true
                 }
             }));
         } else {
-            addLog("Cannot Ping: Not Connected.");
+            addLog("Ping Failed: Not Connected.");
         }
     };
 
     const setupAudioProcessing = async (stream: MediaStream, ctx: AudioContext, ws: WebSocket) => {
         try {
-            addLog("Setting up Audio Worklet...");
             await ctx.audioWorklet.addModule("data:text/javascript," + encodeURIComponent(`
             class RecorderProcessor extends AudioWorkletProcessor {
                 process(inputs) {
@@ -206,11 +205,6 @@ export const LiveReflection: React.FC = () => {
                     }
                     const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
 
-                    // Throttle Tx Log
-                    if (Math.random() < 0.05) {
-                        // console.log("Sending Audio chunk..."); 
-                    }
-
                     ws.send(JSON.stringify({
                         realtimeInput: {
                             mediaChunks: [{ mimeType: "audio/pcm", data: base64 }]
@@ -221,10 +215,10 @@ export const LiveReflection: React.FC = () => {
 
             source.connect(processor);
             workletNodeRef.current = processor;
-            addLog("Audio Processing Active.");
+            // addLog("Audio Up.");
         } catch (e: any) {
             console.error("Worklet error", e);
-            addLog(`Worklet Error: ${e.message}`);
+            addLog(`Worklet Err: ${e.message}`);
         }
     };
 
