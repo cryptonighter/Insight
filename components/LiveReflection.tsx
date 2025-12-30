@@ -3,7 +3,8 @@ import { useApp } from '../context/AppContext';
 import { ViewState } from '../types';
 import { Mic, MicOff, StopCircle, X, Keyboard, Send } from 'lucide-react';
 
-const API_KEY = "AIzaSyBx3c6VF9JnL-Qbc1rQKbAL-PHBA5anfys";
+// CORRECT KEY from .env
+const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A";
 const HOST = "generativelanguage.googleapis.com";
 const MODEL = "models/gemini-2.0-flash-exp";
 
