@@ -16,7 +16,7 @@ export const LiveReflection: React.FC = () => {
     const [isTalking, setIsTalking] = useState(false);
     // DEBUG STATE
     const [debugLog, setDebugLog] = useState<string[]>([]);
-    const addLog = (msg: string) => setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]); // Keep last 5 logs
+    const addLog = (msg: string) => setDebugLog(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
 
     // Text State
     const [textInput, setTextInput] = useState("");
@@ -129,29 +129,35 @@ export const LiveReflection: React.FC = () => {
             };
 
             ws.onmessage = async (event) => {
-                if (event.data instanceof Blob) {
-                    // Blob handling if needed
-                } else {
-                    const data = JSON.parse(event.data);
+                try {
+                    if (event.data instanceof Blob) {
+                        // Blob
+                    } else {
+                        const data = JSON.parse(event.data);
+                        // Log ANY server content so we know it's alive
+                        if (!data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
+                            addLog(`Rx Msg: ${JSON.stringify(data).slice(0, 50)}...`);
+                        }
 
-                    if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                        const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
-                        const size = pcmBase64.length;
-                        // Throttle logs: only log larger chunks or occasionally
-                        if (Math.random() < 0.1) addLog(`Rx Audio: ${size} bytes`);
-                        playPcmChunk(pcmBase64, audioCtx);
-                        setIsTalking(true);
-                    }
+                        if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
+                            const pcmBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
+                            if (Math.random() < 0.1) addLog(`Rx Audio: ${pcmBase64.length} bytes`);
+                            playPcmChunk(pcmBase64, audioCtx);
+                            setIsTalking(true);
+                        }
 
-                    if (data.serverContent?.turnComplete) {
-                        addLog("AI Turn Complete.");
-                        setTimeout(() => setIsTalking(false), 1000);
+                        if (data.serverContent?.turnComplete) {
+                            addLog("AI Turn Complete.");
+                            setTimeout(() => setIsTalking(false), 1000);
+                        }
                     }
+                } catch (e) {
+                    addLog(`Msg Parse Error: ${e}`);
                 }
             };
 
-            ws.onclose = () => {
-                addLog("WebSocket Closed.");
+            ws.onclose = (e) => {
+                addLog(`WebSocket Closed. Code: ${e.code}, Reason: ${e.reason}`);
                 setIsConnected(false);
             };
 
@@ -160,6 +166,23 @@ export const LiveReflection: React.FC = () => {
             addLog(`Connection Failed: ${e.message}`);
             alert("Could not connect to Live API: " + e.message);
             setIsConnected(false);
+        }
+    };
+
+    const sendPing = () => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            addLog("Manual Ping Sent.");
+            wsRef.current.send(JSON.stringify({
+                clientContent: {
+                    turns: [{
+                        role: "user",
+                        parts: [{ text: "Are you there?" }]
+                    }],
+                    turnComplete: true
+                }
+            }));
+        } else {
+            addLog("Cannot Ping: Not Connected.");
         }
     };
 
@@ -287,16 +310,23 @@ export const LiveReflection: React.FC = () => {
                     <p className="text-slate-400 mb-8">{isConnected ? "Listening..." : "Connecting..."}</p>
 
                     {!isConnected && (
-                        <button onClick={connect} className="px-8 py-3 bg-indigo-500 hover:bg-indigo-400 text-white rounded-full font-medium transition-all shadow-lg hover:shadow-indigo-500/25">
-                            Start Conversation
-                        </button>
+                        <div className="flex flex-col gap-4 items-center">
+                            <button onClick={connect} className="px-8 py-3 bg-indigo-500 hover:bg-indigo-400 text-white rounded-full font-medium transition-all shadow-lg hover:shadow-indigo-500/25">
+                                Start Conversation
+                            </button>
+                        </div>
                     )}
 
                     {isConnected && (
-                        <button onClick={disconnect} className="px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2">
-                            <StopCircle size={20} />
-                            End Session
-                        </button>
+                        <div className="flex flex-col gap-4 items-center animate-fade-in">
+                            <button onClick={disconnect} className="px-8 py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 rounded-full font-medium transition-all flex items-center gap-2">
+                                <StopCircle size={20} />
+                                End Session
+                            </button>
+                            <button onClick={sendPing} className="text-xs text-slate-500 hover:text-white border border-slate-700 px-3 py-1 rounded-full uppercase tracking-wider hover:border-slate-500 transition-colors">
+                                FORCE RESPONSE (Ping)
+                            </button>
+                        </div>
                     )}
 
                     {/* DEBUG LOG */}
