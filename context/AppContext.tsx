@@ -215,6 +215,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (todaysEntry) {
       await supabase.from('daily_entries').update({ evening_completed: true, reflection_summary: summary }).eq('id', todaysEntry.id);
       setTodaysEntry(prev => prev ? ({ ...prev, eveningCompleted: true }) : null);
+
+      // TRIGGER MEMORY AUDIT (Fire & Forget for speed)
+      supabase.functions.invoke('audit-reflection', {
+        body: { reflection: summary, user_id: user.supabaseId }
+      }).then(({ error }) => {
+        if (error) console.error("Auditor Failed:", error);
+        else console.log("Auditor Triggered");
+      });
+
     } else {
       // Create entry if late logic...
     }

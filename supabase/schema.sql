@@ -181,3 +181,57 @@ create policy "Users can insert own entries" on daily_entries
   for insert with check (auth.uid() = user_id);
 create policy "Users can update own entries" on daily_entries
   for update using (auth.uid() = user_id);
+
+-- MEMORY SYSTEM (Phase 2)
+create extension if not exists vector;
+
+create table if not exists memories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  content text not null,
+  type text default 'general', -- 'general', 'core', 'explicit'
+  importance_score int default 1,
+  confidence_score float default 1.0,
+  embedding vector(768), -- Gemini Text Embedding 004 dimensionality
+  history jsonb default '[]'::jsonb, -- Array of {date, context} objects
+  last_observed timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+-- RLS
+alter table memories enable row level security;
+create policy "Users can view own memories" on memories for select using (auth.uid() = user_id);
+create policy "Users can insert own memories" on memories for insert with check (auth.uid() = user_id);
+create policy "Users can update own memories" on memories for update using (auth.uid() = user_id);
+
+-- MATCH FUNCTION
+create or replace function match_memories (
+  query_embedding vector(768),
+  match_threshold float,
+  match_count int,
+  filter_type text default null
+)
+returns table (
+  id uuid,
+  content text,
+  type text,
+  importance_score int,
+  similarity float
+)
+language plpgsql
+as $$
+begin
+  return query
+  select
+    memories.id,
+    memories.content,
+    memories.type,
+    memories.importance_score,
+    1 - (memories.embedding <=> query_embedding) as similarity
+  from memories
+  where 1 - (memories.embedding <=> query_embedding) > match_threshold
+  and (filter_type is null or memories.type = filter_type)
+  order by similarity desc
+  limit match_count;
+end;
+$$;

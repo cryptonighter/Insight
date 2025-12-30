@@ -6,6 +6,7 @@ echo "Deploying Supabase Edge Functions..."
 npx supabase functions deploy chat --no-verify-jwt
 npx supabase functions deploy director --no-verify-jwt
 npx supabase functions deploy generate-meditation --no-verify-jwt
+npx supabase functions deploy audit-reflection --no-verify-jwt
 
 echo "Deployment complete!"
 echo "IMPORTANT: Make sure you have set the secrets in your Supabase Dashboard:"
