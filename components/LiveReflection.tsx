@@ -58,6 +58,11 @@ export const LiveReflection: React.FC = () => {
 
         setIsWrappingUp(true);
 
+        // IMMEDIATE AUDIO SILENCE
+        if (audioContextRef.current) {
+            audioContextRef.current.suspend(); // Freeze any upcoming scheduled audio
+        }
+
         // Send Summary Request
         wsRef.current.send(JSON.stringify({
             clientContent: {
