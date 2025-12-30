@@ -205,17 +205,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const completeEveningReflection = async (summary: string) => {
     if (!user.supabaseId || !activeResolution) return;
+    console.log("DEBUG: completeEveningReflection called");
 
     // Grant Token Logic handled by DB trigger or manual update here?
     // For MVP manual update
-    await supabase.from('user_economy').update({ balance: userEconomy.balance + 1, last_daily_grant: new Date().toISOString() }).eq('user_id', user.supabaseId);
-    setUserEconomy(prev => ({ ...prev, balance: prev.balance + 1 }));
+    console.log("🪙 Granting token for user:", user.supabaseId);
+    const { error: ecoError } = await supabase.from('user_economy').update({
+      balance: userEconomy.balance + 1,
+      last_daily_grant: new Date().toISOString()
+    }).eq('user_id', user.supabaseId);
+
+    if (ecoError) {
+      console.error("❌ Economy update failed:", ecoError);
+    } else {
+      console.log("✅ Economy updated");
+      setUserEconomy(prev => ({ ...prev, balance: prev.balance + 1 }));
+    }
 
     // Update or Create Entry
     const today = new Date().toISOString().split('T')[0];
     if (todaysEntry) {
-      await supabase.from('daily_entries').update({ evening_completed: true, reflection_summary: summary }).eq('id', todaysEntry.id);
-      setTodaysEntry(prev => prev ? ({ ...prev, eveningCompleted: true }) : null);
+      console.log("Updating existing entry:", todaysEntry.id);
+      const { error: updateError } = await supabase.from('daily_entries').update({ evening_completed: true, reflection_summary: summary }).eq('id', todaysEntry.id);
+      if (updateError) console.error("❌ Entry update failed:", updateError);
+      else {
+        console.log("✅ Entry updated successfully");
+        setTodaysEntry(prev => prev ? ({ ...prev, eveningCompleted: true }) : null);
+      }
     } else {
       // Create a fresh entry for today
       const { data: newEntry } = await supabase.from('daily_entries').insert({
@@ -238,11 +254,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // TRIGGER MEMORY AUDIT (Fire & Forget for speed)
+    console.log("🧠 Triggering Memory Auditor...");
     supabase.functions.invoke('audit-reflection', {
       body: { reflection: summary, user_id: user.supabaseId }
-    }).then(({ error }) => {
-      if (error) console.error("Auditor Failed:", error);
-      else console.log("Auditor Triggered");
+    }).then(({ data, error }) => {
+      if (error) console.error("❌ Auditor Invocation Failed:", error);
+      else console.log("✅ Auditor Response:", data);
     });
   };
 

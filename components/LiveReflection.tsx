@@ -57,6 +57,7 @@ export const LiveReflection: React.FC = () => {
         }
 
         setIsWrappingUp(true);
+        summaryAccumulator.current = ""; // Clear to capture ONLY the summary now
 
         // 1. IMMEDIATE AUDIO SILENCE (Output)
         if (audioContextRef.current) {
@@ -224,7 +225,7 @@ export const LiveReflection: React.FC = () => {
                     setup: {
                         model: MODEL,
                         generationConfig: {
-                            responseModalities: ["AUDIO"],
+                            responseModalities: ["AUDIO", "TEXT"],
                             maxOutputTokens: 500,
                         },
                         systemInstruction: {
@@ -262,9 +263,14 @@ export const LiveReflection: React.FC = () => {
                     }
 
                     // 1. Capture Text (Usage for Summary)
-                    const textPart = data.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
-                    if (textPart) {
-                        summaryAccumulator.current += textPart;
+                    const parts = data.serverContent?.modelTurn?.parts;
+                    if (parts) {
+                        parts.forEach((p: any) => {
+                            if (p.text) {
+                                console.log("📝 Text received:", p.text);
+                                summaryAccumulator.current += p.text;
+                            }
+                        });
                     }
 
                     // 2. Handle Audio (Ignore if wrapping up)
@@ -278,12 +284,15 @@ export const LiveReflection: React.FC = () => {
 
                     // 3. Turn Complete
                     if (data.serverContent?.turnComplete) {
+                        console.log("Turn Complete. isWrappingUp:", isWrappingUp, "Accumulator Len:", summaryAccumulator.current.length);
                         setTimeout(() => setIsTalking(false), 1000);
 
-                        // If wrapping up, we assume the text we got is the summary
                         if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
+                            console.log("✅ Final Summary Captured:", summaryAccumulator.current);
                             // BACKGROUND THE EXTRACTION: Fire and forget so UI doesn't freeze
-                            completeEveningReflection(summaryAccumulator.current).catch(console.error);
+                            completeEveningReflection(summaryAccumulator.current).catch(err => {
+                                console.error("❌ Failed to complete reflection:", err);
+                            });
 
                             // IMMEDIATE UI EXIT
                             disconnect();
