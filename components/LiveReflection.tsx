@@ -56,10 +56,18 @@ export const LiveReflection: React.FC = () => {
         try {
             addLog("Starting connection sequence...");
 
-            // 1. Setup Audio Input
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+            // 1. Setup Audio Input with Echo Cancellation
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: 16000,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
             mediaStreamRef.current = stream;
-            addLog("Mic granted.");
+            addLog("Mic granted (Echo Cancel Active).");
 
             const audioCtx = new AudioContext({ sampleRate: 24000 });
             audioContextRef.current = audioCtx;
@@ -92,12 +100,25 @@ export const LiveReflection: React.FC = () => {
                         },
                         systemInstruction: {
                             parts: [{
-                                text: `You are a coach. User goal: "${activeResolution?.statement}". ask ONE question to check progress.`
+                                text: `You are a strategic executive partner for the user's life work. 
+                                User's Current Goal: "${activeResolution?.statement}". 
+                                Motivation: "${activeResolution?.rootMotivation}".
+
+                                YOUR ROLE:
+                                - Focus on the BIG PICTURE: Momentum, blockers, and strategic adjustments.
+                                - Avoid technical minutiae unless explicitly asked.
+                                - Be concise (1-2 sentences max per turn).
+                                - Voice Tone: Calm, authoritative, low-arousal, wisdom-focused.
+
+                                YOUR PROTOCOL:
+                                1. Ask impactful questions about today's progress relative to the big goal.
+                                2. If they are stuck, zoom out and ask about the strategy.
+                                3. If they succeeded, anchor that feeling of victory.`
                             }]
                         }
                     }
                 }));
-                addLog("Setup Sent.");
+                addLog("Setup Sent (Strategic Persona).");
 
                 // 2. Force Hello (Kickstart) with DELAY
                 setTimeout(() => {
