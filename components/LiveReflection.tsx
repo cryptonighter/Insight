@@ -220,7 +220,7 @@ export const LiveReflection: React.FC = () => {
 
                 YOUR ROLE:
                 - You are a collaborative ally. The user is the lead; you are the navigator.
-                - BE PATIENT. Wait for the user to finish their thoughts. Do not interrupt mid-sentence.
+                - BE PATIENT. Wait for the user to finish their thoughts completely. Do not jump in during pauses; wait for a clear opening.
                 - Be deeply professional, mature, and grounded. 
                 - Avoid robotic confirmations like "Understood", "Copy", or "Acknowledged".
                 - Focus on shared progress. Instead of "demanding" results, ask insightful questions.
@@ -236,22 +236,22 @@ export const LiveReflection: React.FC = () => {
                 const setupFrame = {
                     setup: {
                         model: MODEL,
-                        generation_config: {
-                            response_modalities: ["AUDIO"],
-                            speech_config: {
-                                voice_config: {
-                                    prebuilt_voice_config: {
-                                        voice_name: "Charon"
+                        generationConfig: {
+                            responseModalities: ["AUDIO"],
+                            speechConfig: {
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: {
+                                        voiceName: "Charon"
                                     }
                                 }
                             }
                         },
-                        system_instruction: {
+                        systemInstruction: {
                             parts: [{ text: systemPrompt }]
                         }
                     }
                 };
-                console.log("📤 Sending Setup:", setupFrame);
+                console.log("📤 Sending Setup (camelCase):", setupFrame);
                 ws.send(JSON.stringify(setupFrame));
 
                 // 2. Force Hello (Kickstart) with DELAY

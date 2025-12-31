@@ -5,12 +5,31 @@ import {
 } from "../types";
 import { CLINICAL_PROTOCOLS } from "./protocols";
 
-// Initialize Gemini Client (KEEP for Audio)
-const googleApiKey = process.env.GOOGLE_API_KEY || '';
+// Initialize Gemini Client
+const getEnv = (key: string) => {
+  // @ts-ignore
+  const val = process.env[key] ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.[key]) ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.[`VITE_${key}`]);
+  return val || '';
+};
+
+const googleApiKey = getEnv('GOOGLE_API_KEY') || getEnv('GEMINI_API_KEY') || getEnv('API_KEY');
+const openRouterKey = getEnv('OPENROUTER_API_KEY');
+
+console.log("🛠️ AI Service Init:", {
+  hasGoogleKey: !!googleApiKey,
+  hasOpenRouterKey: !!openRouterKey,
+  googleKeyLength: googleApiKey?.length
+});
+
+if (!googleApiKey) {
+  console.error("🚨 CRITICAL: GOOGLE_API_KEY is missing. Ensure it is in your .env file.");
+}
+
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 
 // OpenRouter Config
-const openRouterKey = process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Constants for models
