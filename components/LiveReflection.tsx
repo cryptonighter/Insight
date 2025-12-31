@@ -4,7 +4,12 @@ import { ViewState } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { Mic, MicOff, StopCircle, X, Keyboard, Send, Loader2, Sparkles } from 'lucide-react';
 
-const API_KEY = "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A";
+// Initialize API Keys
+// In Vite, we prefer VITE_ prefix. We also allow direct process.env for custom builders.
+const API_KEY = process.env.GOOGLE_API_KEY ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_API_KEY) ||
+    "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A"; // Local Fallback
+
 const HOST = "generativelanguage.googleapis.com";
 const MODEL = "models/gemini-2.0-flash-exp";
 
