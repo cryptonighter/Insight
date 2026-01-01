@@ -1,9 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { useVoiceReflection } from '../../services/useVoiceReflection';
 import { ViewState } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { Mic, Square, Keyboard, ChevronDown, Settings, Sparkles } from 'lucide-react';
+import { Mic, Square, ChevronDown, Settings, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/utils';
+import { ReflectionOrb } from './ReflectionOrb';
 
 export const ReflectionV2: React.FC = () => {
     const { setView } = useApp();
@@ -20,116 +22,144 @@ export const ReflectionV2: React.FC = () => {
     const [hasStarted, setHasStarted] = useState(false);
 
     useEffect(() => {
-        // Auto-connect on mount for "Live" feel? Or wait for user?
-        // Stitch UI implies "Live Session" immediately. 
-        // Let's auto-connect.
-        connect();
-        setHasStarted(true);
+        // Cleanup on unmount
         return () => disconnect();
     }, []);
 
-    return (
-        <div className="relative flex h-screen w-full flex-col overflow-hidden max-w-md mx-auto shadow-2xl bg-background-dark font-display transition-colors duration-500">
-            {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-surface/50 to-transparent pointer-events-none"></div>
+    const handleStart = () => {
+        setHasStarted(true);
+        connect();
+    };
 
-            <header className="absolute top-0 left-0 right-0 z-20 flex flex-col bg-transparent">
-                <div className="flex items-center p-4 pb-2 justify-between">
-                    <button
-                        onClick={() => { disconnect(); setView(ViewState.DASHBOARD); }}
-                        className="text-white/50 hover:text-white flex size-10 items-center justify-center rounded-full hover:bg-white/5 transition-colors"
-                    >
-                        <ChevronDown className="w-6 h-6" />
-                    </button>
-                    <div className="flex flex-col items-center">
-                        <h2 className="text-white text-sm font-bold leading-none tracking-tight opacity-90">EVENING REFLECTION</h2>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-primary animate-pulse' : 'bg-red-500'}`}></div>
-                            <span className="text-primary text-[10px] tracking-[0.2em] font-medium uppercase">
-                                {isConnected ? "Live Session" : "Connecting..."}
-                            </span>
-                        </div>
+    return (
+        <div className="relative flex h-screen w-full flex-col overflow-hidden bg-background-dark font-display">
+            {/* Background Ambience */}
+            <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
+                <div className="absolute top-[-50%] left-[-20%] w-[140%] h-[100%] bg-primary/5 blur-[120px] rounded-full opacity-20 animate-pulse-slow" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 blur-[100px] rounded-full opacity-20" />
+            </div>
+
+            {/* Header / Top Bar */}
+            <header className="relative z-20 flex items-center justify-between p-6 pt-8 w-full max-w-md mx-auto">
+                <button
+                    onClick={() => { disconnect(); setView(ViewState.DASHBOARD); }}
+                    className="flex size-10 items-center justify-center rounded-full bg-surface/50 border border-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                >
+                    <ChevronDown className="w-5 h-5" />
+                </button>
+
+                <div className="flex flex-col items-center">
+                    <span className="text-xs font-bold tracking-[0.2em] text-white/40 uppercase">Reflection Mode</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                        <div className={cn("w-1.5 h-1.5 rounded-full transition-colors",
+                            !hasStarted ? "bg-white/20" :
+                                isConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-500 animate-pulse")}></div>
+                        <span className={cn("text-[10px] tracking-wider font-medium uppercase transition-colors",
+                            !hasStarted ? "text-white/30" :
+                                isConnected ? "text-emerald-400" : "text-amber-400")}>
+                            {
+                                !hasStarted ? "Ready" :
+                                    isConnected ? "Live Uplink" : "Connecting..."
+                            }
+                        </span>
                     </div>
-                    <button className="flex items-center justify-center size-10 text-white/50 hover:text-white rounded-full hover:bg-white/5 transition-colors">
-                        <Settings className="w-5 h-5" />
-                    </button>
                 </div>
+
+                <button className="flex size-10 items-center justify-center rounded-full bg-surface/50 border border-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all opacity-50 hover:opacity-100">
+                    <Settings className="w-4 h-4" />
+                </button>
             </header>
 
-            <main className="flex-1 flex flex-col items-center justify-center relative z-10 w-full pt-10">
-                {/* Visualizer Orb */}
-                <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center mb-8 animate-float">
-                    <div className={`absolute inset-0 bg-primary/5 blur-[60px] rounded-full transition-opacity duration-500 ${isTalking ? 'opacity-100 scale-110' : 'opacity-50 scale-100'}`}></div>
+            {/* Main Content Area */}
+            <main className="flex-1 flex flex-col items-center justify-center w-full max-w-lg mx-auto px-6 relative z-10 -mt-10">
 
-                    {/* Rings */}
-                    <div className={`absolute inset-0 border border-primary/10 rounded-full transition-all duration-1000 ${isTalking ? 'scale-[1.3] animate-pulse-slow' : 'scale-100'}`}></div>
-                    <div className="absolute inset-0 border border-primary/20 rounded-full scale-[1.15]"></div>
-
-                    <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#122418] to-black border border-white/5 flex items-center justify-center shadow-[0_0_50px_-10px_rgba(13,242,89,0.15)] overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(13,242,89,0.15),transparent_60%)]"></div>
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(20,80,40,0.5),transparent_60%)]"></div>
-
-                        {/* Center Core */}
-                        <div className="w-32 h-32 bg-black/40 backdrop-blur-md rounded-full border border-primary/30 flex items-center justify-center shadow-[0_0_30px_rgba(13,242,89,0.2)] relative group">
-                            {isTalking && <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse"></div>}
-                            <Sparkles className={`w-12 h-12 text-primary transition-opacity duration-300 ${isTalking ? 'opacity-100' : 'opacity-60'}`} />
-                        </div>
-                    </div>
+                {/* Visualizer Orb or Start Button */}
+                <div className="mb-12">
+                    {!hasStarted ? (
+                        <button
+                            onClick={handleStart}
+                            className="group relative flex items-center justify-center w-40 h-40 rounded-full bg-surface border border-white/10 hover:border-primary/50 transition-all duration-500 hover:scale-105"
+                        >
+                            <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex flex-col items-center gap-2 relative z-10 text-white/50 group-hover:text-white transition-colors">
+                                <Sparkles className="w-8 h-8" />
+                                <span className="text-xs uppercase tracking-widest font-bold">Begin</span>
+                            </div>
+                        </button>
+                    ) : (
+                        <ReflectionOrb isConnected={isConnected} isTalking={isTalking} />
+                    )}
                 </div>
 
-                {/* AI Text Output */}
-                <div className="w-full px-6 text-center space-y-4 max-w-sm mx-auto z-20 min-h-[120px] flex flex-col justify-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface/20 border border-white/10 mb-2 w-fit mx-auto backdrop-blur-sm">
-                        <Sparkles className="w-3 h-3 text-primary" />
-                        <span className="text-white/60 text-[10px] uppercase tracking-widest font-bold">Insight AI</span>
-                    </div>
-                    <h1 className="text-2xl md:text-3xl text-white font-display font-medium leading-tight transition-all duration-300">
-                        "{currentQuestion || "Initializing neural link..."}"
-                    </h1>
+                {/* Text Output / Captions */}
+                <div className="w-full text-center space-y-4 min-h-[120px] flex flex-col justify-start items-center">
+                    {currentQuestion ? (
+                        <h1 className="text-xl md:text-2xl text-white/90 font-light leading-relaxed animate-fade-in transition-all">
+                            "{currentQuestion}"
+                        </h1>
+                    ) : (
+                        <div className="flex flex-col items-center gap-2 opacity-50">
+                            <Loader2 className="w-4 h-4 animate-spin text-primary/50" />
+                            <span className="text-xs uppercase tracking-widest text-primary/50">{isConnected ? "Listening..." : "Initializing..."}</span>
+                        </div>
+                    )}
                 </div>
             </main>
 
             {/* Bottom Controls */}
-            <div className="relative w-full bg-gradient-to-t from-black via-background-dark to-transparent pt-10 pb-8 px-6 z-30">
-                {/* Visualizer Bars (Decorative for now) */}
-                <div aria-hidden="true" className="h-16 flex items-center justify-center gap-2 mb-8 opacity-50">
-                    {[...Array(7)].map((_, i) => (
-                        <div key={i} className={`w-1.5 bg-primary/40 rounded-full transition-all duration-100 ${isTalking ? 'animate-pulse h-8' : 'h-2'}`} style={{ height: isTalking ? Math.random() * 40 + 10 : 8 }}></div>
-                    ))}
-                </div>
+            <div className="relative z-20 pb-12 px-6 w-full max-w-md mx-auto">
+                {/* Control Bar */}
+                <div className="glass-panel rounded-3xl p-2 flex items-center justify-between shadow-2xl border-white/5">
 
-                <div className="flex items-center justify-between max-w-xs mx-auto">
-                    <button className="group flex flex-col items-center gap-2 opacity-50 hover:opacity-100 transition-opacity">
-                        <div className="size-12 rounded-full bg-surface border border-white/10 text-white/50 group-hover:text-white group-hover:border-white/30 flex items-center justify-center transition-all">
-                            <Keyboard className="w-5 h-5" />
-                        </div>
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-white/30 group-hover:text-white/50 transition-colors">Type</span>
-                    </button>
-
-                    <div className="relative -top-2">
-                        <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full"></div>
-                        <button className="relative size-20 rounded-full bg-primary text-background-dark shadow-[0_0_30px_rgba(13,242,89,0.5)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
-                            <Mic className="w-8 h-8 text-background-dark" />
-                        </button>
-                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-primary animate-pulse">
-                                {isTalking ? "Speaking..." : "Listening..."}
-                            </span>
+                    {/* Mute/Listening Indicator (Left) */}
+                    <div className="w-16 flex justify-center">
+                        <div className={cn(
+                            "flex flex-col items-center gap-1 transition-opacity duration-300",
+                            isTalking ? "opacity-100" : "opacity-30"
+                        )}>
+                            <div className="flex gap-0.5 items-end h-4">
+                                <div className="w-0.5 bg-primary h-2 animate-pulse" />
+                                <div className="w-0.5 bg-primary h-4 animate-pulse delay-75" />
+                                <div className="w-0.5 bg-primary h-3 animate-pulse delay-150" />
+                            </div>
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleEndSession}
-                        disabled={isWrappingUp}
-                        className="group flex flex-col items-center gap-2"
-                    >
-                        <div className="size-12 rounded-full bg-surface border border-white/10 text-white/50 group-hover:text-red-400 group-hover:border-red-400/30 flex items-center justify-center transition-all">
-                            <Square className="w-4 h-4 fill-current" />
-                        </div>
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-white/30 group-hover:text-red-400/50 transition-colors">
-                            {isWrappingUp ? "Saving..." : "End"}
-                        </span>
-                    </button>
+                    {/* Main Action Button (Center) */}
+                    <div className="relative -top-6">
+                        <div className={cn("absolute inset-0 rounded-full bg-primary/20 blur-xl transition-opacity duration-500", isTalking ? "opacity-100" : "opacity-0")} />
+                        <button
+                            className={cn(
+                                "relative size-20 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 border-4 border-background-dark",
+                                isTalking ? "bg-white text-black scale-105" : "bg-surface text-white border-white/10 hover:bg-primary hover:text-black hover:border-transparent"
+                            )}
+                            disabled // Always active in this mode, technically used for visual anchor
+                        >
+                            <Mic className={cn("w-8 h-8 transition-transform", isTalking ? "scale-110" : "scale-100")} />
+                        </button>
+                    </div>
+
+                    {/* End Session (Right) */}
+                    <div className="w-16 flex justify-center">
+                        <button
+                            onClick={handleEndSession}
+                            disabled={isWrappingUp}
+                            className={cn(
+                                "group size-10 rounded-full flex items-center justify-center transition-all bg-white/5 hover:bg-red-500/20",
+                                isWrappingUp ? "cursor-wait opacity-50" : "hover:scale-105"
+                            )}
+                        >
+                            {isWrappingUp ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                            ) : (
+                                <Square className="w-4 h-4 text-white/50 group-hover:text-red-400 fill-current" />
+                            )}
+                        </button>
+                    </div>
+
+                </div>
+                <div className="mt-4 text-center">
+                    <p className="text-[10px] text-white/20 uppercase tracking-widest font-bold">Insight Session Active</p>
                 </div>
             </div>
         </div>

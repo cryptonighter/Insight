@@ -3,7 +3,7 @@ import {
   UserContext, Insight, Pattern, Meditation, ViewState, ChatMessage,
   SoundscapeType, MeditationConfig, VoiceId, Soundscape, FeedbackData,
   SessionLifecycleState, TriageState, MethodologyType, Part, SomaticAnchor,
-  UserEconomy, Resolution, DailyEntry
+  UserEconomy, Resolution, DailyEntry, SessionSummaryData
 } from '../types';
 import { PREBUILT_PATTERNS, MOCK_INSIGHTS } from '../constants';
 import { analyzeInsightsForPatterns, generateMeditationStream, chatWithInsight, runDirectorOrchestration } from '../services/geminiService';
@@ -61,6 +61,7 @@ interface AppState {
   // Legacy actions needed for compilation
   sendChatMessage: (text: string) => Promise<void>;
   addSoundscape: (sc: Soundscape) => void;
+  lastSessionData: SessionSummaryData | null;
   chatHistory: ChatMessage[];
 }
 
@@ -135,9 +136,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await finalizeMeditationGeneration(config);
   };
 
+  const [lastSessionData, setLastSessionData] = useState<SessionSummaryData | null>(null);
+
   const completeEveningReflection = async (summary: string, transcript?: string) => {
     if (!user.supabaseId || !activeResolution) return;
     console.log("DEBUG: completeEveningReflection called");
+
+    // Store data for the summary view
+    setLastSessionData({
+      summary,
+      transcript: transcript || ""
+    });
+
+    // Switch view immediately to Summary to keep the flow seamless
+    setCurrentView(ViewState.SESSION_SUMMARY);
 
     await grantToken();
     await updateDailyEntry(summary, transcript);
@@ -183,7 +195,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       playMeditation,
 
       // Legacy stubs
-      insights, soundscapes, chatHistory, setTriage: () => { }, sendChatMessage: async () => { }, addSoundscape: () => { },
+      insights, soundscapes, chatHistory, lastSessionData, setTriage: () => { }, sendChatMessage: async () => { }, addSoundscape: () => { },
       // Dummy parts/patterns for TS compliance if needed by other components, or remove if unused
       parts: [], anchors: [], patterns: [], acceptPattern: () => { }, updatePatternNote: () => { }, rateMeditation: () => { }, sessionState: SessionLifecycleState.TRIAGE, triage
     }}>

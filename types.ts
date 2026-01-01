@@ -193,8 +193,15 @@ export enum ViewState {
   ADMIN = 'ADMIN',
   REFLECTION = 'REFLECTION', // Legacy Post-Meditation
   EVENING_REFLECTION = 'EVENING_REFLECTION', // New Live API Flow
+  SESSION_SUMMARY = 'SESSION_SUMMARY',
   TRIAGE = 'TRIAGE',
   CONTEXT = 'CONTEXT'
+}
+
+export interface SessionSummaryData {
+  transcript: string;
+  summary: string;
+  takeaways?: string[]; // Optional parsed takeaways
 }
 
 // --- RESOLUTION ENGINE TYPES ---

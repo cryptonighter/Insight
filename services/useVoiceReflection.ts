@@ -243,7 +243,7 @@ export const useVoiceReflection = () => {
                                 console.error("❌ Failed to complete reflection:", err);
                             });
                             disconnect();
-                            setView(ViewState.DASHBOARD);
+                            // setView(ViewState.DASHBOARD); // Handled by context now (Goes to Summary)
                         }
                         if (!isWrappingUp) {
                             transcriptAccumulator.current += "\n";

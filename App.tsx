@@ -18,6 +18,7 @@ import { ViewState } from './types';
 import { Dashboard } from './components/Dashboard';
 import { DashboardV2 } from './components/v2/DashboardV2';
 import { ReflectionV2 } from './components/v2/ReflectionV2';
+import { SessionSummaryV2 } from './components/v2/SessionSummaryV2';
 import { LiveReflection } from './components/LiveReflection';
 import { OnboardingWizard } from './components/OnboardingWizard';
 
@@ -29,9 +30,9 @@ const Main: React.FC = () => {
     // ... logic
   }
 
-  if (!user.supabaseId && !localStorage.getItem('reality_user_skip_auth')) {
-    return <AuthView />;
-  }
+  // if (!user.supabaseId && !localStorage.getItem('reality_user_skip_auth')) {
+  //   return <AuthView />;
+  // }
 
   const renderView = () => {
     switch (currentView) {
@@ -46,6 +47,7 @@ const Main: React.FC = () => {
       case ViewState.TRIAGE: return <TriageView />;
       case ViewState.REFLECTION: return <Reflection />; // Legacy Support
       case ViewState.EVENING_REFLECTION: return <ReflectionV2 />;
+      case ViewState.SESSION_SUMMARY: return <SessionSummaryV2 />;
       case ViewState.CONTEXT: return <ContextInterview />;
       default: return <DashboardV2 />; // Default to Dashboard now
     }

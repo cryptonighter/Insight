@@ -1,6 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4ade80;
+  --color-primary-dim: #22c55e;
+  --color-background-light: #f7f5f8;
+  --color-background-dark: #0a0a0a;
+  --color-surface: #121212;
+
+  --font-display: "Space Grotesk", sans-serif;
+
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-glow: glow 2s ease-in-out infinite alternate;
+}
+
+@layer base {
+
+  html,
+  body {
+    background-color: var(--color-background-dark);
+    color: white;
+    font-family: var(--font-display);
+  }
+}
 
 @layer utilities {
   .glass-panel {
