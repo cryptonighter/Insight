@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Insight - Evening Reflection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df259", // Neon Green
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#102216", // Deep Dark Green/Black
+                        "surface-dark": "#1a3322",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Scrollbar for Transcript */
+        .transcript-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .transcript-scroll::-webkit-scrollbar-track {
+            background: #102216; 
+        }
+        .transcript-scroll::-webkit-scrollbar-thumb {
+            background: #1a3322; 
+            border-radius: 2px;
+        }
+        .transcript-scroll::-webkit-scrollbar-thumb:hover {
+            background: #0df259; 
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased overflow-hidden">
+<!-- Main Container -->
+<div class="relative flex h-screen w-full flex-col overflow-hidden max-w-md mx-auto shadow-2xl bg-background-dark">
+<!-- Sticky Header -->
+<header class="absolute top-0 left-0 right-0 z-20 flex flex-col bg-background-dark/95 backdrop-blur-sm border-b border-white/5">
+<div class="flex items-center p-4 pb-2 justify-between">
+<button class="text-white/70 hover:text-white flex size-10 items-center justify-center rounded-full hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">arrow_back</span>
+</button>
+<div class="flex flex-col items-center">
+<h2 class="text-white text-lg font-bold leading-none tracking-tight">EVENING PROTOCOL</h2>
+<span class="text-primary text-[10px] tracking-[0.2em] font-medium mt-1 uppercase">Session Complete</span>
+</div>
+<button class="flex items-center justify-center size-10 text-white/70 hover:text-white rounded-full hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- Abstract Audio Visualizer Line -->
+<div class="flex items-end justify-center gap-[2px] h-2 w-full px-4 pb-2 opacity-60">
+<div class="w-full h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-50"></div>
+</div>
+</header>
+<!-- Scrollable Content Area -->
+<main class="flex-1 overflow-y-auto transcript-scroll pt-20 pb-32">
+<!-- Date Divider -->
+<div class="flex justify-center my-4">
+<span class="bg-surface-dark text-white/40 text-xs px-3 py-1 rounded-full font-mono">Today, 22:00</span>
+</div>
+<!-- Core Takeaways Module (Pinned/Highlighted) -->
+<div class="px-4 mb-8">
+<div class="relative overflow-hidden rounded-xl border border-primary/20 bg-surface-dark shadow-[0_0_20px_rgba(13,242,89,0.05)] group">
+<!-- Subtle neon glow effect -->
+<div class="absolute -right-10 -top-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-500"></div>
+<div class="relative p-5 flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-primary text-xs font-bold tracking-widest uppercase mb-1 flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">psychology</span>
+                                    Session Intel
+                                </p>
+<h3 class="text-white text-2xl font-bold leading-tight">CORE TAKEAWAYS</h3>
+</div>
+<div class="bg-black/30 backdrop-blur-md px-2 py-1 rounded border border-white/10">
+<span class="material-symbols-outlined text-primary text-lg">bookmark</span>
+</div>
+</div>
+<div class="space-y-3">
+<div class="flex gap-3 items-start group/item">
+<span class="text-primary font-mono mt-0.5">01</span>
+<p class="text-white/90 text-sm font-medium leading-normal border-l-2 border-white/10 pl-3 group-hover/item:border-primary transition-colors">
+                                    Acknowledged distraction trigger at 2pm.
+                                </p>
+</div>
+<div class="flex gap-3 items-start group/item">
+<span class="text-primary font-mono mt-0.5">02</span>
+<p class="text-white/90 text-sm font-medium leading-normal border-l-2 border-white/10 pl-3 group-hover/item:border-primary transition-colors">
+                                    Committed to 6am deep work block (No Phone).
+                                </p>
+</div>
+<div class="flex gap-3 items-start group/item">
+<span class="text-primary font-mono mt-0.5">03</span>
+<p class="text-white/90 text-sm font-medium leading-normal border-l-2 border-white/10 pl-3 group-hover/item:border-primary transition-colors">
+                                    Strategy: Device in physical lockbox tonight.
+                                </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Transcript Header -->
+<div class="flex items-center gap-4 px-4 mb-6">
+<div class="h-[1px] flex-1 bg-white/10"></div>
+<h3 class="text-white/50 text-xs font-bold tracking-widest uppercase">Transcript Log</h3>
+<div class="h-[1px] flex-1 bg-white/10"></div>
+</div>
+<!-- Conversation Stream -->
+<div class="flex flex-col gap-6 px-4">
+<!-- AI Message 1 -->
+<div class="flex gap-3">
+<div class="mt-1 size-8 rounded-full bg-gradient-to-br from-surface-dark to-black border border-white/10 flex items-center justify-center shrink-0 shadow-lg">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+</div>
+<div class="flex flex-col items-start gap-1 max-w-[85%]">
+<div class="flex items-center gap-2">
+<span class="text-primary text-[11px] font-bold uppercase tracking-wider">Insight AI</span>
+<span class="text-white/30 text-[10px]">22:04</span>
+</div>
+<div class="p-3 bg-surface-dark rounded-tr-xl rounded-br-xl rounded-bl-xl border border-white/5 text-white/90 text-sm leading-relaxed shadow-sm">
+                            Let's review the afternoon block. You hesitated when discussing the project timeline in your log. Why?
+                        </div>
+</div>
+</div>
+<!-- User Message 1 -->
+<div class="flex gap-3 flex-row-reverse">
+<div class="mt-1 size-8 rounded-full bg-cover bg-center shrink-0 border border-white/10" data-alt="User profile photo showing a person looking focused" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuByhPxDeUvvG4vfek6yOU3rEPh4qCzqP11uFmmsEFvP-a9L3rkLz2xxxzD9Vo0hQ7RwhCdrO2OmSxb6pC5ompzPtI63hrvCzpkLNjauzuWHsIBlPxUcKc_gb9PYjNhT3nAtnvTXDTLn8jaa1TU8UjuswGNLG8g2ev0UDCloHYyKPpW_1elS8RB79dDdON9VBIEWjgbfTid7rCKClh0HY99eSFXkC8WCWf3ZhJnNTNiRXam9vxclmb6kER-JqwKQFRdib41WIF4jhig');"></div>
+<div class="flex flex-col items-end gap-1 max-w-[85%]">
+<div class="flex items-center gap-2">
+<span class="text-white/30 text-[10px]">22:06</span>
+<span class="text-white text-[11px] font-bold uppercase tracking-wider">You</span>
+</div>
+<div class="p-3 bg-transparent border border-white/20 rounded-tl-xl rounded-bl-xl rounded-br-xl text-white text-sm leading-relaxed">
+                            I haven't scoped the backend requirements fully yet. I was avoiding admitting I'm behind schedule.
+                        </div>
+</div>
+</div>
+<!-- AI Message 2 -->
+<div class="flex gap-3">
+<div class="mt-1 size-8 rounded-full bg-gradient-to-br from-surface-dark to-black border border-white/10 flex items-center justify-center shrink-0 shadow-lg">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+</div>
+<div class="flex flex-col items-start gap-1 max-w-[85%]">
+<div class="flex items-center gap-2">
+<span class="text-primary text-[11px] font-bold uppercase tracking-wider">Insight AI</span>
+<span class="text-white/30 text-[10px]">22:07</span>
+</div>
+<div class="p-3 bg-surface-dark rounded-tr-xl rounded-br-xl rounded-bl-xl border border-white/5 text-white/90 text-sm leading-relaxed shadow-sm">
+<p class="mb-2">Avoidance is a signal. This is a critical risk factor for your weekly goal.</p>
+<p>What is the immediate action to resolve this ambiguity?</p>
+</div>
+</div>
+</div>
+<!-- User Message 2 -->
+<div class="flex gap-3 flex-row-reverse">
+<div class="mt-1 size-8 rounded-full bg-cover bg-center shrink-0 border border-white/10" data-alt="User profile photo showing a person looking focused" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCzRww4N9gjxi9MQxhjE_1oVfUmeokl_ZLmonnA7Tw14EkLLXWIaZHngiVhri6CvNzWX6hbkHdxoy6FjU1Dm9kn8aGA099uGpTntFUE2igYjxX-aEFu_BFcVs_7soFyvntf4Q-WiAHkLpg6Molr1DvnRj0rsVY4qkMgY93lW_N535Pw-lR3FM19cHYyAxmDP4j_F6qoDk3M8EUvganOB06BwrQzLkaX_ciz-6mWgb1lLhp97HOlq9smBtgjxkIAIXvl2abETqLvrAM');"></div>
+<div class="flex flex-col items-end gap-1 max-w-[85%]">
+<div class="flex items-center gap-2">
+<span class="text-white/30 text-[10px]">22:08</span>
+<span class="text-white text-[11px] font-bold uppercase tracking-wider">You</span>
+</div>
+<div class="p-3 bg-transparent border border-white/20 rounded-tl-xl rounded-bl-xl rounded-br-xl text-white text-sm leading-relaxed">
+                            I'll block 6am tomorrow specifically for backend scoping. No email, no slack.
+                        </div>
+</div>
+</div>
+<!-- AI Message 3 -->
+<div class="flex gap-3">
+<div class="mt-1 size-8 rounded-full bg-gradient-to-br from-surface-dark to-black border border-white/10 flex items-center justify-center shrink-0 shadow-lg">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+</div>
+<div class="flex flex-col items-start gap-1 max-w-[85%]">
+<div class="flex items-center gap-2">
+<span class="text-primary text-[11px] font-bold uppercase tracking-wider">Insight AI</span>
+<span class="text-white/30 text-[10px]">22:08</span>
+</div>
+<div class="p-3 bg-surface-dark rounded-tr-xl rounded-br-xl rounded-bl-xl border border-white/5 text-white/90 text-sm leading-relaxed shadow-sm">
+                            Logged. Protocol updated. Prepare for rest.
+                        </div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Action Bar (Fixed) -->
+<footer class="absolute bottom-0 w-full z-30 bg-background-dark/80 backdrop-blur-xl border-t border-white/10 p-4 pb-6">
+<!-- Token Economy Indicator -->
+<div class="absolute -top-4 left-1/2 -translate-x-1/2">
+<div class="bg-black border border-primary/30 text-primary px-3 py-1 rounded-full text-xs font-bold shadow-[0_0_10px_rgba(13,242,89,0.2)] flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">token</span>
+                    +50 TOKENS EARNED
+                </div>
+</div>
+<div class="flex items-center gap-3 mt-2">
+<!-- Secondary Actions -->
+<button class="size-12 rounded-lg bg-surface-dark border border-white/10 text-white flex items-center justify-center hover:bg-white/5 active:scale-95 transition-all group">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">replay</span>
+</button>
+<button class="size-12 rounded-lg bg-surface-dark border border-white/10 text-white flex items-center justify-center hover:bg-white/5 active:scale-95 transition-all group">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">ios_share</span>
+</button>
+<!-- Primary Action -->
+<button class="flex-1 h-12 rounded-lg bg-primary text-background-dark font-bold text-sm tracking-wide uppercase hover:bg-primary/90 active:scale-[0.98] transition-all shadow-[0_0_15px_rgba(13,242,89,0.3)] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+                    Confirm &amp; Exit
+                </button>
+</div>
+</footer>
+</div>
+</body></html>

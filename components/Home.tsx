@@ -5,7 +5,7 @@ import { Mic, Send, Sparkles, StopCircle, ArrowRight, Settings, Loader2 } from '
 import { ViewState } from '../types';
 import { VoiceInput } from './VoiceInput';
 
-import { Dashboard } from './Dashboard';
+import { DashboardV2 } from './v2/DashboardV2';
 import { LiveReflection } from './LiveReflection';
 
 export const Home: React.FC = () => {
@@ -14,7 +14,7 @@ export const Home: React.FC = () => {
 
   // VIEW ROUTER
   if (currentView === ViewState.DASHBOARD) {
-    return <Dashboard />;
+    return <DashboardV2 />;
   }
 
   if (currentView === ViewState.REFLECTION) {

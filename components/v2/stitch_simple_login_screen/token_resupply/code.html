@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Token Resupply - Insight</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df259", // Neon Green
+                        "primary-dim": "#0b8a36",
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#102216", // Deep Green/Black
+                        "surface-dark": "#18281e",
+                        "surface-card": "#1c3024",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hide for clean UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-white selection:bg-primary selection:text-black">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-6">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-50 flex items-center justify-between bg-background-light/90 dark:bg-background-dark/90 px-4 py-4 backdrop-blur-md">
+<button class="group flex size-10 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-white/10 active:scale-95">
+<span class="material-symbols-outlined text-white" style="font-size: 24px;">arrow_back</span>
+</button>
+<h2 class="text-lg font-bold uppercase tracking-widest text-white/90">Resupply</h2>
+<div class="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 pl-2">
+<span class="material-symbols-outlined text-primary" style="font-size: 18px; font-variation-settings: 'FILL' 1;">bolt</span>
+<p class="text-sm font-bold tracking-wide text-primary">42</p>
+</div>
+</header>
+<!-- Hero Section -->
+<section class="flex flex-col items-center px-6 pt-4 pb-8 text-center">
+<!-- Kinetic/Abstract Graphic Placeholder -->
+<div class="relative mb-6 flex size-32 items-center justify-center rounded-full bg-surface-card shadow-[0_0_40px_-10px_rgba(13,242,89,0.3)] ring-1 ring-white/10">
+<!-- Inner glowing core -->
+<div class="absolute inset-0 rounded-full bg-gradient-radial from-primary/20 to-transparent opacity-50 blur-xl"></div>
+<img alt="Token Graphic" class="relative z-10 h-24 w-24 object-contain opacity-90 mix-blend-screen grayscale contrast-125 brightness-150 drop-shadow-[0_0_15px_rgba(13,242,89,0.8)]" data-alt="Abstract glowing 3D geometric shape representing digital currency or energy token" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxOeY4zRYmkhGrleqL4FUZ6-pPvHeRUp069w57MvbJxMN9r6UcFi3zL1FEUjB_uT7Kq2ct601SuFUtEywpFa02-XRCgk7b1OIFlx2Sko9gGkvXG7cgMm9dlpXNBEDg4BKt6dovwMgdKMe1KnYUjsbqxPKJUJVoo79SYL6JabotKHkWlRsd2iA0H8-h277ZDjvtXNf7k3Twkf2wrECJjUL8DwWxbxVj1H9R2YqnrrDXffG5JXRIwCBxHhsDpOfcZYT6L2QRa9EbAGA"/>
+</div>
+<h1 class="mb-2 text-[32px] font-bold leading-none tracking-tight text-white">
+                REFUEL YOUR <span class="text-primary">VISION</span>
+</h1>
+<p class="max-w-xs text-base font-normal leading-relaxed text-gray-400">
+                Burn tokens to unlock rituals and enforce high-stakes accountability.
+            </p>
+</section>
+<!-- Pricing Bundles -->
+<section class="flex flex-1 flex-col gap-4 px-4 pb-8">
+<!-- Tier 1: Starter -->
+<div class="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/5 bg-surface-card p-5 transition-all active:scale-[0.99]">
+<div class="flex items-start justify-between">
+<div class="flex flex-col gap-1">
+<h3 class="text-sm font-bold uppercase tracking-wider text-gray-400">Starter Pack</h3>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-white">10</span>
+<span class="text-sm font-medium text-gray-400">Tokens</span>
+</div>
+</div>
+<div class="rounded-full bg-white/5 p-2">
+<span class="material-symbols-outlined text-gray-400" style="font-size: 24px;">local_fire_department</span>
+</div>
+</div>
+<div class="mt-2 flex items-center justify-between border-t border-white/5 pt-4">
+<span class="text-xl font-bold text-white">$5.00</span>
+<button class="flex h-10 min-w-[100px] cursor-pointer items-center justify-center rounded-full bg-white/10 px-6 text-sm font-bold text-white transition-colors hover:bg-white/20">
+                        Acquire
+                    </button>
+</div>
+</div>
+<!-- Tier 2: Accelerator -->
+<div class="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/10 bg-surface-card p-5 transition-all active:scale-[0.99]">
+<div class="absolute -right-12 -top-12 h-24 w-24 rounded-full bg-primary/10 blur-2xl transition-opacity group-hover:opacity-100"></div>
+<div class="relative flex items-start justify-between">
+<div class="flex flex-col gap-1">
+<h3 class="text-sm font-bold uppercase tracking-wider text-primary/80">Accelerator</h3>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-white">50</span>
+<span class="text-sm font-medium text-gray-400">Tokens</span>
+</div>
+</div>
+<div class="rounded-full bg-primary/10 p-2 text-primary">
+<span class="material-symbols-outlined" style="font-size: 24px;">bolt</span>
+</div>
+</div>
+<div class="relative mt-2 flex items-center justify-between border-t border-white/5 pt-4">
+<div class="flex flex-col">
+<span class="text-xl font-bold text-white">$19.99</span>
+<span class="text-[10px] font-medium text-primary/80">Save 20%</span>
+</div>
+<button class="flex h-10 min-w-[100px] cursor-pointer items-center justify-center rounded-full bg-white/10 px-6 text-sm font-bold text-white transition-colors hover:bg-white/20">
+                        Refuel
+                    </button>
+</div>
+</div>
+<!-- Tier 3: Visionary (Best Value) -->
+<div class="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border-2 border-primary/50 bg-[#15281e] p-6 shadow-[0_0_20px_-5px_rgba(13,242,89,0.15)] transition-all active:scale-[0.99]">
+<!-- Best Value Badge -->
+<div class="absolute right-0 top-0 rounded-bl-xl bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-background-dark">
+                    Best Value
+                </div>
+<div class="flex items-start justify-between pr-12">
+<div class="flex flex-col gap-1">
+<h3 class="text-base font-bold uppercase tracking-wider text-white">Visionary</h3>
+<div class="flex items-baseline gap-1">
+<span class="text-4xl font-black text-white tracking-tight">100</span>
+<span class="text-base font-medium text-gray-400">Tokens</span>
+</div>
+</div>
+</div>
+<div class="mt-2 flex items-center justify-between border-t border-primary/20 pt-4">
+<div class="flex flex-col">
+<span class="text-2xl font-bold text-white">$29.99</span>
+<span class="text-xs font-bold text-primary">Save 40%</span>
+</div>
+<button class="flex h-11 min-w-[120px] cursor-pointer items-center justify-center rounded-full bg-primary px-6 text-sm font-bold text-background-dark shadow-lg shadow-primary/20 transition-transform hover:scale-105 hover:bg-[#0be050]">
+                        Stockpile
+                    </button>
+</div>
+</div>
+</section>
+<!-- Footer / Meta -->
+<footer class="mt-auto px-6 py-4">
+<div class="flex flex-col items-center gap-4 border-t border-white/5 pt-6 text-center">
+<div class="flex items-center gap-2 text-xs text-gray-500">
+<span class="material-symbols-outlined text-gray-600" style="font-size: 14px;">lock</span>
+<span>Secure Payment via Apple Pay</span>
+</div>
+<div class="flex gap-6">
+<a class="text-xs font-medium text-gray-400 underline decoration-gray-600 underline-offset-4 transition-colors hover:text-primary" href="#">Restore Purchases</a>
+<a class="text-xs font-medium text-gray-400 underline decoration-gray-600 underline-offset-4 transition-colors hover:text-primary" href="#">Terms of Service</a>
+</div>
+<p class="text-[10px] leading-relaxed text-gray-600 max-w-sm">
+                    Recurring billing. Cancel anytime. By continuing you agree to our Terms. Tokens are used for in-app accountability features only.
+                </p>
+</div>
+</footer>
+</div>
+</body></html>

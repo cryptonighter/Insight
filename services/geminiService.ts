@@ -6,62 +6,22 @@ import {
 import { CLINICAL_PROTOCOLS } from "./protocols";
 
 // Initialize Gemini Client
-// Vite 'define' replaces the LITERAL strings "process.env.XXX" with the values.
-const googleApiKey = process.env.GOOGLE_API_KEY ||
-  "AIzaSyCUcUZKn1w3pYmW184zkpZ3AoS9Me-t54A"; // Sync with LiveReflection fallback
-
-const openRouterKey = process.env.OPENROUTER_API_KEY || '';
+const googleApiKey = import.meta.env.VITE_GOOGLE_API_KEY ||
+  "AIzaSyBx3c6VF9JnL-Qbc1rQKbAL-PHBA5anfys"; // Sync with LiveReflection fallback
 
 console.log("🛠️ AI Service Init:", {
   hasGoogleKey: !!googleApiKey,
-  hasOpenRouterKey: !!openRouterKey
 });
 
 if (!googleApiKey || googleApiKey === "") {
-  console.error("🚨 CRITICAL: GOOGLE_API_KEY is missing. Check .env and RESTART your dev server.");
+  console.error("🚨 CRITICAL: VITE_GOOGLE_API_KEY is missing. Check .env and RESTART your dev server.");
 }
 
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 
-// OpenRouter Config
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-
 // Constants for models
-const OPENROUTER_MODEL = "google/gemini-3-flash-preview";
 const TEXT_MODEL = "gemini-2.0-pro-exp-02-05";
 const AUDIO_MODEL = "models/gemini-2.0-flash-exp";
-const DIRECTOR_MODEL = "google/gemini-3-flash-preview";
-
-async function callOpenRouter(messages: any[], model: string = OPENROUTER_MODEL, jsonMode: boolean = false) {
-  if (!openRouterKey) {
-    console.warn("OpenRouter API Key is missing");
-    return null;
-  }
-
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openRouterKey}`,
-      "HTTP-Referer": "https://insight-growth.vercel.app", // Optional
-      "X-Title": "Insight",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      response_format: jsonMode ? { type: "json_object" } : undefined
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenRouter Error:", errorText);
-    return "";
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
-}
 
 // Director Tool Definitions
 const directorTools = [

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Insight - Goal Overview</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df259",
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#102216",
+                        "card-dark": "#183422",
+                        "surface-dark": "#1E3E2B",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "1.5rem", "xl": "2rem", "2xl": "3rem", "full": "9999px"},
+                    boxShadow: {
+                        'neon': '0 0 15px rgba(13, 242, 89, 0.3)',
+                        'neon-hover': '0 0 25px rgba(13, 242, 89, 0.5)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .waveform-bar {
+            animation: wave 1.2s ease-in-out infinite;
+        }
+        @keyframes wave {
+            0%, 100% { height: 20%; opacity: 0.5; }
+            50% { height: 100%; opacity: 1; }
+        }
+        .waveform-bar:nth-child(odd) { animation-duration: 0.8s; }
+        .waveform-bar:nth-child(2n) { animation-duration: 1.1s; }
+        .waveform-bar:nth-child(3n) { animation-duration: 1.3s; }
+        .waveform-bar:nth-child(4n) { animation-duration: 0.9s; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white min-h-screen flex flex-col pb-28">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
+<div class="flex items-center gap-3">
+<button class="p-2 -ml-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-3xl">menu</span>
+</button>
+</div>
+<div class="flex flex-col items-center">
+<span class="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold">Balance</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-sm fill-1">token</span>
+<span class="text-lg font-bold">750 <span class="text-gray-500 dark:text-gray-400 text-sm font-normal">INSIGHT</span></span>
+</div>
+</div>
+<button class="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors relative group">
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+<span class="material-symbols-outlined text-2xl">notifications</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="flex-1 px-4 pt-6 w-full max-w-lg mx-auto">
+<!-- Section Header -->
+<div class="flex items-center justify-between mb-4 px-2">
+<h1 class="text-2xl font-bold uppercase tracking-tight">Current Focus</h1>
+<span class="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20 animate-pulse">LIVE</span>
+</div>
+<!-- Primary Active Goal Card -->
+<div class="relative w-full bg-card-dark rounded-2xl overflow-hidden shadow-neon border border-white/5 mb-8 group transition-transform duration-300 hover:scale-[1.01]">
+<!-- Card Background Image with Gradient Overlay -->
+<div class="absolute inset-0 z-0">
+<img alt="Runner sprinting on a dark track with dramatic lighting" class="w-full h-full object-cover opacity-40 mix-blend-overlay" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBK5DGLDF-VfK8j_Up3oFZuKMT9o4wRRADLT3o1ogZq-HKCNRZeftiPUICXRtxbzsPMVb76KSXYV8ws5EQBicN1p0eL3xpxUmnV8AxfUr-BVr3IbVxqaxGGkwhkAxjM8jB9_a6we62G4e2Lsr_Wg4r1rxAhKwloCr49tiXYYI-7inTpJ_2cvK3dHJ0JgLeouviYKRGKugI1ZJT2Q_noU4UEllxr3DcgDjRkyA4AZbERHkKkk5CymQtzqnOfkRKz1_1ZKmuMMab_1DU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-card-dark/80 to-transparent"></div>
+</div>
+<div class="relative z-10 p-6 flex flex-col gap-6">
+<!-- Header -->
+<div class="flex justify-between items-start">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-sm">bolt</span>
+<span class="text-primary text-xs font-bold uppercase tracking-wider">High Stakes Protocol</span>
+</div>
+<h2 class="text-3xl font-bold leading-tight">Marathon Sub-3:00</h2>
+</div>
+<!-- Circular Progress using SVG -->
+<div class="relative size-16 flex items-center justify-center">
+<svg class="size-full -rotate-90" viewbox="0 0 36 36">
+<path class="text-white/10" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-primary drop-shadow-[0_0_4px_rgba(13,242,89,0.8)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="85, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<span class="absolute text-sm font-bold">85%</span>
+</div>
+</div>
+<!-- Audio Waveform Visualization -->
+<div class="h-12 flex items-center justify-center gap-1 opacity-80">
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-4"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-8"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-6"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-10"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-12"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-7"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-5"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-9"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-4"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-6"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-8"></div>
+<div class="w-1.5 bg-primary/80 rounded-full waveform-bar h-3"></div>
+</div>
+<!-- Footer / Actions -->
+<div class="flex items-center justify-between pt-2 border-t border-white/10">
+<div class="flex flex-col">
+<span class="text-xs text-gray-400">Wagered</span>
+<span class="font-bold text-white flex items-center gap-1">
+                            250 <span class="material-symbols-outlined text-sm text-gray-400">token</span>
+</span>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-background-dark font-bold py-3 px-6 rounded-full flex items-center gap-2 transition-all active:scale-95 shadow-neon">
+<span class="material-symbols-outlined">local_fire_department</span>
+                        Burn Tokens
+                    </button>
+</div>
+</div>
+</div>
+<!-- Secondary Objectives -->
+<div class="flex items-center justify-between mb-4 px-2">
+<h3 class="text-lg font-bold text-gray-300 uppercase tracking-tight">Secondary Objectives</h3>
+<button class="text-primary text-sm font-bold hover:underline">View All</button>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Secondary Card 1 -->
+<div class="bg-surface-dark/50 backdrop-blur-sm p-4 rounded-xl flex items-center justify-between border border-white/5 active:bg-surface-dark/80 transition-colors">
+<div class="flex items-center gap-4">
+<div class="relative size-12 rounded-lg overflow-hidden shrink-0">
+<img alt="Team collaborating around a laptop in a modern office" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiAcmTGSTdiN2X9Cw1G2oH2C8eQFZQim3PMsbS6Ix4INCaO2F5MItzTEaRgOKUl15mQ8g7H7p_a3HA5-e5r0-iVfjyjsYfOABsYSSrGN2SYmFUUPYMiB1RhnvPvwlbZlRajTO1J85baaaflKbxrovjxB7xldieeZgPTF98xFVy4Akd8ft-PeyJhjdSqZz2WReiQNIZlGRuZKdiXFTcCR1dQ-uuILNluQ-bvnw0SqSBQ8pFC7Bk50wtnU2LyoGjt4eh09eZHRXcg1E"/>
+<div class="absolute inset-0 bg-primary/20 mix-blend-overlay"></div>
+</div>
+<div>
+<h4 class="font-bold text-white leading-tight">Launch MVP</h4>
+<div class="flex items-center gap-2 mt-1">
+<span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+<span class="text-xs text-gray-400">Paused • 40%</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-xs font-medium text-white/50">Wager</span>
+<span class="font-bold text-sm">40 T</span>
+</div>
+</div>
+<!-- Secondary Card 2 -->
+<div class="bg-surface-dark/50 backdrop-blur-sm p-4 rounded-xl flex items-center justify-between border border-white/5 active:bg-surface-dark/80 transition-colors">
+<div class="flex items-center gap-4">
+<div class="relative size-12 rounded-lg overflow-hidden shrink-0">
+<img alt="Person meditating in lotus position during sunset" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArWfLrmkSyoD28UZ6bNiIOJjhBkzjqtKItW0nEcaclUNs7VTiyS0oEAGQtZRz6ma2u2jnXGwJKnD8G70mlW_ndThBmD7kVmiJOEQ6jLjKQ8QhfRe1qHml0PkELmuxCruQpgtyqC0nRzpS96ta35iVd_JR8yEqyUYIweE94IsHSeHcGB4DiO9yE1f5GfXRIT11sIhNzr4fbpROy1k7M5bicnS6X5u80ejQ0T0hMdJSTosiUy36v2Omi5rvfyoCPeHYN61kU3ew1SGw"/>
+<div class="absolute inset-0 bg-primary/20 mix-blend-overlay"></div>
+</div>
+<div>
+<h4 class="font-bold text-white leading-tight">Meditate 30 Days</h4>
+<div class="flex items-center gap-2 mt-1">
+<span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+<span class="text-xs text-gray-400">At Risk • 10%</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-xs font-medium text-white/50">Wager</span>
+<span class="font-bold text-sm">100 T</span>
+</div>
+</div>
+<!-- Secondary Card 3 -->
+<div class="bg-surface-dark/50 backdrop-blur-sm p-4 rounded-xl flex items-center justify-between border border-white/5 active:bg-surface-dark/80 transition-colors opacity-60">
+<div class="flex items-center gap-4">
+<div class="relative size-12 rounded-lg overflow-hidden shrink-0 bg-white/5 flex items-center justify-center border border-dashed border-white/20">
+<span class="material-symbols-outlined text-white/40">add</span>
+</div>
+<div>
+<h4 class="font-bold text-white/50 leading-tight">Future Goal</h4>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-xs text-gray-500">Slot Available</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-xs font-medium text-white/30">Cost</span>
+<span class="font-bold text-sm text-white/50">500 T</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button -->
+<div class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 w-full max-w-sm px-4 flex justify-center pointer-events-none">
+<button class="pointer-events-auto bg-primary text-background-dark font-bold h-14 pl-6 pr-8 rounded-full shadow-[0_0_20px_rgba(13,242,89,0.4)] flex items-center gap-3 hover:scale-105 active:scale-95 transition-all duration-300">
+<div class="bg-black/10 rounded-full p-1">
+<span class="material-symbols-outlined text-xl block">add</span>
+</div>
+<span class="tracking-wide">Initialize New Objective</span>
+</button>
+</div>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 w-full bg-background-dark/80 backdrop-blur-xl border-t border-white/5 px-6 pb-6 pt-3 z-30">
+<div class="flex justify-around items-center max-w-lg mx-auto">
+<button class="flex flex-col items-center gap-1 text-primary group">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">dashboard</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Overview</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors group">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">graphic_eq</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Library</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors group">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">account_balance_wallet</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Wallet</span>
+</button>
+</div>
+</nav>
+</body></html>

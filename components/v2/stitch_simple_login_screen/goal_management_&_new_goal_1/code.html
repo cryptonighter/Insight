@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Insight - Goal Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df259",
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#102216",
+                        "surface-dark": "#183422",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }.no-scrollbar {
+            -ms-overflow-style: none;scrollbar-width: none;}
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white antialiased selection:bg-primary selection:text-background-dark">
+<div class="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden pb-12">
+<header class="sticky top-0 z-50 flex items-center justify-between bg-background-dark/80 backdrop-blur-xl p-4 pb-4 border-b border-white/5">
+<button class="flex size-10 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10 active:bg-white/20 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h2 class="text-white text-lg font-bold leading-tight tracking-wider uppercase flex-1 text-center pr-2">My Visions</h2>
+<div class="flex items-center justify-end">
+<div class="flex items-center gap-2 bg-[#1a3825] px-3 py-1.5 rounded-full border border-primary/20 shadow-[0_0_10px_rgba(13,242,89,0.1)]">
+<span class="material-symbols-outlined text-primary text-[18px]">token</span>
+<p class="text-primary text-sm font-bold leading-normal tracking-wide">320 ⌬</p>
+</div>
+</div>
+</header>
+<main class="flex-1 flex flex-col pt-6 overflow-hidden">
+<section class="px-4 mb-4">
+<div class="flex items-end justify-between">
+<div>
+<h1 class="text-white tracking-tight text-[28px] font-bold leading-tight">North Stars</h1>
+<p class="text-white/40 text-sm mt-1 font-body">Manage your active vectors</p>
+</div>
+<div class="flex items-center gap-2 pb-1">
+<span class="relative flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+</span>
+<span class="text-xs font-bold text-primary uppercase tracking-widest">3 Active</span>
+</div>
+</div>
+</section>
+<section class="flex-1 w-full overflow-x-auto no-scrollbar snap-x snap-mandatory flex gap-4 px-4 pb-8 items-start">
+<div class="snap-center shrink-0 w-[90vw] max-w-sm">
+<div class="relative w-full rounded-3xl bg-[#18281e] border border-primary/30 shadow-[0_0_20px_rgba(13,242,89,0.1)] overflow-hidden group">
+<div class="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700"></div>
+<div class="w-full h-56 bg-cover bg-center relative" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDVWb-j-KC7MAilVd99ddidP_OBg6rZkAlM95Gkf66hqMno6grZItMsZL-53n6KKF-pd8zp4CSafGLhby5Jr1MsMVSLVPBMaYiDBBWR1GyWmbd5a_ZzDrocNqWVi3vqJJaGAlmbpY7Vw9dlVL0rzu7787jY7hHkqNSy4Xe-yUiSwCO13JResduENjst__tkBglS6fxc9iT-n7uI0BZV0dcdrgZzDgkMMZ7TAgLAgNYUzO-8Fg7oFKDw121J9z8kKREJNe9jS5_WZ_Q');">
+<div class="absolute inset-0 bg-gradient-to-t from-[#18281e] via-[#18281e]/20 to-transparent"></div>
+<div class="absolute top-4 right-4 bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full border border-primary/20 shadow-[0_0_10px_rgba(13,242,89,0.3)]">
+<span class="text-xs font-bold text-background-dark uppercase tracking-wider">Primary Focus</span>
+</div>
+<div class="absolute bottom-4 left-4 right-4">
+<h3 class="text-white text-2xl font-bold leading-tight tracking-[-0.015em] drop-shadow-lg">Launch the MVP</h3>
+</div>
+</div>
+<div class="p-6 pt-2 relative space-y-5">
+<div class="grid grid-cols-2 gap-3 mt-2">
+<div class="bg-white/5 rounded-2xl p-4 border border-white/5 backdrop-blur-sm">
+<p class="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1">Coherence</p>
+<div class="flex items-center gap-1">
+<span class="text-xl font-bold text-white">94%</span>
+<span class="material-symbols-outlined text-primary text-sm">trending_up</span>
+</div>
+</div>
+<div class="bg-white/5 rounded-2xl p-4 border border-white/5 backdrop-blur-sm">
+<p class="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1">Streak</p>
+<div class="flex items-center gap-1">
+<span class="text-xl font-bold text-white">12</span>
+<span class="text-xs text-white/50 font-medium">Days</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-end px-1">
+<p class="text-primary text-xs font-bold uppercase tracking-wide">Audio Alignment</p>
+<p class="text-white text-sm font-bold">85%</p>
+</div>
+<div class="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+<div class="h-full bg-primary w-[85%] rounded-full shadow-[0_0_8px_#0df259] animate-pulse-slow"></div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex-1 flex items-center justify-center gap-2 rounded-full h-12 bg-white text-background-dark text-sm font-bold uppercase tracking-widest hover:bg-gray-200 active:scale-[0.98] transition-all shadow-lg">
+                                Engage
+                            </button>
+<button class="size-12 flex items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="snap-center shrink-0 w-[85vw] max-w-sm mt-4">
+<div class="relative w-full rounded-3xl bg-[#141e18] border border-white/5 overflow-hidden group opacity-90 hover:opacity-100 transition-opacity">
+<div class="w-full h-40 bg-cover bg-center relative opacity-60 mix-blend-luminosity group-hover:mix-blend-normal group-hover:opacity-80 transition-all duration-500" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCOI12v8xg_Mqu-ckY6kliyeSEoRBdl652ZseiggnbwIiZiRCVqfJJ2pLYTqZFcvevlnogVhyM6EEDK5EmzN91Fl2QQ0rYj6rYT_-8C8OtREqkmqQBOcmkpF2_Dqv5GoSsA3myEwJIDQ9X-7t_Kz70N4Ohtji8SBZol0h4vOseh_9M7idIGZS1A47zlGLQceoxtYCm5GlpnY3A3BVaoqcp4-H95QZVtCwz8W7lFX33MZTyri_fyxNx-LnYoLJgIYsQATUvds_rfoTo');">
+<div class="absolute inset-0 bg-gradient-to-t from-[#141e18] to-transparent"></div>
+<div class="absolute top-4 right-4 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+<span class="text-xs font-medium text-white/70 font-body">Secondary</span>
+</div>
+<div class="absolute bottom-4 left-5 right-5">
+<h3 class="text-white/90 text-xl font-bold leading-tight tracking-tight">Fitness Optimization</h3>
+</div>
+</div>
+<div class="p-5 pt-0 relative space-y-4">
+<div class="grid grid-cols-2 gap-3 mt-2">
+<div class="bg-white/5 rounded-2xl p-3 border border-white/5">
+<p class="text-white/30 text-[10px] font-bold uppercase tracking-wider mb-1">Coherence</p>
+<span class="text-lg font-bold text-white/80">72%</span>
+</div>
+<div class="bg-white/5 rounded-2xl p-3 border border-white/5">
+<p class="text-white/30 text-[10px] font-bold uppercase tracking-wider mb-1">Streak</p>
+<span class="text-lg font-bold text-white/80">3</span>
+</div>
+</div>
+<div class="space-y-2 pb-2">
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-white/40 w-[45%] rounded-full"></div>
+</div>
+<div class="flex justify-between items-center px-1">
+<span class="text-[10px] text-white/30 uppercase tracking-wider">Sync Status</span>
+<span class="text-[10px] text-white/50">Needs Input</span>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl border border-white/10 text-white/60 text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
+                            View Details
+                        </button>
+</div>
+</div>
+</div>
+<div class="snap-center shrink-0 w-[85vw] max-w-sm mt-4">
+<div class="relative w-full rounded-3xl bg-[#141e18] border border-white/5 overflow-hidden group opacity-90 hover:opacity-100 transition-opacity">
+<div class="w-full h-40 bg-cover bg-center relative opacity-60 mix-blend-luminosity group-hover:mix-blend-normal group-hover:opacity-80 transition-all duration-500" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDlzD4z0lkNeJys4grlzeTurXMcwm05tTIMlkpoDJVE6hiBDDfqaIzJhLwNBpeWIfvszAHhqXOsYwlwrefIAqii3g48NXAFLvViejO_BHQL_QiF5Zj4mDz7VPnNXzhPKq9vHip5-dvGSVguQq5FoQfT6M92DcunPEMFhLgbq_nrRoU4WZszEgLwWRKgxhX5pVsE2W288ToZP9kCcsnOoktL06AaXmQmjzt0TGK1RvNsYTJ_XnKBPJcGa8OXqcgwo4QcNAsNweLjzaA');">
+<div class="absolute inset-0 bg-gradient-to-t from-[#141e18] to-transparent"></div>
+<div class="absolute top-4 right-4 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+<span class="text-xs font-medium text-white/70 font-body">Long Term</span>
+</div>
+<div class="absolute bottom-4 left-5 right-5">
+<h3 class="text-white/90 text-xl font-bold leading-tight tracking-tight">Learn Mandarin</h3>
+</div>
+</div>
+<div class="p-5 pt-0 relative space-y-4">
+<div class="grid grid-cols-2 gap-3 mt-2">
+<div class="bg-white/5 rounded-2xl p-3 border border-white/5">
+<p class="text-white/30 text-[10px] font-bold uppercase tracking-wider mb-1">Coherence</p>
+<span class="text-lg font-bold text-white/80">41%</span>
+</div>
+<div class="bg-white/5 rounded-2xl p-3 border border-white/5">
+<p class="text-white/30 text-[10px] font-bold uppercase tracking-wider mb-1">Streak</p>
+<span class="text-lg font-bold text-white/80">0</span>
+</div>
+</div>
+<div class="space-y-2 pb-2">
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-white/20 w-[12%] rounded-full"></div>
+</div>
+<div class="flex justify-between items-center px-1">
+<span class="text-[10px] text-white/30 uppercase tracking-wider">Sync Status</span>
+<span class="text-[10px] text-white/50">Inactive</span>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl border border-white/10 text-white/60 text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
+                            View Details
+                        </button>
+</div>
+</div>
+</div>
+<div class="snap-center shrink-0 w-2"></div>
+</section>
+<section class="px-6 pb-6 pt-2">
+<button class="group relative w-full overflow-hidden rounded-full bg-primary p-[1px] shadow-[0_0_25px_rgba(13,242,89,0.15)] hover:shadow-[0_0_40px_rgba(13,242,89,0.3)] transition-all active:scale-[0.98]">
+<div class="relative flex h-14 w-full items-center justify-between px-6 rounded-full bg-[#102316] group-hover:bg-[#0d1c12] transition-colors duration-300">
+<div class="flex flex-col items-start">
+<span class="text-primary font-bold uppercase tracking-wider text-sm">Initialize New Objective</span>
+<span class="text-white/40 text-[10px] font-medium tracking-wide">COST: 100 TOKENS</span>
+</div>
+<div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+<span class="material-symbols-outlined text-xl">add</span>
+</div>
+</div>
+</button>
+</section>
+</main>
+</div>
+
+</body></html>

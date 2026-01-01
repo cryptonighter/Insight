@@ -11,6 +11,8 @@ import { growthContext } from '../services/growthContext';
 import { processBatchWithSilenceSplitting } from '../services/audioEngine';
 import { storageService } from '../services/storageService';
 import { supabase, isMockClient } from '../services/supabaseClient';
+import { useResolutionEngine } from '../services/useResolutionEngine';
+import { useMeditationGenerator } from '../services/useMeditationGenerator';
 
 const MOCK_SOUNDSCAPE: Soundscape = {
   id: 'default-space',
@@ -64,20 +66,35 @@ interface AppState {
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
+
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserContext>({ onboardingCompleted: true, clinicalContraindications: [] });
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD); // Default to DASHBOARD
 
-  // Resolution Engine State
-  const [userEconomy, setUserEconomy] = useState<UserEconomy>({ userId: 'mock', balance: 5 });
-  const [activeResolution, setActiveResolution] = useState<Resolution | null>(null);
-  const [todaysEntry, setTodaysEntry] = useState<DailyEntry | null>(null);
+  const {
+    userEconomy,
+    activeResolution,
+    todaysEntry,
+    createNewResolution,
+    debitToken,
+    grantToken,
+    updateDailyEntry,
+    syncResolutionData
+  } = useResolutionEngine(user, setCurrentView);
 
   // Audio/Gen State
-  const [meditations, setMeditations] = useState<Meditation[]>([]);
-  const [activeMeditationId, setActiveMeditationId] = useState<string | null>(null);
-  const [pendingMeditationConfig, setPendingMeditationConfig] = useState<Partial<MeditationConfig> | null>(null);
   const [soundscapes, setSoundscapes] = useState<Soundscape[]>([MOCK_SOUNDSCAPE]);
+
+  const {
+    meditations,
+    activeMeditationId,
+    pendingMeditationConfig,
+    finalizeMeditationGeneration,
+    playMeditation,
+    setMeditations
+  } = useMeditationGenerator(soundscapes, activeResolution, setCurrentView);
+
   const [insights, setInsights] = useState<Insight[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
@@ -88,108 +105,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(prev => ({ ...prev, supabaseId: session.user.id, email: session.user.email }));
-        syncResolutionData(session.user.id);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(prev => ({ ...prev, supabaseId: session.user.id, email: session.user.email }));
-        syncResolutionData(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const syncResolutionData = async (userId: string) => {
-    try {
-      // 1. Fetch Economy
-      const { data: eco } = await supabase.from('user_economy').select('*').eq('user_id', userId).single();
-      if (eco) setUserEconomy({ userId, balance: eco.balance, lastDailyGrant: eco.last_daily_grant });
-
-      // 2. Fetch Active Resolution
-      const { data: res } = await supabase.from('resolutions').select('*').eq('user_id', userId).eq('status', 'active').single();
-      if (res) {
-        setActiveResolution({
-          id: res.id,
-          statement: res.statement,
-          rootMotivation: res.root_motivation,
-          status: 'active',
-          createdAt: res.created_at
-        });
-
-        // 3. Fetch Today's Entry
-        const today = new Date().toISOString().split('T')[0];
-        const { data: entry } = await supabase.from('daily_entries')
-          .select('*')
-          .eq('resolution_id', res.id)
-          .eq('date', today)
-          .maybeSingle();
-
-        if (entry) {
-          setTodaysEntry({
-            id: entry.id,
-            resolutionId: res.id,
-            date: entry.date,
-            eveningCompleted: entry.evening_completed,
-            morningGenerated: entry.morning_generated
-          });
-        }
-      }
-    } catch (e) {
-      console.error("Sync failed", e);
-    }
-  };
-
-  const createNewResolution = async (statement: string, motivation: string) => {
-    if (!user.supabaseId) return;
-
-    // 1. Archive old ones
-    await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', user.supabaseId);
-
-    // 2. Create new Resolution
-    const { data, error } = await supabase.from('resolutions').insert({
-      user_id: user.supabaseId,
-      statement,
-      root_motivation: motivation,
-      status: 'active'
-    }).select().single();
-
-    // 3. Initialize Economy (The Commitment Grant) - Upsert to be safe
-    const { error: ecoError } = await supabase.from('user_economy').upsert({
-      user_id: user.supabaseId,
-      balance: 5, // Start with 5
-      last_daily_grant: new Date().toISOString()
-    }, { onConflict: 'user_id' }); // If exists, reset/ignore? Let's just ensure it exists.
-
-    if (data && !error) {
-      setActiveResolution({
-        id: data.id,
-        statement: data.statement,
-        rootMotivation: data.root_motivation,
-        status: 'active',
-        createdAt: data.created_at
-      });
-      setUserEconomy(prev => ({ ...prev, balance: 5 })); // Optimistic update
-      setView(ViewState.DASHBOARD);
-    }
-  };
-
   const startMorningSession = async () => {
-    if (userEconomy.balance < 1) {
-      alert("Insufficient tokens. Complete an evening reflection to earn more.");
-      return;
-    }
-
-    // Debit Token
-    if (user.supabaseId) {
-      await supabase.from('user_economy').update({ balance: userEconomy.balance - 1 }).eq('user_id', user.supabaseId);
-      setUserEconomy(prev => ({ ...prev, balance: prev.balance - 1 }));
-    }
+    const success = await debitToken();
+    if (!success) return;
 
     // Prepare Config
-    // In a real implementation, we'd use the resolution context here
     const config: MeditationConfig = {
       focus: activeResolution?.statement || "Focus",
       feeling: "Determined",
@@ -207,141 +139,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!user.supabaseId || !activeResolution) return;
     console.log("DEBUG: completeEveningReflection called");
 
-    // Grant Token Logic handled by DB trigger or manual update here?
-    // For MVP manual update
-    console.log("🪙 Granting token for user:", user.supabaseId);
-    const { error: ecoError } = await supabase.from('user_economy').update({
-      balance: userEconomy.balance + 1,
-      last_daily_grant: new Date().toISOString()
-    }).eq('user_id', user.supabaseId);
-
-    if (ecoError) {
-      console.error("❌ Economy update failed:", ecoError);
-    } else {
-      console.log("✅ Economy updated");
-      setUserEconomy(prev => ({ ...prev, balance: prev.balance + 1 }));
-    }
-
-    // Update or Create Entry
-    const today = new Date().toISOString().split('T')[0];
-    if (todaysEntry) {
-      console.log("Updating existing entry:", todaysEntry.id);
-      const { error: updateError } = await supabase.from('daily_entries').update({
-        evening_completed: true,
-        reflection_summary: summary,
-        transcript: transcript
-      }).eq('id', todaysEntry.id);
-      if (updateError) console.error("❌ Entry update failed:", updateError);
-      else {
-        console.log("✅ Entry updated successfully");
-        setTodaysEntry(prev => prev ? ({ ...prev, eveningCompleted: true }) : null);
-      }
-    } else {
-      // Create a fresh entry for today
-      const { data: newEntry } = await supabase.from('daily_entries').insert({
-        user_id: user.supabaseId,
-        resolution_id: activeResolution.id,
-        date: today,
-        evening_completed: true,
-        reflection_summary: summary,
-        transcript: transcript
-      }).select().single();
-
-      if (newEntry) {
-        setTodaysEntry({
-          id: newEntry.id,
-          resolutionId: activeResolution.id,
-          date: newEntry.date,
-          eveningCompleted: true,
-          morningGenerated: false
-        });
-      }
-    }
+    await grantToken();
+    await updateDailyEntry(summary, transcript);
 
     // TRIGGER MEMORY AUDIT (Fire & Forget for speed)
     console.log("🧠 Triggering Memory Auditor...");
     supabase.functions.invoke('audit-reflection', {
       body: { reflection: summary, transcript, user_id: user.supabaseId }
-    }).then(({ data, error }) => {
-      if (error) console.error("❌ Auditor Invocation Failed:", error);
-      else console.log("✅ Auditor Response:", data);
-    });
+    }).catch(err => console.error("❌ Auditor Invocation Failed:", err));
   };
 
   const completeOnboarding = () => { /* ... */ };
 
   // --- REUSED AUDIO ENGINE LOGIC ---
-  const finalizeMeditationGeneration = async (config: MeditationConfig) => {
-    const tempId = Date.now().toString();
-    try {
-      const contextTexts = [
-        `Goal: ${activeResolution?.statement}`,
-        `Why: ${activeResolution?.rootMotivation}`
-      ];
-      let selectedSoundscape = soundscapes[0];
+  // This logic is now handled by useMeditationGenerator hook.
+  // const finalizeMeditationGeneration = async (config: MeditationConfig) => { ... };
 
-      const newMeditation: Meditation = {
-        id: tempId,
-        title: "Morning Alignment",
-        transcript: "",
-        lines: [],
-        audioQueue: [], // Start empty
-        isGenerating: true,
-        durationMinutes: config.duration,
-        createdAt: Date.now(),
-        played: false,
-        soundscapeId: selectedSoundscape.id,
-        backgroundType: 'deep-space',
-        config: config
-      };
-
-      setMeditations(prev => [newMeditation, ...prev]);
-      setActiveMeditationId(tempId);
-      setCurrentView(ViewState.LOADING); // Redirects to loading screen
-
-      const { title, lines } = await generateMeditationStream(
-        config.focus,
-        config.feeling,
-        config.duration,
-        selectedSoundscape.metadata.description,
-        config.voice,
-        contextTexts,
-        async (chunkBase64, index, instructions, mimeType) => {
-          const segments = await processBatchWithSilenceSplitting(chunkBase64, index, instructions, mimeType);
-          setMeditations(current => current.map(m => {
-            if (m.id === tempId) {
-              return { ...m, audioQueue: [...m.audioQueue, ...segments] };
-            }
-            return m;
-          }));
-
-          if (index === 1) setPendingMeditationConfig(null);
-        },
-        () => {
-          setMeditations(current => current.map(m => {
-            if (m.id === tempId) return { ...m, isGenerating: false };
-            return m;
-          }));
-          setPendingMeditationConfig(null);
-        }
-      );
-
-      // Save title/lines
-      setMeditations(current => current.map(m => {
-        if (m.id === tempId) return { ...m, title, transcript: lines.join('\n'), lines };
-        return m;
-      }));
-
-    } catch (e) {
-      console.error("Failed to generate meditation", e);
-      alert("Generation failed. Token refunded (simulation).");
-      setMeditations(prev => prev.filter(m => m.id !== tempId));
-      setCurrentView(ViewState.DASHBOARD);
-    }
-  };
-
-  const setView = (view: ViewState) => setCurrentView(view);
-  const playMeditation = (id: string) => { setActiveMeditationId(id); setCurrentView(ViewState.PLAYER); };
+  // const setView = (view: ViewState) => setCurrentView(view);
+  // const playMeditation = (id: string) => { setActiveMeditationId(id); setCurrentView(ViewState.PLAYER); };
 
   // Stubs for legacy
   const sendChatMessage = async (t: string) => { };
@@ -364,11 +179,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       startMorningSession,
       completeEveningReflection,
       finalizeMeditationGeneration,
-      setView,
+      setView: setCurrentView,
       playMeditation,
 
       // Legacy stubs
-      insights, soundscapes, chatHistory, setTriage: () => { }, sendChatMessage, addSoundscape,
+      insights, soundscapes, chatHistory, setTriage: () => { }, sendChatMessage: async () => { }, addSoundscape: () => { },
       // Dummy parts/patterns for TS compliance if needed by other components, or remove if unused
       parts: [], anchors: [], patterns: [], acceptPattern: () => { }, updatePatternNote: () => { }, rateMeditation: () => { }, sessionState: SessionLifecycleState.TRIAGE, triage
     }}>

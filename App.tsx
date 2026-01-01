@@ -16,6 +16,8 @@ import { AuthView } from './components/AuthView';
 import { ViewState } from './types';
 
 import { Dashboard } from './components/Dashboard';
+import { DashboardV2 } from './components/v2/DashboardV2';
+import { ReflectionV2 } from './components/v2/ReflectionV2';
 import { LiveReflection } from './components/LiveReflection';
 import { OnboardingWizard } from './components/OnboardingWizard';
 
@@ -34,7 +36,7 @@ const Main: React.FC = () => {
   const renderView = () => {
     switch (currentView) {
       case ViewState.ONBOARDING: return <OnboardingWizard />;
-      case ViewState.DASHBOARD: return <Dashboard />;
+      case ViewState.DASHBOARD: return <DashboardV2 />;
       case ViewState.HOME: return <Home />; // Legacy Chat
       case ViewState.LOADING: return <LoadingGeneration />;
       case ViewState.CARDS: return <CardsView />;
@@ -43,9 +45,9 @@ const Main: React.FC = () => {
       case ViewState.ADMIN: return <AdminDashboard />;
       case ViewState.TRIAGE: return <TriageView />;
       case ViewState.REFLECTION: return <Reflection />; // Legacy Support
-      case ViewState.EVENING_REFLECTION: return <LiveReflection />;
+      case ViewState.EVENING_REFLECTION: return <ReflectionV2 />;
       case ViewState.CONTEXT: return <ContextInterview />;
-      default: return <Dashboard />; // Default to Dashboard now
+      default: return <DashboardV2 />; // Default to Dashboard now
     }
   };
 
