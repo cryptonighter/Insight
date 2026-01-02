@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useApp } from '../context/AppContext';
-import { Lock, Mail, User, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, Mail, User, ArrowRight, AlertCircle, Loader2, ScanFace } from 'lucide-react';
 
 export const AuthView: React.FC = () => {
     const { syncWithSupabase } = useApp();
@@ -54,70 +54,64 @@ export const AuthView: React.FC = () => {
                     </div>
                     <h1 className="text-2xl font-light text-slate-800 tracking-wide mb-2">
                         {isLogin ? 'Welcome Back' : 'Begin Your Journey'}
-                    </h1>
-                    <p className="text-sm text-slate-500">
-                        {isLogin ? 'Sign in to access your growth journal.' : 'Create a secure space for your mind.'}
-                    </p>
-                </div>
+                        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 font-mono relative overflow-hidden">
+                            {/* Ambient Background */}
+                            <div className="fixed top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
+                            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] pointer-events-none animate-pulse-slow"></div>
 
-                <form onSubmit={handleAuth} className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase text-slate-400 tracking-wider ml-1">Email</label>
-                        <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="email"
-                                required
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                className="w-full bg-white/50 border border-white/60 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 text-slate-700 placeholder-slate-400 transition-all"
-                                placeholder="you@example.com"
-                            />
+                            <div className="max-w-md w-full space-y-8 relative z-10">
+                                <div className="text-center">
+                                    <div className="bg-primary/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-primary/30">
+                                        <Lock className="h-8 w-8 text-primary" />
+                                    </div>
+                                    <h2 className="mt-6 text-3xl font-bold text-white tracking-tighter uppercase">
+                                        Authentication
+                                    </h2>
+                                    <p className="mt-2 text-sm text-primary/60 font-mono tracking-widest uppercase">
+                                        Identity Verification Required
+                                    </p>
+                                </div>
+
+                                <div className="relative">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <input
+                                        type="password"
+                                        required
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        className="w-full bg-white/50 border border-white/60 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 text-slate-700 placeholder-slate-400 transition-all"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs flex items-center gap-2">
+                                    <AlertCircle size={14} />
+                                    {error}
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-slate-800 hover:bg-slate-900 text-white py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-6"
+                            >
+                                {loading ? <Loader2 size={18} className="animate-spin" /> : (
+                                    isLogin ? <>Sign In <ArrowRight size={18} /></> : <>Create Account <ArrowRight size={18} /></>
+                                )}
+                            </button>
+                        </form>
+
+                        <div className="mt-8 text-center">
+                            <button
+                                onClick={() => setIsLogin(!isLogin)}
+                                className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                            >
+                                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                            </button>
                         </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase text-slate-400 tracking-wider ml-1">Password</label>
-                        <div className="relative">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                className="w-full bg-white/50 border border-white/60 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 text-slate-700 placeholder-slate-400 transition-all"
-                                placeholder="••••••••"
-                            />
-                        </div>
-                    </div>
-
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs flex items-center gap-2">
-                            <AlertCircle size={14} />
-                            {error}
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white py-4 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-6"
-                    >
-                        {loading ? <Loader2 size={18} className="animate-spin" /> : (
-                            isLogin ? <>Sign In <ArrowRight size={18} /></> : <>Create Account <ArrowRight size={18} /></>
-                        )}
-                    </button>
-                </form>
-
-                <div className="mt-8 text-center">
-                    <button
-                        onClick={() => setIsLogin(!isLogin)}
-                        className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
-                    >
-                        {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-                    </button>
                 </div>
             </div>
-        </div>
-    );
+            );
 };
