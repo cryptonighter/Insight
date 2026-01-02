@@ -67,8 +67,8 @@ export class MeditationPipeline {
                 console.log(`✅ Batch ${i} Ready:`, segments.length, "segments");
                 this.onSegmentReady(segments);
 
-                // Small delay to prevent rate limit smashing (Free Tier is strict)
-                await new Promise(r => setTimeout(r, 2500));
+                // Small delay to prevent rate limit smashing
+                await new Promise(r => setTimeout(r, 5000));
 
             } catch (error) {
                 console.error(`❌ Batch ${i} Failed:`, error);
