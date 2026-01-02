@@ -34,9 +34,9 @@ const Main: React.FC = () => {
     // ... logic
   }
 
-  // if (!user.supabaseId && !localStorage.getItem('reality_user_skip_auth')) {
-  //   return <AuthView />;
-  // }
+  if (!user.supabaseId && !localStorage.getItem('reality_user_skip_auth')) {
+    return <AuthView />;
+  }
 
   const renderView = () => {
     switch (currentView) {
@@ -76,33 +76,6 @@ const Main: React.FC = () => {
           {renderView()}
         </motion.div>
       </AnimatePresence>
-
-      {/* Global Hard Reset (Dev Tool) - Unmissable */}
-      <div className="fixed top-24 right-4 z-[9999]">
-        <button
-          onClick={async () => {
-            if (confirm("⚠️ GLOBAL RESET? This wipes everything to test Onboarding.")) {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user?.id) {
-                const uid = user.id;
-                console.log("Resetting data for:", uid);
-                await supabase.from('user_economy').delete().eq('user_id', uid);
-                await supabase.from('resolutions').delete().eq('user_id', uid); // Delete, not just archive, to be clean
-                await supabase.from('daily_entries').delete().eq('user_id', uid);
-                await supabase.from('session_logs').delete().eq('user_id', uid);
-
-                window.location.reload();
-              } else {
-                alert("No authenticated user found.");
-              }
-            }
-          }}
-          className="w-12 h-12 rounded-full bg-red-600 text-white font-bold text-xl flex items-center justify-center shadow-2xl border-2 border-white/20 hover:scale-110 active:scale-95 transition-all"
-          title="Global Hard Reset"
-        >
-          R
-        </button>
-      </div>
     </div>
   );
 };

@@ -126,23 +126,6 @@ export const DashboardV2: React.FC = () => {
                             >
                                 +
                             </button>
-
-                            {/* Hard Reset */}
-                            <button
-                                onClick={async () => {
-                                    if (confirm("⚠️ RESET ACCOUNT? This will wipe your tokens and goals to test Onboarding.")) {
-                                        if (userEconomy.userId) {
-                                            await supabase.from('user_economy').delete().eq('user_id', userEconomy.userId);
-                                            await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', userEconomy.userId);
-                                            window.location.reload();
-                                        }
-                                    }
-                                }}
-                                className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center text-xs text-red-500 hover:bg-red-500 hover:text-white transition-colors"
-                                title="Reset Account"
-                            >
-                                R
-                            </button>
                         </div>
                     </div>
                 </div>
