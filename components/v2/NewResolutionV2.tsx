@@ -24,7 +24,13 @@ export const NewResolutionV2: React.FC = () => {
         setIsSubmitting(true);
         try {
             await createNewResolution(statement, motivation);
-            // The hook handles transition, but we can force it just in case or show a success state
+            // Show Success State
+            setStep(3 as any);
+
+            // Wait for user to absorb the success before redirecting
+            setTimeout(() => {
+                setView(ViewState.DASHBOARD);
+            }, 2500);
         } catch (error) {
             console.error("Failed to create resolution:", error);
             setIsSubmitting(false);
@@ -64,26 +70,39 @@ export const NewResolutionV2: React.FC = () => {
 
                 {/* Question Block */}
                 <div className="flex-1 flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 my-auto">
-                    <div className="mb-6 flex items-center gap-3 text-primary">
-                        {step === 1 ? <Target className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
-                        <span className="text-xs font-bold uppercase tracking-widest">
-                            {step === 1 ? "North Star" : "The Why"}
-                        </span>
-                    </div>
+                    {step === 3 ? (
+                        <div className="flex flex-col items-center text-center">
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
+                                <CheckCircle className="w-16 h-16 text-primary relative z-10 animate-scale-in" />
+                            </div>
+                            <h2 className="text-3xl font-bold text-white mb-2">Protocol Active</h2>
+                            <p className="text-white/60">Calibrating Insight Engine...</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="mb-6 flex items-center gap-3 text-primary">
+                                {step === 1 ? <Target className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
+                                <span className="text-xs font-bold uppercase tracking-widest">
+                                    {step === 1 ? "North Star" : "The Why"}
+                                </span>
+                            </div>
 
-                    <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-8">
-                        {step === 1
-                            ? "What is the single most important change you are creating?"
-                            : "Why does this reality matter to you deep down?"}
-                    </h1>
+                            <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-8">
+                                {step === 1
+                                    ? "What is the single most important change you are creating?"
+                                    : "Why does this reality matter to you deep down?"}
+                            </h1>
 
-                    <textarea
-                        autoFocus
-                        value={step === 1 ? statement : motivation}
-                        onChange={(e) => step === 1 ? setStatement(e.target.value) : setMotivation(e.target.value)}
-                        placeholder={step === 1 ? "e.g., I am stepping into my role as..." : "e.g., Because I am done with..."}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-lg text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all resize-none h-40"
-                    />
+                            <textarea
+                                autoFocus
+                                value={step === 1 ? statement : motivation}
+                                onChange={(e) => step === 1 ? setStatement(e.target.value) : setMotivation(e.target.value)}
+                                placeholder={step === 1 ? "e.g., I am stepping into my role as..." : "e.g., Because I am done with..."}
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-lg text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all resize-none h-40"
+                            />
+                        </>
+                    )}
                 </div>
             </main>
 

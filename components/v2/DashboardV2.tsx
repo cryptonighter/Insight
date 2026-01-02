@@ -55,12 +55,21 @@ export const DashboardV2: React.FC = () => {
                 </button>
             </header>
 
-            <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 w-full max-w-md mx-auto">
-                {/* 
-                   Minimalist Dashboard: 
-                   The focus is solely on the "Start" action. 
-                   Context is provided during the session.
-                */}
+            <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 w-full max-w-md mx-auto pointer-events-none">
+                {/* Active Protocol Display */}
+                {activeResolution && (
+                    <div className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000 slide-in-from-bottom-5">
+                        <div className="flex items-center gap-2 mb-3 opacity-60">
+                            <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
+                            <span className="text-[10px] font-bold tracking-[0.25em] text-primary uppercase">Current Directive</span>
+                            <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
+                        </div>
+                        <h1 className="text-xl md:text-2xl font-bold text-white/90 tracking-tight leading-normal max-w-xs text-glow-sm">
+                            "{activeResolution.statement}"
+                        </h1>
+                        <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-6"></div>
+                    </div>
+                )}
             </main>
 
             <footer className="relative z-10 w-full px-6 pb-8 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent shrink-0">

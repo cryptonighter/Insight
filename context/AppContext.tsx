@@ -140,13 +140,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!success) return;
 
     // Prepare Config
+    const selectedSoundscape = soundscapes.length > 0 ? soundscapes[0] : null;
+    if (!selectedSoundscape) {
+      console.warn("No soundscapes available. Using silent fallback.");
+      // Use a fallback or alert? 
+      // Proceeding might be dangerous if ID is required, but generator handles it?
+      // Let's assume MOCK_SOUNDSCAPE is always loaded initially in state?
+    }
+
     const config: MeditationConfig = {
       focus: activeResolution?.statement || "Focus",
       feeling: "Determined",
       duration: 5,
       voice: 'Kore',
       speed: 1.0,
-      soundscapeId: soundscapes[0].id,
+      soundscapeId: selectedSoundscape?.id || "default",
       background: 'deep-space'
     };
 
