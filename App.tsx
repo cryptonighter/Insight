@@ -24,6 +24,7 @@ import { FeedbackV2 } from './components/v2/FeedbackV2';
 import { OnboardingView } from './components/v2/OnboardingView';
 import { LiveReflection } from './components/LiveReflection';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import { supabase } from './services/supabaseClient'; // Ensure imported
 
 const Main: React.FC = () => {
   const { currentView, user } = useApp();
@@ -75,6 +76,26 @@ const Main: React.FC = () => {
           {renderView()}
         </motion.div>
       </AnimatePresence>
+
+      {/* Global Hard Reset (Dev Tool) - Unmissable */}
+      <div className="fixed top-24 right-4 z-[9999]">
+        <button
+          onClick={async () => {
+            if (confirm("⚠️ GLOBAL RESET? This wipes everything to test Onboarding.")) {
+              if (userEconomy.userId) {
+                const { error } = await supabase.from('user_economy').delete().eq('user_id', userEconomy.userId);
+                if (error) console.error("Reset Error:", error);
+                await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', userEconomy.userId);
+                window.location.reload();
+              }
+            }
+          }}
+          className="w-12 h-12 rounded-full bg-red-600 text-white font-bold text-xl flex items-center justify-center shadow-2xl border-2 border-white/20 hover:scale-110 active:scale-95 transition-all"
+          title="Global Hard Reset"
+        >
+          R
+        </button>
+      </div>
     </div>
   );
 };
