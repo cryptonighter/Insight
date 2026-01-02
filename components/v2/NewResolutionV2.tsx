@@ -32,13 +32,13 @@ export const NewResolutionV2: React.FC = () => {
     };
 
     return (
-        <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background-dark font-display max-w-md mx-auto shadow-2xl">
+        <div className="relative flex min-h-[100dvh] w-full flex-col overflow-y-auto bg-background-dark font-display max-w-md mx-auto shadow-2xl pb-32">
             {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern opacity-20 pointer-events-none"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="fixed top-0 left-0 w-full h-full bg-grid-pattern opacity-20 pointer-events-none"></div>
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 
             {/* Header */}
-            <header className="relative z-20 flex items-center justify-between p-6 pt-8">
+            <header className="relative z-20 flex items-center justify-between p-6 pt-8 shrink-0">
                 <button
                     onClick={() => step === 1 ? setView(ViewState.DASHBOARD) : setStep(1)}
                     className="flex items-center justify-center w-10 h-10 rounded-full text-white/50 hover:text-white hover:bg-white/5 transition-colors"
@@ -55,15 +55,15 @@ export const NewResolutionV2: React.FC = () => {
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col px-6 pt-8 pb-32 relative z-10">
+            <main className="flex-1 flex flex-col px-6 pt-4 relative z-10">
                 {/* Progress Indicator */}
-                <div className="flex gap-2 mb-12">
+                <div className="flex gap-2 mb-8">
                     <div className={cn("h-1 flex-1 rounded-full transition-colors duration-500", step >= 1 ? "bg-primary shadow-[0_0_8px_#4ade80]" : "bg-white/10")}></div>
                     <div className={cn("h-1 flex-1 rounded-full transition-colors duration-500", step >= 2 ? "bg-primary shadow-[0_0_8px_#4ade80]" : "bg-white/10")}></div>
                 </div>
 
                 {/* Question Block */}
-                <div className="flex-1 flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex-1 flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 my-auto">
                     <div className="mb-6 flex items-center gap-3 text-primary">
                         {step === 1 ? <Target className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
                         <span className="text-xs font-bold uppercase tracking-widest">
@@ -88,7 +88,7 @@ export const NewResolutionV2: React.FC = () => {
             </main>
 
             {/* Footer Actions */}
-            <footer className="absolute bottom-0 w-full z-40 p-6 bg-gradient-to-t from-background-dark via-background-dark to-transparent">
+            <footer className="fixed bottom-0 w-full max-w-md z-40 p-6 bg-gradient-to-t from-background-dark via-background-dark to-transparent">
                 <button
                     onClick={handleNext}
                     disabled={(!statement && step === 1) || (!motivation && step === 2) || isSubmitting}
