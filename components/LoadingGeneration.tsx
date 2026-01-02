@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, Music, ArrowLeft, Volume2, Mic2, Wind, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowLeft, Volume2, Mic2, Wind, Terminal, Cpu, Activity, Play } from 'lucide-react';
 import { VoiceId, MeditationConfig, ViewState } from '../types';
 import { storageService } from '../services/storageService';
 import { CLINICAL_PROTOCOLS } from '../server/protocols';
+import { cn } from '@/utils';
 
 export const LoadingGeneration: React.FC = () => {
   const {
@@ -27,6 +28,10 @@ export const LoadingGeneration: React.FC = () => {
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
+  // Terminal Line Animation
+  const [terminalLines, setTerminalLines] = useState<string[]>([]);
+  const lineIndex = useRef(0);
+
   const categories = useMemo(() => {
     const cats: Record<string, string[]> = { 'Drone': [], 'Nature': [], 'Musical': [], 'Silence': [] };
     soundscapes.forEach(s => {
@@ -39,15 +44,30 @@ export const LoadingGeneration: React.FC = () => {
     return cats;
   }, [soundscapes]);
 
-  const stages = [
-    "Analyzing neural patterns...",
-    "Weaving clinical protocol...",
-    "Composing the guidance...",
-    "Synthesizing voice layers...",
-    "Layering atmosphere...",
-    "Calculating resonance intervals...",
-    "Finalizing neuro-symbolic session..."
-  ];
+  const activeMeditation = useMemo(() => meditations.find(m => m.id === activeMeditationId), [meditations, activeMeditationId]);
+  const protocol = useMemo(() => CLINICAL_PROTOCOLS[triage.selectedMethodology || 'NSDR'], [triage.selectedMethodology]);
+  const queueLength = activeMeditation?.audioQueue?.length || 0;
+  const isGenerating = activeMeditation?.isGenerating || hasStarted;
+  const showBeginButton = queueLength > 0;
+
+  // Simulate Matrix Lines
+  useEffect(() => {
+    if (isGenerating && !showBeginButton) {
+      const interval = setInterval(() => {
+        const possibleLines = [
+          `> ANALYZING NEURAL PATTERNS [${Math.floor(Math.random() * 99)}%MATCH]`,
+          `> WEAVING PROTOCOL: ${triage.selectedMethodology || 'UNKNOWN'}`,
+          `> SYNTHESIZING VOICE LAYERS: ${selectedVoice.toUpperCase()}`,
+          `> CALCULATING RESONANCE INTERVALS...`,
+          `> OPTIMIZING GUIDANCE VECTORS...`,
+          `> LOADING ATMOSPHERE: ${selectedCategory.toUpperCase()}...`,
+          `> GENERATING SOMATIC INSTRUCTIONS...`
+        ];
+        setTerminalLines(prev => [...prev.slice(-4), possibleLines[Math.floor(Math.random() * possibleLines.length)]]);
+      }, 800);
+      return () => clearInterval(interval);
+    }
+  }, [isGenerating, showBeginButton, triage.selectedMethodology, selectedVoice, selectedCategory]);
 
   const handlePreview = async (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -122,140 +142,145 @@ export const LoadingGeneration: React.FC = () => {
     });
   };
 
-  const activeMeditation = useMemo(() => meditations.find(m => m.id === activeMeditationId), [meditations, activeMeditationId]);
-  const protocol = useMemo(() => CLINICAL_PROTOCOLS[triage.selectedMethodology || 'NSDR'], [triage.selectedMethodology]);
-
-  // Real Progress Logic
-  const queueLength = activeMeditation?.audioQueue?.length || 0;
-  const isGenerating = activeMeditation?.isGenerating || hasStarted;
-  const showBeginButton = queueLength > 0;
-
-  // Don't show misleading progress bars. Just pulsate while working.
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-liquid app-text-primary p-6 relative overflow-hidden">
+    <div className="relative min-h-[100dvh] bg-background-dark font-display flex flex-col items-center justify-center p-6 overflow-hidden text-primary">
+      {/* Matrix Grid Background */}
+      <div className="fixed top-0 left-0 w-full h-full bg-grid-pattern opacity-10 pointer-events-none"></div>
 
       {!hasStarted && (
         <button
-          onClick={() => setView(ViewState.HOME)}
-          className="absolute top-8 left-6 flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors z-20"
+          onClick={() => setView(ViewState.NEW_RESOLUTION)}
+          className="absolute top-8 left-6 flex items-center gap-2 text-primary/50 hover:text-primary transition-colors z-20 group"
         >
-          <ArrowLeft size={20} />
-          <span className="text-sm font-medium">Add more context</span>
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-bold tracking-widest uppercase">Abort Sequence</span>
         </button>
       )}
 
-      <div className="z-10 w-full max-w-md flex flex-col items-center animate-fade-in pt-12">
+      <div className="z-10 w-full max-w-md flex flex-col items-center animate-in fade-in duration-700">
 
-        {/* THE BREATHING LOADER */}
+        {/* CORE STATUS */}
         <div className="relative w-48 h-48 mb-8 flex items-center justify-center">
-          <div className={`absolute inset-0 rounded-full border-2 border-indigo-400/20 ${isGenerating ? 'animate-breathe' : ''}`}></div>
-          <div className={`absolute inset-4 rounded-full border border-teal-400/30 ${isGenerating ? 'animate-spin-reverse' : ''}`}></div>
-          <div className={`absolute inset-8 rounded-full bg-gradient-to-tr from-indigo-500/10 to-teal-400/10 backdrop-blur-sm flex items-center justify-center ${isGenerating ? 'animate-breathe' : ''}`}>
-            <span className="text-2xl font-light text-slate-800">
-              {isGenerating ? <Loader2 className="animate-spin text-indigo-400" size={32} /> : <Sparkles className="text-indigo-400" />}
-            </span>
+          <div className={cn("absolute inset-0 rounded-full border border-primary/20", isGenerating ? "animate-ping opacity-20" : "")}></div>
+          <div className={cn("absolute inset-4 rounded-full border border-primary/40 border-dashed", isGenerating ? "animate-[spin_10s_linear_infinite]" : "")}></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            {isGenerating ? (
+              <div className="flex flex-col items-center gap-2">
+                <Cpu className="w-12 h-12 text-primary animate-pulse" />
+                <span className="text-[10px] uppercase tracking-widest text-primary/70 animate-pulse">Processing</span>
+              </div>
+            ) : (
+              <div className="w-24 h-24 bg-primary/5 rounded-full flex items-center justify-center border border-primary/20 shadow-[0_0_30px_rgba(74,222,128,0.1)]">
+                <Activity className="w-10 h-10 text-primary" />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center text-center space-y-4 mb-8">
+        {/* STATUS TEXT */}
+        <div className="flex flex-col items-center justify-center text-center space-y-4 mb-8 w-full">
           {hasStarted ? (
-            <div className="animate-fade-in space-y-4 w-full">
+            <div className="w-full space-y-6">
               <div className="space-y-1">
-                <p className="text-indigo-600 text-[10px] tracking-[0.2em] uppercase font-bold">
-                  {queueLength > 0 ? "Transmission Received" : "Synthesizing Experience..."}
+                <p className="text-primary text-[10px] tracking-[0.2em] uppercase font-bold animate-pulse">
+                  {queueLength > 0 ? ">> TRANSMISSION READY <<" : ">> COMPILING PROTOCOL <<"}
                 </p>
-                <h2 className="text-2xl font-light text-slate-800">
-                  {protocol?.name || "Preparing Session"}
+                <h2 className="text-2xl font-bold text-white tracking-tight">
+                  {protocol?.name || "Initializing..."} | <span className="text-primary">{queueLength > 0 ? "100%" : "WORKING"}</span>
                 </h2>
               </div>
 
-              <div className="bg-white/40 backdrop-blur-md p-6 rounded-2xl border border-white/50 shadow-sm space-y-4">
-                <p className="text-sm text-slate-600 leading-relaxed italic">
-                  "{protocol?.description}"
-                </p>
-
-                <div className="pt-4 border-t border-indigo-100/50 flex flex-col items-center gap-3">
-                  <span className="text-[10px] uppercase tracking-widest text-indigo-400 font-bold">Preparation Guide</span>
-                  <div className="flex gap-4 justify-center">
-                    <div className="flex flex-col items-center gap-1 opacity-70">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center"><Wind size={14} /></div>
-                      <span className="text-[9px]">Eyes Closed</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 opacity-70">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center"><Volume2 size={14} /></div>
-                      <span className="text-[9px]">Headphones</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 opacity-70">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center"><Mic2 size={14} /></div>
-                      <span className="text-[9px]">Quiet Space</span>
-                    </div>
-                  </div>
-                </div>
+              {/* TERMINAL LOG */}
+              <div className="bg-black/50 border border-primary/20 p-4 rounded-lg font-mono text-[10px] text-left h-32 flex flex-col justify-end shadow-inner overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-full h-full bg-scanline pointer-events-none opacity-10"></div>
+                {terminalLines.map((line, i) => (
+                  <div key={i} className="text-primary/80 truncate animate-in slide-in-from-left-2 fade-in">{line}</div>
+                ))}
               </div>
 
-              {/* BEGIN SESSION BUTTON */}
+              {/* BEGIN BUTTON */}
               {showBeginButton ? (
                 <button
                   onClick={() => setView(ViewState.PLAYER)}
-                  className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold tracking-wide animate-bounce-slow shadow-xl shadow-indigo-200 flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all mt-4"
+                  className="w-full bg-primary text-background-dark py-4 rounded-none font-bold tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-all shadow-[0_0_20px_rgba(74,222,128,0.4)] flex items-center justify-center gap-3 border border-primary skew-x-[-10deg]"
                 >
-                  <Sparkles size={18} />
-                  Begin Experience
+                  <Play size={18} fill="currentColor" className="skew-x-[10deg]" />
+                  <span className="skew-x-[10deg]">Init Sequence</span>
                 </button>
               ) : (
-                <p className="text-xs text-slate-400 animate-pulse pt-2">Establishing neuro-symbolic link...</p>
+                <p className="text-xs text-primary/40 animate-pulse pt-2 font-mono">ESTIMATED TIME: CALC...</p>
               )}
             </div>
           ) : (
             <>
-              <h2 className="text-2xl font-light text-slate-800">Ready your space</h2>
-              <p className="app-text-secondary text-sm">Targeting protocol: <span className="text-indigo-600 font-medium">{triage.selectedMethodology || 'NSDR'}</span></p>
+              <h2 className="text-2xl font-bold text-white tracking-wide">Configure Protocol</h2>
+              <p className="text-primary/60 text-xs font-mono tracking-wider">TARGET: <span className="text-white">{triage.selectedMethodology || 'NSDR'}</span></p>
             </>
           )}
         </div>
 
+        {/* CONFIG OPTIONS */}
         {!hasStarted && (
-          <div className="w-full space-y-6 animate-slide-up">
-            <div className="glass-card p-6 rounded-2xl space-y-4">
-              <div className="flex items-center gap-3 border-b border-indigo-100 pb-2">
-                <Wind size={18} className="text-indigo-400" />
-                <span className="text-xs uppercase tracking-widest font-semibold text-slate-400">Atmosphere</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {['Drone', 'Nature', 'Musical'].map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => handlePreview(cat)}
-                    className={`p-4 rounded-xl flex flex-col items-center gap-2 border transition-all ${selectedCategory === cat ? 'bg-indigo-50 border-indigo-200 text-indigo-600 ring-2 ring-indigo-500/10' : 'bg-white/40 border-transparent text-slate-400'}`}
-                  >
-                    <span className="text-sm font-medium">{cat}</span>
-                  </button>
-                ))}
+          <div className="w-full space-y-6 animate-slide-up-fade">
+            <div className="border border-primary/10 bg-white/5 p-6 rounded-lg space-y-6 backdrop-blur-sm">
+
+              {/* ATMOSPHERE */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                  <Wind size={14} className="text-primary" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Atmosphere</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Drone', 'Nature', 'Musical'].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => handlePreview(cat)}
+                      className={cn(
+                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all",
+                        selectedCategory === cat
+                          ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                          : "bg-black/20 border-white/10 text-white/40 hover:border-primary/50 hover:text-primary/80"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 border-b border-indigo-100 pb-2 pt-2">
-                <Mic2 size={18} className="text-indigo-400" />
-                <span className="text-xs uppercase tracking-widest font-semibold text-slate-400">Vocal Tone</span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {['Kore', 'Fenrir', 'Puck'].map((v: any) => (
-                  <button
-                    key={v}
-                    onClick={() => setSelectedVoice(v)}
-                    className={`p-3 rounded-xl border transition-all ${selectedVoice === v ? 'bg-indigo-50 border-indigo-200 text-indigo-600 ring-2 ring-indigo-500/10' : 'bg-white/40 border-transparent text-slate-400'}`}
-                  >
-                    <span className="text-sm font-medium">{v}</span>
-                  </button>
-                ))}
+              {/* VOICE */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                  <Mic2 size={14} className="text-primary" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Voice Synthesis</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Kore', 'Fenrir', 'Puck'].map((v: any) => (
+                    <button
+                      key={v}
+                      onClick={() => setSelectedVoice(v)}
+                      className={cn(
+                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all",
+                        selectedVoice === v
+                          ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                          : "bg-black/20 border-white/10 text-white/40 hover:border-primary/50 hover:text-primary/80"
+                      )}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             <button
               onClick={handleStart}
-              className="w-full bg-slate-900 sky-shadow text-white py-5 rounded-2xl font-medium tracking-wide transition-all active:scale-[0.98] hover:bg-slate-800"
+              className="w-full bg-primary text-background-dark py-5 rounded-none font-bold tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-all shadow-[0_0_20px_rgba(74,222,128,0.3)] skew-x-[-5deg] group"
             >
-              Initialize Session
+              <div className="skew-x-[5deg] flex items-center justify-center gap-2">
+                <Terminal size={18} className="group-hover:animate-pulse" />
+                <span>Execute Generation</span>
+              </div>
             </button>
           </div>
         )}
