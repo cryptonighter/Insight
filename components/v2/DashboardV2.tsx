@@ -96,11 +96,14 @@ export const DashboardV2: React.FC = () => {
                         {/* Dev Grant Button */}
                         <button
                             onClick={async () => {
-                                if (confirm("GRANT 1000 TOKENS? (Dev Only)")) {
-                                    if (userEconomy.userId) { // Check if we have a userId
-                                        await supabase.from('user_economy').update({ balance: userEconomy.balance + 1000 }).eq('user_id', userEconomy.userId);
-                                        window.location.reload(); // Quick refresh to see changes
+                                const code = prompt("Enter Admin Access Code:");
+                                if (code === "insight") {
+                                    if (userEconomy.userId) {
+                                        await supabase.from('user_economy').update({ balance: userEconomy.balance + 100 }).eq('user_id', userEconomy.userId);
+                                        window.location.reload();
                                     }
+                                } else if (code) {
+                                    alert("Invalid Access Code");
                                 }
                             }}
                             className="ml-2 w-4 h-4 bg-white/10 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-primary hover:text-black transition-colors"
