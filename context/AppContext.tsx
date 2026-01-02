@@ -136,29 +136,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const startMorningSession = async () => {
-    const success = await debitToken();
-    if (!success) return;
+    console.log("Starting Morning Session...");
+    try {
+      const success = await debitToken();
+      if (!success) {
+        console.warn("Debit failed. Aborting.");
+        return;
+      }
 
-    // Prepare Config
-    const selectedSoundscape = soundscapes.length > 0 ? soundscapes[0] : null;
-    if (!selectedSoundscape) {
-      console.warn("No soundscapes available. Using silent fallback.");
-      // Use a fallback or alert? 
-      // Proceeding might be dangerous if ID is required, but generator handles it?
-      // Let's assume MOCK_SOUNDSCAPE is always loaded initially in state?
+      // Prepare Config
+      // Robust fallback: If no soundscapes loaded, use a hardcoded "default" string.
+      // Ideally we should have a fallback ID known to the backend or handle "default" in generator.
+      const defaultSoundscapeId = soundscapes.length > 0 ? soundscapes[0].id : "default";
+
+      const config: MeditationConfig = {
+        focus: activeResolution?.statement || "Focus",
+        feeling: "Determined",
+        duration: 5,
+        voice: 'Kore',
+        speed: 1.0,
+        soundscapeId: defaultSoundscapeId,
+        background: 'deep-space'
+      };
+
+      console.log("Initializing Generator with:", config);
+      await finalizeMeditationGeneration(config);
+
+    } catch (err) {
+      console.error("CRITICAL: Failed to start session", err);
+      alert("Failed to initialize session. Please try again.");
     }
-
-    const config: MeditationConfig = {
-      focus: activeResolution?.statement || "Focus",
-      feeling: "Determined",
-      duration: 5,
-      voice: 'Kore',
-      speed: 1.0,
-      soundscapeId: selectedSoundscape?.id || "default",
-      background: 'deep-space'
-    };
-
-    await finalizeMeditationGeneration(config);
   };
 
   const [lastSessionData, setLastSessionData] = useState<SessionSummaryData | null>(null);

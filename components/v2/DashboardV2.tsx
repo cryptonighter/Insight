@@ -65,7 +65,7 @@ export const DashboardV2: React.FC = () => {
                             <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
                         </div>
                         <h1 className="text-xl md:text-2xl font-bold text-white/90 tracking-tight leading-normal max-w-xs text-glow-sm">
-                            "{activeResolution.statement}"
+                            {activeResolution.statement}
                         </h1>
                         <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-6"></div>
                     </div>

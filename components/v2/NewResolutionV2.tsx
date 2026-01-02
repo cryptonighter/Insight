@@ -30,7 +30,7 @@ export const NewResolutionV2: React.FC = () => {
             // Wait for user to absorb the success before redirecting
             setTimeout(() => {
                 setView(ViewState.DASHBOARD);
-            }, 2500);
+            }, 4000);
         } catch (error) {
             console.error("Failed to create resolution:", error);
             setIsSubmitting(false);
@@ -71,27 +71,29 @@ export const NewResolutionV2: React.FC = () => {
                 {/* Question Block */}
                 <div className="flex-1 flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 my-auto">
                     {step === 3 ? (
-                        <div className="flex flex-col items-center text-center">
-                            <div className="relative mb-6">
-                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-                                <CheckCircle className="w-16 h-16 text-primary relative z-10 animate-scale-in" />
+                        <div className="flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-700">
+                            <div className="relative mb-8">
+                                <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse"></div>
+                                <div className="relative w-20 h-20 bg-background-dark rounded-full border border-primary/50 flex items-center justify-center shadow-[0_0_30px_rgba(74,222,128,0.3)]">
+                                    <CheckCircle className="w-10 h-10 text-primary animate-scale-in" />
+                                </div>
                             </div>
-                            <h2 className="text-3xl font-bold text-white mb-2">Protocol Active</h2>
-                            <p className="text-white/60">Calibrating Insight Engine...</p>
+                            <h2 className="text-2xl font-bold text-white mb-3 tracking-wide">Protocol Active</h2>
+                            <p className="text-white/50 text-sm tracking-widest uppercase animate-pulse">Calibrating Insight Engine...</p>
                         </div>
                     ) : (
                         <>
                             <div className="mb-6 flex items-center gap-3 text-primary">
-                                {step === 1 ? <Target className="w-6 h-6" /> : <Zap className="w-6 h-6" />}
-                                <span className="text-xs font-bold uppercase tracking-widest">
-                                    {step === 1 ? "North Star" : "The Why"}
+                                {step === 1 ? <Target className="w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+                                    {step === 1 ? "Step 1: The Vision" : "Step 2: The Core"}
                                 </span>
                             </div>
 
                             <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-8">
                                 {step === 1
-                                    ? "What is the single most important change you are creating?"
-                                    : "Why does this reality matter to you deep down?"}
+                                    ? "What outcome are you committed to creating?"
+                                    : "Why does this reality matter to you, right now?"}
                             </h1>
 
                             <textarea
