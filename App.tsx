@@ -27,7 +27,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { supabase } from './services/supabaseClient'; // Ensure imported
 
 const Main: React.FC = () => {
-  const { currentView, user } = useApp();
+  const { currentView, user, userEconomy } = useApp();
 
   // Simple Auth Wall
   if (!user.supabaseId && !user.onboardingCompleted) {
