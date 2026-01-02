@@ -82,11 +82,18 @@ const Main: React.FC = () => {
         <button
           onClick={async () => {
             if (confirm("⚠️ GLOBAL RESET? This wipes everything to test Onboarding.")) {
-              if (userEconomy.userId) {
-                const { error } = await supabase.from('user_economy').delete().eq('user_id', userEconomy.userId);
-                if (error) console.error("Reset Error:", error);
-                await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', userEconomy.userId);
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user?.id) {
+                const uid = user.id;
+                console.log("Resetting data for:", uid);
+                await supabase.from('user_economy').delete().eq('user_id', uid);
+                await supabase.from('resolutions').delete().eq('user_id', uid); // Delete, not just archive, to be clean
+                await supabase.from('daily_entries').delete().eq('user_id', uid);
+                await supabase.from('session_logs').delete().eq('user_id', uid);
+
                 window.location.reload();
+              } else {
+                alert("No authenticated user found.");
               }
             }
           }}

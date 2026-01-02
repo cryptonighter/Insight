@@ -20,7 +20,7 @@ export const OnboardingView: React.FC = () => {
         // 1. Validate Code
         if (accessCode.toLowerCase().trim() !== "insight") {
             await new Promise(r => setTimeout(r, 800)); // Fake network delay for realism
-            setError("Invalid Access Key");
+            setError("Invalid Administrative Key");
             setIsLoading(false);
             return;
         }
@@ -58,10 +58,10 @@ export const OnboardingView: React.FC = () => {
     };
 
     return (
-        <div className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-background-dark font-display max-w-md mx-auto shadow-2xl">
+        <div className="relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-black font-mono max-w-md mx-auto shadow-2xl border-x border-primary/20">
             {/* Background Ambience */}
-            <div className="fixed top-0 left-0 w-full h-full bg-grid-pattern opacity-10 pointer-events-none"></div>
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] pointer-events-none animate-pulse-slow"></div>
+            <div className="fixed top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[80px] pointer-events-none animate-pulse-slow"></div>
 
             <AnimatePresence mode="wait">
                 {step === 'AUTH' ? (
@@ -72,41 +72,44 @@ export const OnboardingView: React.FC = () => {
                         exit={{ opacity: 0, filter: 'blur(10px)' }}
                         className="flex-1 flex flex-col items-center justify-center p-8 z-10"
                     >
-                        <div className="mb-12 relative">
-                            <div className="absolute inset-0 bg-white/20 blur-xl rounded-full animate-pulse"></div>
-                            <Key className="w-12 h-12 text-white relative z-10" />
+                        <div className="mb-12 relative group">
+                            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse group-hover:bg-primary/40 transition-all"></div>
+                            <div className="relative w-24 h-24 border border-primary/30 rounded-full flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                                <Key className="w-10 h-10 text-primary" />
+                            </div>
                         </div>
 
-                        <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">Insight Engine</h1>
-                        <p className="text-white/40 text-sm mb-12 tracking-widest uppercase">Restricted Access</p>
+                        <h1 className="text-3xl font-bold text-primary mb-2 tracking-tighter uppercase glitch-text">Insight Engine</h1>
+                        <p className="text-primary/50 text-xs mb-12 tracking-[0.3em] uppercase">Restricted Access // v2.0</p>
 
-                        <div className="w-full max-w-xs space-y-4">
-                            <input
-                                type="text"
-                                value={accessCode}
-                                onChange={(e) => setAccessCode(e.target.value)}
-                                placeholder="Enter Access Code"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-center text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all font-mono tracking-widest"
-                                autoFocus
-                            />
+                        <div className="w-full max-w-xs space-y-6">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={accessCode}
+                                    onChange={(e) => setAccessCode(e.target.value)}
+                                    placeholder="ENTER ACCESS KEY"
+                                    className="w-full bg-black border border-primary/30 rounded-none p-4 text-center text-primary placeholder:text-primary/20 focus:outline-none focus:border-primary focus:shadow-[0_0_15px_rgba(74,222,128,0.3)] transition-all font-mono tracking-widest uppercase text-lg"
+                                    autoFocus
+                                />
+                                <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-primary"></div>
+                                <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-primary"></div>
+                            </div>
 
                             {error && (
-                                <p className="text-red-400 text-xs text-center animate-shake">{error}</p>
+                                <p className="text-red-500 text-xs text-center animate-shake font-bold bg-red-900/10 p-2 border border-red-500/20">{error}</p>
                             )}
 
                             <button
                                 onClick={handleAccess}
                                 disabled={!accessCode || isLoading}
-                                className="w-full bg-white text-black font-bold h-14 rounded-xl hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                                className="group w-full bg-primary text-black font-bold h-14 hover:bg-primary-dim disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm relative overflow-hidden"
                             >
-                                {isLoading ? (
-                                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        <span>Initialize</span>
-                                        <ArrowRight className="w-4 h-4" />
-                                    </>
-                                )}
+                                <span className="relative z-10 flex items-center gap-2">
+                                    {isLoading ? 'Decrypting...' : 'Initialize System'}
+                                    {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                                </span>
+                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                             </button>
                         </div>
                     </motion.div>
@@ -118,27 +121,29 @@ export const OnboardingView: React.FC = () => {
                         transition={{ duration: 1 }}
                         className="flex-1 flex flex-col items-center justify-center p-8 z-10 text-center"
                     >
-                        <div className="max-w-xs space-y-8">
-                            <Sparkles className="w-8 h-8 text-primary mx-auto animate-spin-slow" />
+                        <div className="max-w-md space-y-12">
+                            <Sparkles className="w-12 h-12 text-primary mx-auto animate-spin-slow" />
 
-                            <div className="space-y-6">
-                                <h2 className="text-3xl font-bold text-white leading-tight">
-                                    Welcome to the <span className="text-primary text-glow">Event Horizon</span>.
+                            <div className="space-y-8">
+                                <h2 className="text-4xl font-bold text-white leading-none tracking-tighter">
+                                    ACCESS <span className="text-primary text-glow">GRANTED</span>
                                 </h2>
-                                <p className="text-white/70 leading-relaxed text-lg font-light">
-                                    You have been granted <strong className="text-white">50 Tokens</strong>.
-                                </p>
-                                <p className="text-white/50 text-sm leading-relaxed">
-                                    This engine uses advanced psycholinguistics and neuro-audio to align your subconscious with your conscious intent.
+
+                                <div className="h-px w-24 bg-primary/30 mx-auto"></div>
+
+                                <p className="text-primary/80 leading-relaxed text-lg font-mono">
+                                    > Welcome to the Event Horizon.<br />
+                                    > <span className="text-white font-bold">50 TOKENS</span> transferred.<br />
+                                    > Reality Architecture initialized.
                                 </p>
                             </div>
 
                             <button
                                 onClick={() => setView(ViewState.NEW_RESOLUTION)}
-                                className="w-full bg-primary text-background-dark font-bold h-14 rounded-xl hover:bg-primary-dim transition-all shadow-lg shadow-primary/20 hover:shadow-primary/40 flex items-center justify-center gap-2 mt-8"
+                                className="w-full bg-transparent border border-primary text-primary font-bold h-16 hover:bg-primary hover:text-black transition-all shadow-[0_0_20px_rgba(74,222,128,0.1)] hover:shadow-[0_0_40px_rgba(74,222,128,0.4)] flex items-center justify-center gap-3 uppercase tracking-[0.2em] group"
                             >
                                 <span>Design Your Reality</span>
-                                <ArrowRight className="w-4 h-4" />
+                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
                     </motion.div>
