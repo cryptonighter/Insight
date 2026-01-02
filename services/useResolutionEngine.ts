@@ -190,6 +190,7 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
         debitToken,
         grantToken,
         updateDailyEntry,
-        syncResolutionData
+        syncResolutionData,
+        isLoading
     };
 };

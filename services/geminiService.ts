@@ -21,7 +21,7 @@ const ai = new GoogleGenAI({ apiKey: googleApiKey });
 
 // Constants for models
 const TEXT_MODEL = "gemini-2.0-flash"; // Faster, stable 2.0
-const AUDIO_MODEL = "gemini-2.0-flash"; // Unified 2.0 model for Audio/TTS
+const AUDIO_MODEL = "gemini-2.0-flash-exp"; // Experimental 2.0 model supports Multimodal Audio Output
 
 // Director Tool Definitions
 const directorTools = [

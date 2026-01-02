@@ -117,6 +117,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (session?.user) {
         setUser(prev => ({ ...prev, supabaseId: session.user.id, email: session.user.email }));
 
+        // Ensure Profile Exists (Self-Healing)
+        supabase.from('profiles').upsert(
+          { id: session.user.id, email: session.user.email, full_name: session.user.user_metadata?.full_name || 'User' },
+          { onConflict: 'id', ignoreDuplicates: true }
+        ).then(({ error }) => {
+          if (error) console.error("Profile Healing Failed:", error);
+        });
+
         // Fetch Soundscapes
         supabase.from('soundscapes').select('*').then(({ data, error }) => {
           if (data && !error && data.length > 0) {
