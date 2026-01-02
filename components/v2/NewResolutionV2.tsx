@@ -86,22 +86,21 @@ export const NewResolutionV2: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="mb-6 flex items-center gap-3 text-primary">
-                                {step === 1 && <Target className="w-5 h-5" />}
-                                {step === 2 && <Zap className="w-5 h-5" />}
-                                {step === 3 && <CheckCircle className="w-5 h-5" />} {/* Using CheckCircle or maybe a Heart/Wave icon would be better if imported, but CheckCircle exists */}
-                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
-                                    {step === 1 ? "Step 1: The Vision" : step === 2 ? "Step 2: The Core" : "Step 3: The State"}
-                                </span>
-                            </div>
-
-                            <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-8">
+                            <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
                                 {step === 1
-                                    ? "What outcome are you committed to creating?"
+                                    ? "Define Your North Star"
                                     : step === 2
-                                        ? "Why does this reality matter to you, right now?"
-                                        : "When you achieve this, how will you FEEL?"}
+                                        ? "Identify the Fire"
+                                        : "Target Frequency"}
                             </h1>
+
+                            <p className="text-primary/60 text-sm md:text-base font-mono mb-8 leading-relaxed max-w-sm">
+                                {step === 1
+                                    ? "Select one meaningful objective to align your life around for this cycle."
+                                    : step === 2
+                                        ? "Why does this matter? Dig deeper than surface level. Connect this goal to your identity or your survival."
+                                        : "When this reality is manifest, how does it feel in your body? (The somatic state you must tune to)."}
+                            </p>
 
                             <textarea
                                 key={step} // Force re-render for autofocus
@@ -112,9 +111,9 @@ export const NewResolutionV2: React.FC = () => {
                                     step === 1 ? setStatement(val) : step === 2 ? setMotivation(val) : setFeeling(val);
                                 }}
                                 placeholder={
-                                    step === 1 ? "e.g., I am stepping into my role as..."
-                                        : step === 2 ? "e.g., Because I am done with playing small..."
-                                            : "e.g., Grounded, Expanded, Electric..."
+                                    step === 1 ? "e.g., Launch my design studio..."
+                                        : step === 2 ? "e.g., I need to prove that my creativity has value in the real world..."
+                                            : "e.g., Electric, Expanded, Grounded, Unstoppable..."
                                 }
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-lg text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all resize-none h-40"
                             />
