@@ -12,10 +12,7 @@ export const AuthView: React.FC = () => {
         setLoading(true);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin
-                }
+                provider: 'google'
             });
             if (error) throw error;
         } catch (error: any) {
