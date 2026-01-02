@@ -205,6 +205,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const rateMeditation = async (id: string, feedback: any) => {
+    console.log("Submitting feedback for:", id, feedback);
+    if (!user.supabaseId) return;
+    try {
+      await supabase.from('session_logs')
+        .update({
+          pacing_score: feedback.pacing,
+          voice_score: feedback.voice,
+          immersion_score: feedback.immersion,
+          user_feedback: feedback.note
+        })
+        .eq('id', id);
+    } catch (e) {
+      console.error("Failed to save feedback", e);
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       user,
@@ -224,6 +241,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       finalizeMeditationGeneration,
       setView: setCurrentView,
       playMeditation,
+      rateMeditation,
 
       // Soundscape Management
       addSoundscape,
@@ -232,7 +250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Legacy stubs
       insights, soundscapes, chatHistory, lastSessionData, setTriage: () => { }, sendChatMessage: async () => { },
       // Dummy parts/patterns for TS compliance if needed by other components, or remove if unused
-      parts: [], anchors: [], patterns: [], acceptPattern: () => { }, updatePatternNote: () => { }, rateMeditation: () => { }, sessionState: SessionLifecycleState.TRIAGE, triage
+      parts: [], anchors: [], patterns: [], acceptPattern: () => { }, updatePatternNote: () => { }, sessionState: SessionLifecycleState.TRIAGE, triage
     }}>
       {children}
     </AppContext.Provider>

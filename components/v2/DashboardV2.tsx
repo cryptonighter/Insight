@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { Settings, History, ChevronRight, Zap, Activity } from 'lucide-react';
 import { ViewState } from '../../types';
@@ -13,6 +14,17 @@ export const DashboardV2: React.FC = () => {
         const diff = now - start;
         return Math.floor(diff / (1000 * 60 * 60 * 24));
     }, [activeResolution?.createdAt]);
+
+    // FIRST RUN: If no active resolution, force flow to creation
+    useEffect(() => {
+        if (!activeResolution && userEconomy.balance !== undefined) {
+            // Small delay to allow hydration
+            const timer = setTimeout(() => {
+                setView(ViewState.NEW_RESOLUTION);
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [activeResolution, setView, userEconomy]);
 
     return (
         <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-background-light dark:bg-background-dark transition-colors duration-300">
@@ -84,7 +96,7 @@ export const DashboardV2: React.FC = () => {
 
             <footer className="relative z-10 w-full px-6 pb-8 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent shrink-0">
                 <div className="w-full max-w-md mx-auto flex flex-col items-center gap-4">
-                    <button
+                    <motion.button
                         onClick={() => {
                             if (todaysEntry?.morningGenerated && !todaysEntry?.eveningCompleted) {
                                 setView(ViewState.EVENING_REFLECTION);
@@ -92,17 +104,21 @@ export const DashboardV2: React.FC = () => {
                                 startMorningSession();
                             }
                         }}
-                        className="relative group w-64 h-64 rounded-full transition-all duration-500 overflow-hidden flex flex-col items-center justify-center bg-surface border border-primary/30 hover:border-primary/60 shadow-[0_0_20px_rgba(74,222,128,0.1)] hover:shadow-[0_0_40px_rgba(74,222,128,0.2)]"
+                        animate={{ scale: [1, 1.02, 1] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="relative group w-64 h-64 rounded-full transition-all duration-500 overflow-hidden flex flex-col items-center justify-center bg-surface border border-primary/30 hover:border-primary/60 shadow-[0_0_20px_rgba(74,222,128,0.1)] hover:shadow-[0_0_40px_rgba(74,222,128,0.2)] cursor-pointer"
                     >
                         <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         <div className="absolute inset-0 rounded-full border border-white/5 scale-95 pointer-events-none"></div>
-                        <div className="flex flex-col items-center justify-center translate-y-[-4px]">
-                            <span className="text-5xl font-bold tracking-tight relative z-10 text-white group-hover:text-primary transition-colors duration-300 leading-none">START</span>
-                            <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/50 group-hover:text-white/80 transition-colors z-10 max-w-[140px] text-center mt-2 leading-relaxed">
+
+                        {/* Centered Content */}
+                        <div className="flex flex-col items-center justify-center z-10">
+                            <span className="text-5xl font-bold tracking-tight text-white group-hover:text-primary transition-colors duration-300 leading-none">START</span>
+                            <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/50 group-hover:text-white/80 transition-colors mt-3 max-w-[140px] text-center leading-relaxed">
                                 {todaysEntry?.morningGenerated ? "Evening\nReflection" : "Alignment\nSession"}
                             </span>
                         </div>
-                    </button>
+                    </motion.button>
                     <div className="flex items-center justify-center gap-2 opacity-50">
                         <Zap className="w-4 h-4 text-primary" />
                         <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">

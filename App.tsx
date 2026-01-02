@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { createRoot } from 'react-dom/client';
 import { AppProvider, useApp } from './context/AppContext';
 import { Home } from './components/Home';
@@ -60,7 +61,19 @@ const Main: React.FC = () => {
   return (
     <div className="antialiased app-text-primary selection:bg-indigo-500/30">
       {/* Global container */}
-      {renderView()}
+      {/* Global container */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentView}
+          initial={{ opacity: 0, scale: 0.98, filter: 'blur(10px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} // Custom "Apple-like" ease
+          className="h-full w-full"
+        >
+          {renderView()}
+        </motion.div>
+      </AnimatePresence>
       <Navigation />
     </div>
   );
