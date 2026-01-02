@@ -56,6 +56,19 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
     const createNewResolution = async (statement: string, motivation: string) => {
         if (!user.supabaseId) return;
 
+        // Check economy first
+        let newBalance = 10; // Default welcome grant
+        const { data: eco } = await supabase.from('user_economy').select('balance').eq('user_id', user.supabaseId).maybeSingle();
+
+        if (eco) {
+            // Existing user: Charge 5 tokens to switch
+            if (eco.balance < 5) {
+                alert("Insufficient tokens to establish new protocol. Need 5.");
+                return;
+            }
+            newBalance = eco.balance - 5;
+        }
+
         // 1. Archive old ones
         await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', user.supabaseId);
 
@@ -67,10 +80,10 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
             status: 'active'
         }).select().single();
 
-        // 3. Initialize Economy
+        // 3. Update/Init Economy
         await supabase.from('user_economy').upsert({
             user_id: user.supabaseId,
-            balance: 5,
+            balance: newBalance,
             last_daily_grant: new Date().toISOString()
         }, { onConflict: 'user_id' });
 
@@ -82,7 +95,7 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
                 status: 'active',
                 createdAt: data.created_at
             });
-            setUserEconomy(prev => ({ ...prev, balance: 5 }));
+            setUserEconomy(prev => ({ ...prev, balance: newBalance }));
             setView(ViewState.DASHBOARD);
         }
     };

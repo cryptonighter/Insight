@@ -48,7 +48,7 @@ export const NewResolutionV2: React.FC = () => {
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase">New Objective</span>
                     <div className="flex items-center gap-2 mt-1 px-3 py-1 bg-white/5 rounded-full border border-white/5">
-                        <span className="text-[10px] font-bold text-primary tracking-widest">COST: 100 TOKENS</span>
+                        <span className="text-[10px] font-bold text-primary tracking-widest">COST: 5 TOKENS</span>
                     </div>
                 </div>
                 <div className="w-10" /> {/* Spacer */}
