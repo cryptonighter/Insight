@@ -7,7 +7,6 @@ import { Home } from './components/Home';
 import { CardsView } from './components/CardsView';
 import { MeditationsView } from './components/MeditationsView';
 import { LoadingGeneration } from './components/LoadingGeneration';
-import { Navigation } from './components/Navigation';
 import { Player } from './components/Player';
 import { AdminDashboard } from './components/AdminDashboard';
 import { TriageView } from './components/TriageView';
@@ -74,7 +73,6 @@ const Main: React.FC = () => {
           {renderView()}
         </motion.div>
       </AnimatePresence>
-      <Navigation />
     </div>
   );
 };
