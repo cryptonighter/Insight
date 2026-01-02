@@ -132,9 +132,9 @@ export const OnboardingView: React.FC = () => {
                                 <div className="h-px w-24 bg-primary/30 mx-auto"></div>
 
                                 <p className="text-primary/80 leading-relaxed text-lg font-mono">
-                                    > Welcome to the Event Horizon.<br />
-                                    > <span className="text-white font-bold">50 TOKENS</span> transferred.<br />
-                                    > Reality Architecture initialized.
+                                    &gt; Welcome to the Event Horizon.<br />
+                                    &gt; <span className="text-white font-bold">50 TOKENS</span> transferred.<br />
+                                    &gt; Reality Architecture initialized.
                                 </p>
                             </div>
 
