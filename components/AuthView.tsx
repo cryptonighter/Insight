@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useApp } from '../context/AppContext';
-import { Lock, Mail, User, ArrowRight, AlertCircle, Loader2, ScanFace } from 'lucide-react';
+import { Lock, Mail, User, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 export const AuthView: React.FC = () => {
     const { syncWithSupabase } = useApp();
@@ -38,21 +38,7 @@ export const AuthView: React.FC = () => {
         }
     };
 
-    const handleGoogleLogin = async () => {
-        setLoading(true);
-        try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin
-                }
-            });
-            if (error) throw error;
-        } catch (error: any) {
-            setError(error.message);
-            setLoading(false);
-        }
-    };
+
 
     return (
         <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 font-mono relative overflow-hidden">
@@ -123,24 +109,7 @@ export const AuthView: React.FC = () => {
                         </button>
                     </form>
 
-                    <div className="relative flex py-2 items-center">
-                        <div className="flex-grow border-t border-primary/20"></div>
-                        <span className="flex-shrink-0 mx-4 text-primary/30 text-[10px] uppercase tracking-widest">OR ACCESS WITH</span>
-                        <div className="flex-grow border-t border-primary/20"></div>
-                    </div>
-
-                    <button
-                        onClick={handleGoogleLogin}
-                        disabled={loading}
-                        className="w-full flex justify-center py-3 px-4 border border-primary/30 text-xs font-bold rounded-none text-primary bg-transparent hover:bg-primary/10 uppercase tracking-widest transition-all"
-                    >
-                        <span className="flex items-center gap-2">
-                            <ScanFace className="w-4 h-4" />
-                            Google Identity
-                        </span>
-                    </button>
-
-                    <div className="text-center">
+                    <div className="text-center mt-6">
                         <button
                             onClick={() => setIsLogin(!isLogin)}
                             className="text-xs text-primary/50 hover:text-primary transition-colors uppercase tracking-widest underline decoration-primary/30 underline-offset-4"
