@@ -119,7 +119,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Ensure Profile Exists (Self-Healing)
         supabase.from('profiles').upsert(
-          { id: session.user.id, full_name: session.user.user_metadata?.full_name || 'User' },
+          { id: session.user.id },
           { onConflict: 'id', ignoreDuplicates: true }
         ).then(({ error }) => {
           if (error) console.error("Profile Healing Failed:", error);
