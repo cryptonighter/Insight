@@ -51,12 +51,19 @@ export const DashboardV2: React.FC = () => {
                             {activeResolution?.statement || "No Active Goal"}
                         </h1>
                     </div>
-                    {activeResolution && (
+                    {activeResolution ? (
                         <button className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-primary/40 bg-white/5 hover:bg-white/10 hover:border-primary/60 transition-all group/protocol w-fit mx-auto cursor-pointer shadow-[0_0_15px_rgba(74,222,128,0.05)]">
                             <span className="text-white/80 text-xs font-medium tracking-wide group-hover/protocol:text-white transition-colors">
                                 Protocol: {activeResolution.methodology || "General"}
                             </span>
                             <ChevronRight className="w-4 h-4 text-primary/70 group-hover/protocol:text-primary transition-colors" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setView(ViewState.NEW_RESOLUTION)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-background-dark font-bold text-xs uppercase tracking-widest hover:bg-primary-dim transition-all shadow-[0_0_20px_rgba(74,222,128,0.2)]"
+                        >
+                            Initialize Objective
                         </button>
                     )}
                 </div>

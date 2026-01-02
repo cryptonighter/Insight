@@ -1,24 +1,56 @@
-import { useState } from 'react';
-import { Meditation, MeditationConfig, Soundscape, ViewState } from '../types';
-import { generateMeditationStream } from './geminiService';
-import { processBatchWithSilenceSplitting } from './audioEngine';
+
+import { useState, useRef } from 'react';
+import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution } from '../types';
+import { generateMeditationScript } from './geminiService';
+import { MeditationPipeline } from './MeditationPipeline';
+import { supabase } from './supabaseClient';
 
 export const useMeditationGenerator = (
     soundscapes: Soundscape[],
-    activeResolution: { statement: string; rootMotivation: string } | null,
-    setView: (view: ViewState) => void
+    activeResolution: Resolution | null,
+    setView: (view: ViewState) => void,
+    userId?: string
 ) => {
     const [meditations, setMeditations] = useState<Meditation[]>([]);
     const [activeMeditationId, setActiveMeditationId] = useState<string | null>(null);
     const [pendingMeditationConfig, setPendingMeditationConfig] = useState<Partial<MeditationConfig> | null>(null);
 
+    // Ref to hold the pipeline so we can stop it if unmounted
+    const pipelineRef = useRef<MeditationPipeline | null>(null);
+
     const finalizeMeditationGeneration = async (config: MeditationConfig) => {
         const tempId = Date.now().toString();
         try {
+            // 1. Base Context
             const contextTexts = [
                 `Goal: ${activeResolution?.statement}`,
                 `Why: ${activeResolution?.rootMotivation}`
             ];
+
+            // 2. Fetch Recent Reflections (Context Injection - Copied from previous step)
+            if (userId) {
+                try {
+                    const { data: recentEntries } = await supabase
+                        .from('daily_entries')
+                        .select('date, reflection_summary')
+                        .eq('user_id', userId)
+                        .not('reflection_summary', 'is', null)
+                        .order('date', { ascending: false })
+                        .limit(3);
+
+                    if (recentEntries && recentEntries.length > 0) {
+                        console.log("🧠 Context Injection: Found", recentEntries.length, "entries");
+                        contextTexts.push("### RECENT MEMORIES & PROGRESS ###");
+                        recentEntries.forEach(entry => {
+                            contextTexts.push(`[${entry.date}] User Reflection: ${entry.reflection_summary}`);
+                        });
+                        contextTexts.push("### END MEMORIES ###");
+                    }
+                } catch (err) {
+                    console.warn("Failed to fetch context", err);
+                }
+            }
+
             let selectedSoundscape = soundscapes[0];
 
             const newMeditation: Meditation = {
@@ -40,37 +72,94 @@ export const useMeditationGenerator = (
             setActiveMeditationId(tempId);
             setView(ViewState.LOADING);
 
-            const { title, lines } = await generateMeditationStream(
+            // --- PIPELINE ARCHITECTURE START ---
+
+            // A. Generate Script (Text)
+            const { title, lines, batches } = await generateMeditationScript(
                 config.focus,
                 config.feeling,
                 config.duration,
                 selectedSoundscape.metadata.description,
                 config.voice,
-                contextTexts,
-                async (chunkBase64, index, instructions, mimeType) => {
-                    const segments = await processBatchWithSilenceSplitting(chunkBase64, index, instructions, mimeType);
+                contextTexts
+            );
+
+            // Update title/transcript immediately
+            setMeditations(current => current.map(m => {
+                if (m.id === tempId) return { ...m, title, transcript: lines.join('\n'), lines };
+                return m;
+            }));
+
+            // B. Init Pipeline (Audio)
+            const pipeline = new MeditationPipeline(
+                batches,
+                config.voice,
+                (segments) => {
+                    // Update Queue
                     setMeditations(current => current.map(m => {
                         if (m.id === tempId) {
                             return { ...m, audioQueue: [...m.audioQueue, ...segments] };
                         }
                         return m;
                     }));
-
-                    if (index === 1) setPendingMeditationConfig(null);
+                    // After first chunk, we are "Playing" (conceptually), but loading screen handles 'ready'
+                    // We can clear pending config once we have data
+                    if (segments.length > 0) setPendingMeditationConfig(null);
                 },
                 () => {
+                    // On Complete
                     setMeditations(current => current.map(m => {
                         if (m.id === tempId) return { ...m, isGenerating: false };
                         return m;
                     }));
-                    setPendingMeditationConfig(null);
+                    console.log("✨ Pipeline Complete");
                 }
             );
 
-            setMeditations(current => current.map(m => {
-                if (m.id === tempId) return { ...m, title, transcript: lines.join('\n'), lines };
-                return m;
-            }));
+            pipelineRef.current = pipeline;
+            pipeline.start();
+
+            // --- PIPELINE ARCHITECTURE END ---
+
+
+            // 3. PERSISTENCE (Product Grade)
+            if (userId) {
+                try {
+                    // A. Create Session Log
+                    const { data: logData, error: logError } = await supabase
+                        .from('session_logs')
+                        .insert({
+                            user_id: userId,
+                            modality: 'MORNING_ALIGNMENT',
+                            focus: config.focus,
+                            feeling: config.feeling,
+                            transcript: lines.join('\n'),
+                            feedback: { config } // Store full config in JSONB
+                        })
+                        .select()
+                        .single();
+
+                    if (logData && !logError) {
+                        // B. Link to Daily Entry
+                        const today = new Date().toISOString().split('T')[0];
+                        if (activeResolution) {
+                            await supabase.from('daily_entries')
+                                .update({
+                                    morning_generated: true,
+                                    morning_meditation_id: logData.id
+                                })
+                                .eq('user_id', userId)
+                                .eq('date', today)
+                                .eq('resolution_id', activeResolution.id || 'unknown');
+                        }
+                        console.log("✅ Morning Session Persisted:", logData.id);
+                    } else {
+                        console.error("Failed to save session log", logError);
+                    }
+                } catch (persistErr) {
+                    console.error("Persistence Error", persistErr);
+                }
+            }
 
         } catch (e) {
             console.error("Failed to generate meditation", e);
@@ -94,3 +183,4 @@ export const useMeditationGenerator = (
         setMeditations
     };
 };
+

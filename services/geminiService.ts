@@ -177,18 +177,17 @@ interface ScriptBlock {
   instructions?: SonicInstruction[];
 }
 
-export const generateMeditationStream = async (
+
+export const generateMeditationScript = async (
   focus: string,
   targetFeeling: string,
   durationMinutes: number,
   soundscapeDesc: string,
   voice: VoiceId = 'Kore',
   contextInsights: string[],
-  onChunkGenerated: (chunkBase64: string, batchIndex: number, instructions?: SonicInstruction[], mimeType?: string) => Promise<void>,
-  onComplete: () => void,
   methodology: MethodologyType = 'NSDR',
   variables: Record<string, any> = {}
-): Promise<{ title: string; lines: string[] }> => {
+): Promise<{ title: string; lines: string[]; batches: any[] }> => {
 
   try {
     const { data, error } = await supabase.functions.invoke('generate-meditation', {
@@ -197,74 +196,58 @@ export const generateMeditationStream = async (
 
     if (error) throw error;
 
-    // Normalize data structure if needed, or assume it matches
+    // Return the raw structure so the Pipeline can manage audio generation
     const { title, batches, lines } = data;
+    return { title, lines, batches };
 
-    // The audio generation still happens on the client for the prototype to avoid complex binary streaming backends
-    (async () => {
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        if (!batch.text) continue;
-        if (i > 0) await delay(400);
-
-        let retries = 0;
-        let success = false;
-        const MAX_RETRIES = 3;
-        while (!success && retries < MAX_RETRIES) {
-          try {
-            if (retries > 0) await delay(1000 * Math.pow(2, retries));
-            const speechResponse = await ai.models.generateContent({
-              model: AUDIO_MODEL,
-              contents: [{ role: 'user', parts: [{ text: batch.text }] }],
-              config: {
-                systemInstruction: "You are a meditation guide. Your voice is slow, deep, soft, and hypnotic.",
-                responseModalities: ['AUDIO'] as any,
-                speechConfig: {
-                  voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
-                  }
-                },
-              },
-            });
-
-            const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
-            console.log("TTS Audio Part received:", {
-              hasData: !!audioPart?.inlineData?.data,
-              mime: audioPart?.inlineData?.mimeType,
-              len: audioPart?.inlineData?.data?.length
-            });
-            if (audioPart?.inlineData?.data) {
-              await onChunkGenerated(
-                audioPart.inlineData.data,
-                i,
-                batch.instructions,
-                audioPart.inlineData.mimeType || 'audio/mp3'
-              );
-              success = true;
-            } else {
-              throw new Error("Empty audio response");
-            }
-          } catch (e: any) {
-            console.warn(`Batch ${i} failed. Error:`, e.message || e);
-            if (retries === MAX_RETRIES - 1) {
-              console.error(`Batch ${i} failed after retries.`);
-              // Don't play noise. Just skip or fail.
-              // success = true; // verification: let it fail
-            } else {
-              retries++;
-            }
-          }
-        }
-      }
-      onComplete();
-    })();
-
-    return { title, lines };
   } catch (error) {
-    console.error("Error generating meditation:", error);
-    throw new Error("Failed to create meditation.");
+    console.error("Error generating meditation script:", error);
+    throw new Error("Failed to create meditation script.");
   }
 };
+
+export const generateAudioChunk = async (
+  text: string,
+  voice: VoiceId
+): Promise<{ audioData: string; mimeType: string }> => {
+  let retries = 0;
+  const MAX_RETRIES = 3;
+
+  while (retries < MAX_RETRIES) {
+    try {
+      if (retries > 0) await delay(1000 * Math.pow(2, retries));
+
+      const speechResponse = await ai.models.generateContent({
+        model: AUDIO_MODEL,
+        contents: [{ role: 'user', parts: [{ text }] }],
+        config: {
+          systemInstruction: "You are a meditation guide. Your voice is slow, deep, soft, and hypnotic. Do not read bold headers.",
+          responseModalities: ['AUDIO'] as any,
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
+            }
+          },
+        },
+      });
+
+      const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
+      if (audioPart?.inlineData?.data) {
+        return {
+          audioData: audioPart.inlineData.data,
+          mimeType: audioPart.inlineData.mimeType || 'audio/mp3'
+        };
+      } else {
+        throw new Error("Empty audio response");
+      }
+    } catch (e: any) {
+      console.warn(`TTS Failed (Attempt ${retries + 1}):`, e.message);
+      retries++;
+    }
+  }
+  throw new Error("TTS Generation Exhausted");
+};
+
 
 export const analyzeInsightsForPatterns = async (insights: Insight[]): Promise<Pattern[]> => {
   if (insights.length < 2) return [];

@@ -7,7 +7,7 @@ const HOST = "generativelanguage.googleapis.com";
 const MODEL = "models/gemini-2.0-flash-exp";
 
 export const useVoiceReflection = () => {
-    const { setView, completeEveningReflection, activeResolution, user } = useApp();
+    const { setView, completeEveningReflection, activeResolution, user, meditations } = useApp();
     const [currentQuestion, setCurrentQuestion] = useState("");
 
     const [isConnected, setIsConnected] = useState(false);
@@ -173,135 +173,165 @@ export const useVoiceReflection = () => {
                 setIsConnected(false);
             };
 
-            ws.onopen = async () => {
-                setIsConnected(true);
-                const memoryContext = await fetchContext();
-                const systemPrompt = `
+
+            // INJECT MORNING CONTEXT (Persistent / Product Grade)
+            let morningContext = "4. MORNING SESSION CONTEXT:\n   No session data found for this morning.";
+
+            if (user.supabaseId && activeResolution) {
+                try {
+                    const today = new Date().toISOString().split('T')[0];
+                    const { data: entry } = await supabase
+                        .from('daily_entries')
+                        .select('morning_meditation_id')
+                        .eq('user_id', user.supabaseId)
+                        .eq('date', today)
+                        .eq('resolution_id', activeResolution.id) // Use local activeRes ID
+                        .maybeSingle();
+
+                    if (entry?.morning_meditation_id) {
+                        const { data: log } = await supabase
+                            .from('session_logs')
+                            .select('focus, feeling, transcript')
+                            .eq('id', entry.morning_meditation_id)
+                            .single();
+
+                        if (log) {
+                            morningContext = `4. MORNING SESSION CONTEXT:\n   User practiced a Morning Alignment session.\n   Focus: "${log.focus}" (Feeling: ${log.feeling})\n   Transcript Excerpt: "${log.transcript?.substring(0, 400)}..."`;
+                            console.log("✅ Encoded Morning Context from DB");
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Failed to fetch persistent morning context", err);
+                }
+            }
+
+            const systemPrompt = `
                 You are a wise, collaborative, and mature executive partner. 
                 User's Goal: "${activeResolution?.statement}". 
                 Motivation: "${activeResolution?.rootMotivation}".
                 BRAIN (LONG-TERM MEMORY):
                 ${memoryContext}
+                ${morningContext}
                 YOUR ROLE:
                 - Acknowledge the active goal with a brief, insightful observation.
                 - Start with a specific, curious question about how a concrete action they took today felt in relation to their larger goal.
                 `;
 
-                const setupFrame = {
-                    setup: {
-                        model: MODEL,
-                        generationConfig: {
-                            responseModalities: ["AUDIO"],
-                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
-                        },
-                        systemInstruction: { parts: [{ text: systemPrompt }] }
-                    }
-                };
-                ws.send(JSON.stringify(setupFrame));
-
-                setTimeout(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                        const kickstartText = "I'm ready for the debrief. Let's start.";
-                        transcriptAccumulator.current += `Explorer: ${kickstartText}\n\n`;
-                        ws.send(JSON.stringify({
-                            clientContent: {
-                                turns: [{ role: "user", parts: [{ text: kickstartText }] }],
-                                turnComplete: true
-                            }
-                        }));
-                    }
-                }, 500);
-
-                setupAudioProcessing(stream, audioCtx, ws);
+            const setupFrame = {
+                setup: {
+                    model: MODEL,
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
+                    },
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                }
             };
+            ws.send(JSON.stringify(setupFrame));
 
-            ws.onmessage = async (event) => {
-                try {
-                    let data = JSON.parse(event.data instanceof Blob ? await event.data.text() : event.data);
-                    const parts = data.serverContent?.modelTurn?.parts;
-                    if (parts) {
-                        let turnText = "";
-                        parts.forEach((p: any) => { if (p.text) turnText += p.text; });
-                        if (turnText) {
-                            if (isWrappingUp) summaryAccumulator.current += turnText;
-                            else {
-                                transcriptAccumulator.current += `Advisor: ${turnText}\n`;
-                                setCurrentQuestion(prev => prev + turnText); // Stream to UI
-                            }
+            setTimeout(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    const kickstartText = "I'm ready for the debrief. Let's start.";
+                    transcriptAccumulator.current += `Explorer: ${kickstartText}\n\n`;
+                    ws.send(JSON.stringify({
+                        clientContent: {
+                            turns: [{ role: "user", parts: [{ text: kickstartText }] }],
+                            turnComplete: true
+                        }
+                    }));
+                }
+            }, 500);
+
+            setupAudioProcessing(stream, audioCtx, ws);
+        };
+
+        ws.onmessage = async (event) => {
+            try {
+                let data = JSON.parse(event.data instanceof Blob ? await event.data.text() : event.data);
+                const parts = data.serverContent?.modelTurn?.parts;
+                if (parts) {
+                    let turnText = "";
+                    parts.forEach((p: any) => { if (p.text) turnText += p.text; });
+                    if (turnText) {
+                        if (isWrappingUp) summaryAccumulator.current += turnText;
+                        else {
+                            transcriptAccumulator.current += `Advisor: ${turnText}\n`;
+                            setCurrentQuestion(prev => prev + turnText); // Stream to UI
                         }
                     }
+                }
 
-                    if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData && !isWrappingUp) {
-                        playPcmChunk(data.serverContent.modelTurn.parts[0].inlineData.data, audioCtx);
-                        setIsTalking(true);
+                if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData && !isWrappingUp) {
+                    playPcmChunk(data.serverContent.modelTurn.parts[0].inlineData.data, audioCtx);
+                    setIsTalking(true);
+                }
+
+                if (data.serverContent?.turnComplete) {
+                    setTimeout(() => setIsTalking(false), 1000);
+                    if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
+                        completeEveningReflection(summaryAccumulator.current, transcriptAccumulator.current).catch(err => {
+                            console.error("❌ Failed to complete reflection:", err);
+                        });
+                        disconnect();
+                        // setView(ViewState.DASHBOARD); // Handled by context now (Goes to Summary)
                     }
-
-                    if (data.serverContent?.turnComplete) {
-                        setTimeout(() => setIsTalking(false), 1000);
-                        if (summaryAccumulator.current && summaryAccumulator.current.length > 5 && isWrappingUp) {
-                            completeEveningReflection(summaryAccumulator.current, transcriptAccumulator.current).catch(err => {
-                                console.error("❌ Failed to complete reflection:", err);
-                            });
-                            disconnect();
-                            // setView(ViewState.DASHBOARD); // Handled by context now (Goes to Summary)
-                        }
-                        if (!isWrappingUp) {
-                            transcriptAccumulator.current += "\n";
-                            // Optional: clear question after user replies? Or keep it until next turn?
-                            // For now keep it, but maybe reset it when user starts talking (which we don't track easily besides VAD)
-                            // or when next turn starts. 
-                            // Actually, let's reset it at the *start* of the AI turn?
-                            // Hard to detect start of turn here easily without logic.
-                            // For MVP, just appending is safer, but might get long.
-                            // Let's rely on the fact that we might want to clear it somewhere.
-                        }
+                    if (!isWrappingUp) {
+                        transcriptAccumulator.current += "\n";
+                        // Optional: clear question after user replies? Or keep it until next turn?
+                        // For now keep it, but maybe reset it when user starts talking (which we don't track easily besides VAD)
+                        // or when next turn starts. 
+                        // Actually, let's reset it at the *start* of the AI turn?
+                        // Hard to detect start of turn here easily without logic.
+                        // For MVP, just appending is safer, but might get long.
+                        // Let's rely on the fact that we might want to clear it somewhere.
                     }
-                } catch (e) { console.error(e); }
-            };
+                }
+            } catch (e) { console.error(e); }
+        };
 
-            ws.onclose = () => setIsConnected(false);
-        } catch (e: any) {
-            console.error("Live Connection Failed", e);
-            setIsConnected(false);
-        }
-    };
-
-    const handleEndSession = () => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-            disconnect();
-            return;
-        }
-        setIsWrappingUp(true);
-        summaryAccumulator.current = "";
-        if (audioContextRef.current) audioContextRef.current.suspend();
-        if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
-
-        setTimeout(() => {
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                disconnect();
-                setView(ViewState.DASHBOARD);
-            }
-        }, 5000);
-
-        wsRef.current.send(JSON.stringify({
-            clientContent: {
-                turns: [{ role: "user", parts: [{ text: "SESSION_END: Summarize our conversation in one concise first-person sentence starting with 'I realized...' or 'I focused on...' for my journal. Reply in TEXT ONLY." }] }],
-                turnComplete: true
-            }
-        }));
-    };
-
-    useEffect(() => {
-        return () => disconnect();
-    }, [disconnect]);
-
-    return {
-        isConnected,
-        isTalking,
-        isWrappingUp,
-        connect,
-        disconnect,
-        handleEndSession,
-        currentQuestion
-    };
+        ws.onclose = () => setIsConnected(false);
+    } catch (e: any) {
+        console.error("Live Connection Failed", e);
+        setIsConnected(false);
+    }
 };
+
+const handleEndSession = () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        disconnect();
+        return;
+    }
+    setIsWrappingUp(true);
+    summaryAccumulator.current = "";
+    if (audioContextRef.current) audioContextRef.current.suspend();
+    if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach(t => t.stop());
+
+    setTimeout(() => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            disconnect();
+            setView(ViewState.DASHBOARD);
+        }
+    }, 5000);
+
+    wsRef.current.send(JSON.stringify({
+        clientContent: {
+            turns: [{ role: "user", parts: [{ text: "SESSION_END: Summarize our conversation in one concise first-person sentence starting with 'I realized...' or 'I focused on...' for my journal. Reply in TEXT ONLY." }] }],
+            turnComplete: true
+        }
+    }));
+};
+
+useEffect(() => {
+    return () => disconnect();
+}, [disconnect]);
+
+return {
+    isConnected,
+    isTalking,
+    isWrappingUp,
+    connect,
+    disconnect,
+    handleEndSession,
+    currentQuestion
+};
+    };

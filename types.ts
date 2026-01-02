@@ -97,7 +97,8 @@ export interface SoundscapeMetadata {
 export interface Soundscape {
   id: string;
   name: string;
-  audioBase64: string; // Stored locally for demo purposes
+  audioBase64: string; // Stored locally for demo purposes (Legacy)
+  audioUrl?: string; // Supabase Storage URL
   metadata: SoundscapeMetadata;
   createdAt: number;
 }
@@ -194,6 +195,8 @@ export enum ViewState {
   REFLECTION = 'REFLECTION', // Legacy Post-Meditation
   EVENING_REFLECTION = 'EVENING_REFLECTION', // New Live API Flow
   SESSION_SUMMARY = 'SESSION_SUMMARY',
+  NEW_RESOLUTION = 'NEW_RESOLUTION',
+  FEEDBACK = 'FEEDBACK',
   TRIAGE = 'TRIAGE',
   CONTEXT = 'CONTEXT'
 }

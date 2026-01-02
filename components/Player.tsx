@@ -448,7 +448,7 @@ export const Player: React.FC = () => {
                             <p className="text-sm text-slate-700 font-medium">Session Complete</p>
                             <p className="text-xs text-slate-500 italic mb-2">Rest in this space as long as you like.</p>
                             <button
-                                onClick={() => setView(ViewState.REFLECTION)}
+                                onClick={() => setView(ViewState.FEEDBACK)}
                                 className="bg-indigo-600 text-white px-8 py-3 rounded-full text-sm hover:bg-indigo-700 transition-colors shadow-lg flex items-center gap-2"
                             >
                                 Complete Session <ArrowRight size={14} />

@@ -6,7 +6,7 @@ import {
   UserEconomy, Resolution, DailyEntry, SessionSummaryData
 } from '../types';
 import { PREBUILT_PATTERNS, MOCK_INSIGHTS } from '../constants';
-import { analyzeInsightsForPatterns, generateMeditationStream, chatWithInsight, runDirectorOrchestration } from '../services/geminiService';
+import { analyzeInsightsForPatterns, chatWithInsight, runDirectorOrchestration, generateMeditationScript } from '../services/geminiService';
 import { growthContext } from '../services/growthContext';
 import { processBatchWithSilenceSplitting } from '../services/audioEngine';
 import { storageService } from '../services/storageService';
@@ -59,8 +59,10 @@ interface AppState {
   playMeditation: (id: string) => void;
 
   // Legacy actions needed for compilation
+  // Legacy actions needed for compilation
   sendChatMessage: (text: string) => Promise<void>;
   addSoundscape: (sc: Soundscape) => void;
+  removeSoundscape: (id: string) => void;
   lastSessionData: SessionSummaryData | null;
   chatHistory: ChatMessage[];
 }
@@ -94,7 +96,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     finalizeMeditationGeneration,
     playMeditation,
     setMeditations
-  } = useMeditationGenerator(soundscapes, activeResolution, setCurrentView);
+  } = useMeditationGenerator(soundscapes, activeResolution, setCurrentView, user.supabaseId);
 
   const [insights, setInsights] = useState<Insight[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -112,6 +114,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(prev => ({ ...prev, supabaseId: session.user.id, email: session.user.email }));
+
+        // Fetch Soundscapes
+        supabase.from('soundscapes').select('*').then(({ data, error }) => {
+          if (data && !error && data.length > 0) {
+            const loaded: Soundscape[] = data.map(row => ({
+              id: row.id,
+              name: row.name,
+              audioBase64: '',
+              audioUrl: row.audio_url,
+              metadata: row.metadata,
+              createdAt: new Date(row.created_at).getTime()
+            }));
+            setSoundscapes(loaded);
+          }
+        });
       }
     });
 
@@ -171,8 +188,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // const playMeditation = (id: string) => { setActiveMeditationId(id); setCurrentView(ViewState.PLAYER); };
 
   // Stubs for legacy
+  // Stubs for legacy
   const sendChatMessage = async (t: string) => { };
-  const addSoundscape = (s: Soundscape) => { };
+
+  const addSoundscape = (s: Soundscape) => {
+    setSoundscapes(prev => [...prev, s]);
+  };
+
+  const removeSoundscape = async (id: string) => {
+    // Optimistic update
+    setSoundscapes(prev => prev.filter(sc => sc.id !== id));
+    if (user.supabaseId) {
+      await supabase.from('soundscapes').delete().eq('id', id);
+      // Also delete from storage? ideally yes, but we need the filename.
+      // For now, just database link.
+    }
+  };
 
   return (
     <AppContext.Provider value={{
@@ -194,8 +225,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setView: setCurrentView,
       playMeditation,
 
+      // Soundscape Management
+      addSoundscape,
+      removeSoundscape,
+
       // Legacy stubs
-      insights, soundscapes, chatHistory, lastSessionData, setTriage: () => { }, sendChatMessage: async () => { }, addSoundscape: () => { },
+      insights, soundscapes, chatHistory, lastSessionData, setTriage: () => { }, sendChatMessage: async () => { },
       // Dummy parts/patterns for TS compliance if needed by other components, or remove if unused
       parts: [], anchors: [], patterns: [], acceptPattern: () => { }, updatePatternNote: () => { }, rateMeditation: () => { }, sessionState: SessionLifecycleState.TRIAGE, triage
     }}>
