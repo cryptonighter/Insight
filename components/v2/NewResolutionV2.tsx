@@ -55,7 +55,7 @@ export const NewResolutionV2: React.FC = () => {
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col px-6 pt-8 pb-32 relative z-10 z-[30]">
+            <main className="flex-1 flex flex-col px-6 pt-8 pb-32 relative z-10">
                 {/* Progress Indicator */}
                 <div className="flex gap-2 mb-12">
                     <div className={cn("h-1 flex-1 rounded-full transition-colors duration-500", step >= 1 ? "bg-primary shadow-[0_0_8px_#4ade80]" : "bg-white/10")}></div>
@@ -88,7 +88,7 @@ export const NewResolutionV2: React.FC = () => {
             </main>
 
             {/* Footer Actions */}
-            <footer className="absolute bottom-0 w-full z-20 p-6 bg-gradient-to-t from-background-dark via-background-dark to-transparent">
+            <footer className="absolute bottom-0 w-full z-40 p-6 bg-gradient-to-t from-background-dark via-background-dark to-transparent">
                 <button
                     onClick={handleNext}
                     disabled={(!statement && step === 1) || (!motivation && step === 2) || isSubmitting}
