@@ -6,7 +6,7 @@ import { Settings, History, ChevronRight, Zap, Activity } from 'lucide-react';
 import { ViewState } from '../../types';
 
 export const DashboardV2: React.FC = () => {
-    const { userEconomy, activeResolution, startMorningSession, setView, todaysEntry } = useApp();
+    const { userEconomy, activeResolution, startMorningSession, setView, todaysEntry, isLoading } = useApp();
 
     const daysProgress = useMemo(() => {
         if (!activeResolution?.createdAt) return 0;
@@ -19,7 +19,8 @@ export const DashboardV2: React.FC = () => {
     // FIRST RUN: If no active resolution, force flow to creation
     useEffect(() => {
         // Redirection Logic for First Run
-        if (!activeResolution) {
+        // Only redirect if we are NOT loading and still found no active resolution
+        if (!isLoading && !activeResolution) {
             // Check if they are brand new (no tokens/economy set up)
             // We use 'lastDailyGrant' as a proxy for "has ever initialized"
             if (!userEconomy.lastDailyGrant) {
@@ -28,7 +29,15 @@ export const DashboardV2: React.FC = () => {
                 setView(ViewState.NEW_RESOLUTION);
             }
         }
-    }, [activeResolution, setView, userEconomy]);
+    }, [activeResolution, setView, userEconomy, isLoading]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-background-dark text-primary">
+                <Activity className="animate-spin w-8 h-8" />
+            </div>
+        );
+    }
 
     return (
         <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-background-light dark:bg-background-dark transition-colors duration-300">

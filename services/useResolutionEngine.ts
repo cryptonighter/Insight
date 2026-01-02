@@ -6,8 +6,10 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
     const [userEconomy, setUserEconomy] = useState<UserEconomy>({ userId: 'mock', balance: 5 });
     const [activeResolution, setActiveResolution] = useState<Resolution | null>(null);
     const [todaysEntry, setTodaysEntry] = useState<DailyEntry | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const syncResolutionData = useCallback(async (userId: string) => {
+        setIsLoading(true);
         try {
             // 1. Fetch Economy
             const { data: eco } = await supabase.from('user_economy').select('*').eq('user_id', userId).single();
@@ -44,12 +46,17 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
             }
         } catch (e) {
             console.error("Sync failed", e);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         if (user.supabaseId) {
             syncResolutionData(user.supabaseId);
+        } else {
+            // If no user, we are not loading data, but we are also not "loading" per se, we are just waiting for auth
+            // But let's keep it true or handle it? If no auth, we shouldn't be in dashboard.
         }
     }, [user.supabaseId, syncResolutionData]);
 

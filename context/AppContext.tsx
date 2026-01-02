@@ -36,6 +36,7 @@ interface AppState {
   userEconomy: UserEconomy;
   activeResolution: Resolution | null;
   todaysEntry: DailyEntry | null;
+  isLoading: boolean;
 
   // Audio/Gen State
   meditations: Meditation[];
@@ -83,7 +84,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     debitToken,
     grantToken,
     updateDailyEntry,
-    syncResolutionData
+    syncResolutionData,
+    isLoading
   } = useResolutionEngine(user, setCurrentView);
 
   // Audio/Gen State
@@ -247,6 +249,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       meditations,
       activeMeditationId,
       pendingMeditationConfig,
+      isLoading,
 
       // actions
       completeOnboarding,
