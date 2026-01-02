@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ViewState } from '../../types';
 import { ChevronRight, Target, Zap, ArrowLeft, CheckCircle } from 'lucide-react';
+import { supabase } from '../../services/supabaseClient';
 import { cn } from '@/utils';
 
 export const NewResolutionV2: React.FC = () => {
@@ -57,7 +58,23 @@ export const NewResolutionV2: React.FC = () => {
                         <span className="text-[10px] font-bold text-primary tracking-widest">COST: 5 TOKENS</span>
                     </div>
                 </div>
-                <div className="w-10" /> {/* Spacer */}
+                <div className="w-10 flex justify-end">
+                    {/* Reset (Dev) */}
+                    <button
+                        onClick={async () => {
+                            if (confirm("⚠️ RESET ACCOUNT? This will wipe your tokens and goals.")) {
+                                if (userEconomy.userId) {
+                                    await supabase.from('user_economy').delete().eq('user_id', userEconomy.userId);
+                                    await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', userEconomy.userId);
+                                    window.location.reload();
+                                }
+                            }
+                        }}
+                        className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-xs"
+                    >
+                        R
+                    </button>
+                </div>
             </header>
 
             {/* Main Content */}

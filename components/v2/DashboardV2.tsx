@@ -100,48 +100,50 @@ export const DashboardV2: React.FC = () => {
                             </span>
                         </div>
                     </motion.button>
-                    <div className="flex items-center justify-center gap-2 opacity-50">
-                        <Zap className="w-4 h-4 text-primary" />
-                        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">
-                            {todaysEntry?.morningGenerated ? "Earn: 1 Token" : "Cost: 1 Token"}
-                        </p>
-                        {/* Dev Grant Button */}
-                        <button
-                            onClick={async () => {
-                                const code = prompt("Enter Admin Access Code:");
-                                if (code === "insight") {
-                                    if (userEconomy.userId) {
-                                        await supabase.from('user_economy').update({ balance: userEconomy.balance + 100 }).eq('user_id', userEconomy.userId);
-                                        window.location.reload();
-                                    }
-                                } else if (code) {
-                                    alert("Invalid Access Code");
-                                }
-                            }}
-                            className="ml-2 w-4 h-4 bg-white/10 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-primary hover:text-black transition-colors"
-                        >
-                            +
-                        </button>
+                    <div className="flex items-center justify-center gap-4 mt-6">
+                        <div className="flex items-center gap-2 opacity-60">
+                            <Zap className="w-4 h-4 text-primary" />
+                            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white">
+                                {todaysEntry?.morningGenerated ? "Earn: 1 Token" : "Cost: 1 Token"}
+                            </p>
+                        </div>
 
-                        {/* Hard Reset Button (Dev Only) */}
-                        <button
-                            onClick={async () => {
-                                if (confirm("⚠️ RESET ACCOUNT? This will wipe your tokens and goals to test Onboarding.")) {
-                                    if (userEconomy.userId) {
-                                        // 1. Wipe Economy (Triggers 'New User' state)
-                                        await supabase.from('user_economy').delete().eq('user_id', userEconomy.userId);
-                                        // 2. Archive Resolutions
-                                        await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', userEconomy.userId);
-
-                                        window.location.reload();
+                        <div className="flex items-center gap-2">
+                            {/* Dev Grant */}
+                            <button
+                                onClick={async () => {
+                                    const code = prompt("Enter Admin Access Code:");
+                                    if (code === "insight") {
+                                        if (userEconomy.userId) {
+                                            await supabase.from('user_economy').update({ balance: userEconomy.balance + 100 }).eq('user_id', userEconomy.userId);
+                                            window.location.reload();
+                                        }
+                                    } else if (code) {
+                                        alert("Invalid Access Code");
                                     }
-                                }
-                            }}
-                            className="ml-2 w-4 h-4 bg-red-500/20 rounded-full flex items-center justify-center text-[8px] text-red-500 hover:bg-red-500 hover:text-white transition-colors"
-                            title="Reset Account to seeing Onboarding"
-                        >
-                            R
-                        </button>
+                                }}
+                                className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-xs text-white hover:bg-primary hover:text-black transition-colors"
+                            >
+                                +
+                            </button>
+
+                            {/* Hard Reset */}
+                            <button
+                                onClick={async () => {
+                                    if (confirm("⚠️ RESET ACCOUNT? This will wipe your tokens and goals to test Onboarding.")) {
+                                        if (userEconomy.userId) {
+                                            await supabase.from('user_economy').delete().eq('user_id', userEconomy.userId);
+                                            await supabase.from('resolutions').update({ status: 'archived' }).eq('user_id', userEconomy.userId);
+                                            window.location.reload();
+                                        }
+                                    }
+                                }}
+                                className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center text-xs text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                                title="Reset Account"
+                            >
+                                R
+                            </button>
+                        </div>
                     </div>
                 </div>
             </footer>
