@@ -54,44 +54,12 @@ export const DashboardV2: React.FC = () => {
                 </button>
             </header>
 
-            <main className="flex-1 flex flex-col items-center relative z-10 px-6 w-full max-w-md mx-auto pt-4 pb-4">
-                <div className="relative w-full flex flex-col items-center text-center mb-6 group glass-panel rounded-2xl p-6 border border-white/10 shadow-lg hover:bg-white/5 transition-all duration-300">
-                    <p className="text-primary text-xs font-bold tracking-[0.2em] uppercase mb-3 opacity-80">Current Directive</p>
-                    <div className="w-full bg-white/5 border border-white/5 rounded-xl py-5 px-4 mb-4 backdrop-blur-sm relative overflow-hidden transition-colors group-hover:border-white/10">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight leading-tight text-glow relative z-10 break-words line-clamp-3">
-                            {activeResolution?.statement || "No Active Goal"}
-                        </h1>
-                    </div>
-                    {activeResolution ? (
-                        <button className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-primary/40 bg-white/5 hover:bg-white/10 hover:border-primary/60 transition-all group/protocol w-fit mx-auto cursor-pointer shadow-[0_0_15px_rgba(74,222,128,0.05)]">
-                            <span className="text-white/80 text-xs font-medium tracking-wide group-hover/protocol:text-white transition-colors">
-                                Protocol: {activeResolution.methodology || "General"}
-                            </span>
-                            <ChevronRight className="w-4 h-4 text-primary/70 group-hover/protocol:text-primary transition-colors" />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => setView(ViewState.NEW_RESOLUTION)}
-                            className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-background-dark font-bold text-xs uppercase tracking-widest hover:bg-primary-dim transition-all shadow-[0_0_20px_rgba(74,222,128,0.2)]"
-                        >
-                            Initialize Objective
-                        </button>
-                    )}
-                </div>
-
-                <div className="glass-panel w-full rounded-xl p-5 mb-4 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-white/5">
-                        <div className="h-full bg-primary/40 shadow-[0_0_10px_#4ade80] transition-all duration-1000" style={{ width: `${Math.min(100, (daysProgress / 90) * 100)}%` }}></div>
-                    </div>
-                    <div className="flex flex-col items-center z-10">
-                        <span className="text-white/40 text-[10px] font-bold tracking-[0.2em] uppercase mb-1">Timeline Progress</span>
-                        <div className="flex items-baseline gap-2">
-                            <h2 className="text-xl font-bold text-white tracking-tighter text-glow">DAY {daysProgress}</h2>
-                            <span className="text-white/30 text-base font-light tracking-wide">/ 90</span>
-                        </div>
-                    </div>
-                </div>
+            <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 w-full max-w-md mx-auto">
+                {/* 
+                   Minimalist Dashboard: 
+                   The focus is solely on the "Start" action. 
+                   Context is provided during the session.
+                */}
             </main>
 
             <footer className="relative z-10 w-full px-6 pb-8 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent shrink-0">

@@ -73,15 +73,15 @@ export const NewResolutionV2: React.FC = () => {
 
                     <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-8">
                         {step === 1
-                            ? "What represents your primary focus right now?"
-                            : "Why is this critical to achieve at this moment?"}
+                            ? "What is the single most important change you are creating?"
+                            : "Why does this reality matter to you deep down?"}
                     </h1>
 
                     <textarea
                         autoFocus
                         value={step === 1 ? statement : motivation}
                         onChange={(e) => step === 1 ? setStatement(e.target.value) : setMotivation(e.target.value)}
-                        placeholder={step === 1 ? "e.g. Launch the MVP by Q3..." : "e.g. To secure the next round of funding..."}
+                        placeholder={step === 1 ? "e.g., I am stepping into my role as..." : "e.g., Because I am done with..."}
                         className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-lg text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all resize-none h-40"
                     />
                 </div>
