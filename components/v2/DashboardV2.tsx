@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { supabase } from '../../services/supabaseClient';
 import { useApp } from '../../context/AppContext';
 import { Settings, History, ChevronRight, Zap, Activity } from 'lucide-react';
 import { ViewState } from '../../types';
@@ -92,6 +93,20 @@ export const DashboardV2: React.FC = () => {
                         <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">
                             {todaysEntry?.morningGenerated ? "Earn: 1 Token" : "Cost: 1 Token"}
                         </p>
+                        {/* Dev Grant Button */}
+                        <button
+                            onClick={async () => {
+                                if (confirm("GRANT 1000 TOKENS? (Dev Only)")) {
+                                    if (userEconomy.userId) { // Check if we have a userId
+                                        await supabase.from('user_economy').update({ balance: userEconomy.balance + 1000 }).eq('user_id', userEconomy.userId);
+                                        window.location.reload(); // Quick refresh to see changes
+                                    }
+                                }
+                            }}
+                            className="ml-2 w-4 h-4 bg-white/10 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-primary hover:text-black transition-colors"
+                        >
+                            +
+                        </button>
                     </div>
                 </div>
             </footer>
