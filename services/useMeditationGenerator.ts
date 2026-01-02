@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution } from '../types';
 import { generateMeditationScript } from './geminiService';
 import { MeditationPipeline } from './MeditationPipeline';
@@ -18,7 +18,24 @@ export const useMeditationGenerator = (
     // Ref to hold the pipeline so we can stop it if unmounted
     const pipelineRef = useRef<MeditationPipeline | null>(null);
 
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (pipelineRef.current) {
+                console.log("🧹 Unmounting: Stopping Pipeline");
+                pipelineRef.current.stop();
+            }
+        };
+    }, []);
+
     const finalizeMeditationGeneration = async (config: MeditationConfig) => {
+        // Prevent double submissions or cancel previous
+        if (pipelineRef.current) {
+            console.log("🛑 Stopping previous pipeline...");
+            pipelineRef.current.stop();
+            pipelineRef.current = null;
+        }
+
         const tempId = Date.now().toString();
         try {
             // 1. Base Context
