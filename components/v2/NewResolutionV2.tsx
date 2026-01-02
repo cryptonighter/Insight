@@ -11,20 +11,20 @@ export const NewResolutionV2: React.FC = () => {
     const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
     const [statement, setStatement] = useState("");
     const [motivation, setMotivation] = useState("");
-    const [feeling, setFeeling] = useState("");
+    const [blockers, setBlockers] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleNext = () => {
         if (step === 1 && statement.trim()) setStep(2);
         else if (step === 2 && motivation.trim()) setStep(3);
-        else if (step === 3 && feeling.trim()) handleSubmit();
+        else if (step === 3 && blockers.trim()) handleSubmit();
     };
 
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
-            // Combine Motivation and Feeling for storage
-            const combinedWhy = `WHY: ${motivation}\n\nSTATE: ${feeling}`;
+            // Combine Motivation and Blockers for storage
+            const combinedWhy = `WHY: ${motivation}\n\nBLOCKERS: ${blockers}`;
             await createNewResolution(statement, combinedWhy);
             // Show Success State
             setStep(4);
@@ -82,7 +82,7 @@ export const NewResolutionV2: React.FC = () => {
                                 </div>
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-3 tracking-wide">Protocol Active</h2>
-                            <p className="text-white/50 text-sm tracking-widest uppercase animate-pulse">Calibrating Insight Engine...</p>
+                            <p className="text-white/50 text-sm tracking-widest uppercase animate-pulse">Strategy Locked. Good hunting.</p>
                         </div>
                     ) : (
                         <>
@@ -91,7 +91,7 @@ export const NewResolutionV2: React.FC = () => {
                                     ? "Define Your North Star"
                                     : step === 2
                                         ? "Identify the Fire"
-                                        : "Target Frequency"}
+                                        : "Anticipate the Resistance"}
                             </h1>
 
                             <p className="text-primary/60 text-sm md:text-base font-mono mb-8 leading-relaxed max-w-sm">
@@ -99,21 +99,21 @@ export const NewResolutionV2: React.FC = () => {
                                     ? "Select one meaningful objective to align your life around for this cycle."
                                     : step === 2
                                         ? "Why does this matter? Dig deeper than surface level. Connect this goal to your identity or your survival."
-                                        : "When this reality is manifest, how does it feel in your body? (The somatic state you must tune to)."}
+                                        : "What stands in your way? Name the specific internal or external forces that have stopped you before."}
                             </p>
 
                             <textarea
                                 key={step} // Force re-render for autofocus
                                 autoFocus
-                                value={step === 1 ? statement : step === 2 ? motivation : feeling}
+                                value={step === 1 ? statement : step === 2 ? motivation : blockers}
                                 onChange={(e) => {
                                     const val = e.target.value;
-                                    step === 1 ? setStatement(val) : step === 2 ? setMotivation(val) : setFeeling(val);
+                                    step === 1 ? setStatement(val) : step === 2 ? setMotivation(val) : setBlockers(val);
                                 }}
                                 placeholder={
                                     step === 1 ? "e.g., Launch my design studio..."
-                                        : step === 2 ? "e.g., I need to prove that my creativity has value in the real world..."
-                                            : "e.g., Electric, Expanded, Grounded, Unstoppable..."
+                                        : step === 2 ? "e.g., I need to prove that my creativity has value..."
+                                            : "e.g., Self-doubt, scrolling addiction, lack of clear structure..."
                                 }
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-lg text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all resize-none h-40"
                             />
@@ -126,7 +126,7 @@ export const NewResolutionV2: React.FC = () => {
             <footer className="fixed bottom-0 w-full max-w-md z-40 p-6 bg-gradient-to-t from-background-dark via-background-dark to-transparent">
                 <button
                     onClick={handleNext}
-                    disabled={(!statement && step === 1) || (!motivation && step === 2) || (!feeling && step === 3) || isSubmitting}
+                    disabled={(!statement && step === 1) || (!motivation && step === 2) || (!blockers && step === 3) || isSubmitting}
                     className="group w-full h-16 rounded-2xl bg-primary text-background-dark font-bold text-sm tracking-widest uppercase hover:bg-primary-dim disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(74,222,128,0.2)] hover:shadow-[0_0_40px_rgba(74,222,128,0.4)] flex items-center justify-center gap-3"
                 >
                     {isSubmitting ? (
