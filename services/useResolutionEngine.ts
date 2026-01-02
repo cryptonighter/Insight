@@ -56,17 +56,32 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
     const createNewResolution = async (statement: string, motivation: string) => {
         if (!user.supabaseId) return;
 
-        // Check economy first
-        let newBalance = 10; // Default welcome grant
+        // Check if there is an ACTIVE resolution currently
+        // If they have one, they pay the "Switching Fee" (5 tokens).
+        // If they don't (first run, or archived/deleted), it's a "Rescue" or "Welcome" -> Free + Grant.
+        const { data: currentActive } = await supabase.from('resolutions')
+            .select('id')
+            .eq('user_id', user.supabaseId)
+            .eq('status', 'active')
+            .maybeSingle();
+
+        let newBalance = 10; // Default welcome grant if no economy exists
         const { data: eco } = await supabase.from('user_economy').select('balance').eq('user_id', user.supabaseId).maybeSingle();
 
         if (eco) {
-            // Existing user: Charge 5 tokens to switch
-            if (eco.balance < 5) {
-                alert("Insufficient tokens to establish new protocol. Need 5.");
-                return;
+            if (currentActive) {
+                // Paying to switch
+                if (eco.balance < 5) {
+                    alert("Insufficient tokens. You need 5 tokens to switch your active protocol.");
+                    return;
+                }
+                newBalance = eco.balance - 5;
+            } else {
+                // Rescue/Reset Mode: Ensure they have at least 5 tokens to feel good, or just keep what they have?
+                // Let's grant them a refresh to 10 if they are low, or keep them as is?
+                // "Welcome Bonus" logic: If they are resetting, let's treat it as a fresh start.
+                newBalance = Math.max(eco.balance, 10);
             }
-            newBalance = eco.balance - 5;
         }
 
         // 1. Archive old ones
