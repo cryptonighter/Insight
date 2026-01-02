@@ -10,7 +10,7 @@ export const OnboardingView: React.FC = () => {
     const { setView, user } = useApp();
     const [accessCode, setAccessCode] = useState("");
     const [error, setError] = useState("");
-    const [step, setStep] = useState<'AUTH' | 'INTRO'>('AUTH');
+    const [step, setStep] = useState<'AUTH' | 'INTRO' | 'WELCOME'>('AUTH');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleAccess = async () => {
@@ -113,12 +113,13 @@ export const OnboardingView: React.FC = () => {
                             </button>
                         </div>
                     </motion.div>
-                ) : (
+                ) : step === 'INTRO' ? (
                     <motion.div
                         key="intro"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 1 }}
+                        exit={{ opacity: 0, filter: 'blur(10px)' }}
+                        onAnimationComplete={() => setTimeout(() => setStep('WELCOME'), 3000)}
                         className="flex-1 flex flex-col items-center justify-center p-8 z-10 text-center"
                     >
                         <div className="max-w-md space-y-12">
@@ -137,15 +138,41 @@ export const OnboardingView: React.FC = () => {
                                     &gt; Reality Architecture initialized.
                                 </p>
                             </div>
-
-                            <button
-                                onClick={() => setView(ViewState.NEW_RESOLUTION)}
-                                className="w-full bg-transparent border border-primary text-primary font-bold h-16 hover:bg-primary hover:text-black transition-all shadow-[0_0_20px_rgba(74,222,128,0.1)] hover:shadow-[0_0_40px_rgba(74,222,128,0.4)] flex items-center justify-center gap-3 uppercase tracking-[0.2em] group"
-                            >
-                                <span>Design Your Reality</span>
-                                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                            </button>
                         </div>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="welcome"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="flex-1 flex flex-col items-center justify-center p-8 z-10"
+                    >
+                        <h1 className="text-3xl font-bold text-white mb-6 tracking-tighter uppercase leading-tight">
+                            Design Your <span className="text-primary">First Session</span>
+                        </h1>
+
+                        <div className="space-y-6 text-primary/80 font-mono text-sm leading-relaxed border-l-2 border-primary/20 pl-6 mb-12">
+                            <p>
+                                This tool creates meditations based on what's actually alive for you in this moment.
+                            </p>
+                            <p>
+                                Let's create your first one together.
+                            </p>
+                            <p className="text-white font-bold tracking-widest uppercase">
+                                // 3 DATA POINTS REQUIRED
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setView(ViewState.NEW_RESOLUTION)}
+                            className="group w-full bg-primary text-black font-bold h-14 hover:bg-primary-dim transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm relative overflow-hidden"
+                        >
+                            <span className="relative z-10 flex items-center gap-2">
+                                Init Sequence
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </span>
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
