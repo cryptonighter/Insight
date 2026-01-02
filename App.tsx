@@ -40,23 +40,27 @@ const Main: React.FC = () => {
 
   const renderView = () => {
     switch (currentView) {
-      case ViewState.ONBOARDING: return <OnboardingWizard />;
-      case ViewState.DASHBOARD: return <DashboardV2 />;
-      case ViewState.HOME: return <Home />; // Legacy Chat
       case ViewState.LOADING: return <LoadingGeneration />;
+
+      // V2 Routes
+      case ViewState.DASHBOARD: return <DashboardV2 />;
+      case ViewState.HOME: return <DashboardV2 />;
+      case ViewState.ONBOARDING: return <OnboardingView />; // The Matrix V2 Design
+      case ViewState.REFLECTION: return <ReflectionV2 />;
+      case ViewState.EVENING_REFLECTION: return <ReflectionV2 />;
+      case ViewState.SESSION_SUMMARY: return <SessionSummaryV2 />;
+      case ViewState.NEW_RESOLUTION: return <NewResolutionV2 />;
+      case ViewState.FEEDBACK: return <FeedbackV2 />;
+      case ViewState.CONTEXT: return <ContextInterview />;
+
+      // Legacy / Admin
       case ViewState.CARDS: return <CardsView />;
       case ViewState.MEDITATIONS: return <MeditationsView />;
       case ViewState.PLAYER: return <Player />;
       case ViewState.ADMIN: return <AdminDashboard />;
       case ViewState.TRIAGE: return <TriageView />;
-      case ViewState.REFLECTION: return <Reflection />; // Legacy Support
-      case ViewState.EVENING_REFLECTION: return <ReflectionV2 />;
-      case ViewState.SESSION_SUMMARY: return <SessionSummaryV2 />;
-      case ViewState.NEW_RESOLUTION: return <NewResolutionV2 />;
-      case ViewState.FEEDBACK: return <FeedbackV2 />;
-      case ViewState.ONBOARDING: return <OnboardingView />;
-      case ViewState.CONTEXT: return <ContextInterview />;
-      default: return <DashboardV2 />; // Default to Dashboard now
+
+      default: return <DashboardV2 />;
     }
   };
 
