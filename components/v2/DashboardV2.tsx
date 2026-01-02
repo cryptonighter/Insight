@@ -18,12 +18,15 @@ export const DashboardV2: React.FC = () => {
 
     // FIRST RUN: If no active resolution, force flow to creation
     useEffect(() => {
-        if (!activeResolution && userEconomy.balance !== undefined) {
-            // Small delay to allow hydration
-            const timer = setTimeout(() => {
+        // Redirection Logic for First Run
+        if (!activeResolution) {
+            // Check if they are brand new (no tokens/economy set up)
+            // We use 'lastDailyGrant' as a proxy for "has ever initialized"
+            if (!userEconomy.lastDailyGrant) {
+                setView(ViewState.ONBOARDING);
+            } else {
                 setView(ViewState.NEW_RESOLUTION);
-            }, 100);
-            return () => clearTimeout(timer);
+            }
         }
     }, [activeResolution, setView, userEconomy]);
 
