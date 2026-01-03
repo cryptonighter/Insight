@@ -221,7 +221,6 @@ export const generateAudioChunk = async (
         model: AUDIO_MODEL,
         contents: [{ role: 'user', parts: [{ text }] }],
         config: {
-          systemInstruction: "You are a meditation guide. Your voice is slow, deep, soft, and hypnotic. Do not read bold headers.",
           responseModalities: ['AUDIO'] as any,
           speechConfig: {
             voiceConfig: {
