@@ -232,42 +232,57 @@ ${text}
     try {
       if (retries > 0) await delay(1000 * Math.pow(2, retries));
 
-      console.log(`🎤 TTS Attempt ${retries + 1}/${MAX_RETRIES} - Model: ${AUDIO_MODEL}`);
+      console.log(`🎤 TTS Attempt ${retries + 1}/${MAX_RETRIES} - Model: ${AUDIO_MODEL} (REST)`);
 
-      // Wrap in timeout to prevent hangs
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Request timed out after 30s")), 30000)
-      );
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${AUDIO_MODEL}:generateContent?key=${googleApiKey}`;
 
-      const apiCall = ai.models.generateContent({
-        model: AUDIO_MODEL,
+      const payload = {
         contents: [{ parts: [{ text: directorPrompt }] }],
         config: {
-          responseModalities: ['AUDIO'] as any,
+          responseModalities: ['AUDIO'], // Type assertion not needed for raw JSON
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
             }
-          },
+          }
+        }
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
 
-      const speechResponse = await Promise.race([apiCall, timeoutPromise]) as any;
+      clearTimeout(timeoutId);
 
-      console.log("🎤 TTS Response Received");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`TTS API Error: ${response.status} - ${errorText}`);
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
 
-      const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
+      const data = await response.json();
+      console.log("🎤 TTS Response Received (REST)");
+
+      const audioPart = data.candidates?.[0]?.content?.parts?.[0];
       if (audioPart?.inlineData?.data) {
         return {
           audioData: audioPart.inlineData.data,
           mimeType: audioPart.inlineData.mimeType || 'audio/mp3'
         };
       } else {
-        throw new Error("Empty audio response");
+        throw new Error("Empty audio response in JSON");
       }
     } catch (e: any) {
       console.warn(`TTS Failed (Attempt ${retries + 1}):`, e.message);
-      if (e.message.includes('429')) await delay(10000); // Specific handling for rate limit
+      if (e.message.includes('429')) await delay(10000); // Rate limit backoff
       retries++;
     }
   }
