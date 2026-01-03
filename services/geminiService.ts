@@ -282,8 +282,9 @@ ${text}
         throw new Error("Empty audio response in JSON");
       }
     } catch (e: any) {
-      console.warn(`TTS Failed (Attempt ${retries + 1}):`, e.message);
-      if (e.message.includes('429')) await delay(10000); // Rate limit backoff
+      const msg = e?.message || String(e);
+      console.warn(`TTS Failed (Attempt ${retries + 1}):`, msg);
+      if (msg.includes('429')) await delay(10000); // Rate limit backoff
       retries++;
     }
   }
