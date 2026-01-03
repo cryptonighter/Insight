@@ -213,13 +213,28 @@ export const generateAudioChunk = async (
   let retries = 0;
   const MAX_RETRIES = 3;
 
+  // Enhancing the prompt with "Director Mode" instructions as per docs
+  const directorPrompt = `
+# AUDIO PROFILE: ${voice}
+## THE SCENE: Inner Space
+The guide is a warm, eternal presence speaking directly to the listener's soul. The environment is vast, quiet using only the voice to ground the user.
+
+### DIRECTOR'S NOTES
+Style: Hypnotic, Deep, Slow, compassionate.
+Pacing: Very slow. Allow space between thoughts.
+Articulation: Soft, precise, but relaxed.
+
+#### TRANSCRIPT
+${text}
+`;
+
   while (retries < MAX_RETRIES) {
     try {
       if (retries > 0) await delay(1000 * Math.pow(2, retries));
 
       const speechResponse = await ai.models.generateContent({
         model: AUDIO_MODEL,
-        contents: [{ parts: [{ text }] }],
+        contents: [{ parts: [{ text: directorPrompt }] }],
         config: {
           responseModalities: ['AUDIO'] as any,
           speechConfig: {
@@ -227,8 +242,7 @@ export const generateAudioChunk = async (
               prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
             }
           },
-        },
-      });
+        });
 
       const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
       if (audioPart?.inlineData?.data) {
@@ -241,6 +255,7 @@ export const generateAudioChunk = async (
       }
     } catch (e: any) {
       console.warn(`TTS Failed (Attempt ${retries + 1}):`, e.message);
+      if (e.message.includes('429')) await delay(10000); // Specific handling for rate limit
       retries++;
     }
   }
