@@ -249,7 +249,7 @@ ${text}
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeoutId = setTimeout(() => controller.abort("Request timed out after 120s"), 120000); // 2 min timeout
 
       const response = await fetch(url, {
         method: 'POST',
