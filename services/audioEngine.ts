@@ -19,6 +19,14 @@ export const processBatchWithSilenceSplitting = async (
         // Even if the header is missing, browser decoders are robust.
 
         const byteCharacters = atob(batchAudioBase64);
+
+        // DEBUG: Check Header
+        const header = [];
+        for (let i = 0; i < 8 && i < byteCharacters.length; i++) {
+            header.push(byteCharacters.charCodeAt(i).toString(16).padStart(2, '0'));
+        }
+        console.log(`🔍 Audio Header [${mimeType}]:`, header.join(' ').toUpperCase());
+
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
             byteNumbers[i] = byteCharacters.charCodeAt(i);

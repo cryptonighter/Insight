@@ -273,6 +273,7 @@ ${text}
 
       const audioPart = data.candidates?.[0]?.content?.parts?.[0];
       if (audioPart?.inlineData?.data) {
+        console.log("🎤 API MimeType:", audioPart.inlineData.mimeType);
         return {
           audioData: audioPart.inlineData.data,
           mimeType: audioPart.inlineData.mimeType || 'audio/mp3'
