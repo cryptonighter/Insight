@@ -238,8 +238,8 @@ ${text}
 
       const payload = {
         contents: [{ parts: [{ text: directorPrompt }] }],
-        config: {
-          responseModalities: ['AUDIO'], // Type assertion not needed for raw JSON
+        generationConfig: {
+          responseModalities: ['AUDIO'],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
