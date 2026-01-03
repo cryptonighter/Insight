@@ -240,7 +240,6 @@ ${text}
         contents: [{ parts: [{ text: directorPrompt }] }],
         generationConfig: {
           responseModalities: ['AUDIO'],
-          audioEncoding: "MP3",
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
