@@ -50,6 +50,13 @@ export const LoadingGeneration: React.FC = () => {
   const isGenerating = activeMeditation?.isGenerating || hasStarted;
   const showBeginButton = queueLength > 0;
 
+  // Sync local state with global generation status (Fixes "Stuck on Config" bug)
+  useEffect(() => {
+    if (activeMeditation?.isGenerating) {
+      setHasStarted(true);
+    }
+  }, [activeMeditation?.isGenerating]);
+
   // Simulate Matrix Lines
   useEffect(() => {
     if (isGenerating && !showBeginButton) {
