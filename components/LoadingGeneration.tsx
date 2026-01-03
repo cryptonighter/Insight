@@ -20,7 +20,7 @@ export const LoadingGeneration: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
 
   // Configuration State
-  const [selectedCategory, setSelectedCategory] = useState<string>('Drone');
+  const [selectedSoundscapeId, setSelectedSoundscapeId] = useState<string>('');
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>('Kore');
   const [selectedSpeed, setSelectedSpeed] = useState<number>(0.95);
 
@@ -32,16 +32,11 @@ export const LoadingGeneration: React.FC = () => {
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const lineIndex = useRef(0);
 
-  const categories = useMemo(() => {
-    const cats: Record<string, string[]> = { 'Drone': [], 'Nature': [], 'Musical': [], 'Silence': [] };
-    soundscapes.forEach(s => {
-      const desc = (s.metadata.description + s.metadata.instrumentation + s.metadata.mood).toLowerCase();
-      if (desc.includes('rain') || desc.includes('water') || desc.includes('forest') || desc.includes('wind')) cats['Nature'].push(s.id);
-      else if (desc.includes('piano') || desc.includes('cello') || desc.includes('synth') || desc.includes('chime')) cats['Musical'].push(s.id);
-      else cats['Drone'].push(s.id);
-    });
-    if (Object.values(cats).every(arr => arr.length === 0) && soundscapes.length > 0) cats['Drone'].push(soundscapes[0].id);
-    return cats;
+  // Auto-select first soundscape
+  useEffect(() => {
+    if (soundscapes.length > 0 && !selectedSoundscapeId) {
+      setSelectedSoundscapeId(soundscapes[0].id);
+    }
   }, [soundscapes]);
 
   const activeMeditation = useMemo(() => meditations.find(m => m.id === activeMeditationId), [meditations, activeMeditationId]);
@@ -61,52 +56,71 @@ export const LoadingGeneration: React.FC = () => {
   useEffect(() => {
     if (isGenerating && !showBeginButton) {
       const interval = setInterval(() => {
+        const selectedName = soundscapes.find(s => s.id === selectedSoundscapeId)?.name || 'UNKNOWN';
         const possibleLines = [
           `> ANALYZING NEURAL PATTERNS [${Math.floor(Math.random() * 99)}%MATCH]`,
           `> WEAVING PROTOCOL: ${triage.selectedMethodology || 'UNKNOWN'}`,
           `> SYNTHESIZING VOICE LAYERS: ${selectedVoice.toUpperCase()}`,
-          `> CALCULATING RESONANCE INTERVALS...`,
-          `> OPTIMIZING GUIDANCE VECTORS...`,
-          `> LOADING ATMOSPHERE: ${selectedCategory.toUpperCase()}...`,
+          `> LOADING ATMOSPHERE: ${selectedName.toUpperCase()}...`,
           `> GENERATING SOMATIC INSTRUCTIONS...`
         ];
         setTerminalLines(prev => [...prev.slice(-4), possibleLines[Math.floor(Math.random() * possibleLines.length)]]);
       }, 800);
       return () => clearInterval(interval);
     }
-  }, [isGenerating, showBeginButton, triage.selectedMethodology, selectedVoice, selectedCategory]);
+  }, [isGenerating, showBeginButton, triage.selectedMethodology, selectedVoice, selectedSoundscapeId]);
 
-  const handlePreview = async (categoryId: string) => {
-    setSelectedCategory(categoryId);
+  const handlePreview = async (id: string) => {
+    setSelectedSoundscapeId(id);
+
+    // Stop previous
     if (audioPreviewRef.current) {
       audioPreviewRef.current.pause();
       setPreviewingId(null);
     }
-    const availableIds = categories[categoryId];
-    if (!availableIds || availableIds.length === 0) return;
 
-    const sampleId = availableIds[0];
-    setPreviewingId(categoryId);
+    // Toggle off if clicking same
+    if (previewingId === id) {
+      return;
+    }
+
+    setPreviewingId(id);
 
     try {
-      const sc = soundscapes.find(s => s.id === sampleId);
-      let base64 = sc?.audioBase64;
-      if (!base64 || base64.length < 100) base64 = await storageService.getSoundscapeAudio(sampleId) || '';
+      const sc = soundscapes.find(s => s.id === id);
+      if (!sc) return;
 
-      if (base64) {
-        const byteCharacters = atob(base64);
+      let url = sc.audioUrl;
+      // Fallback to base64 if no URL (Legacy) or fetch from DB if needed
+      if (!url && sc.audioBase64) {
+        // Convert base64 to blob url for preview
+        const byteCharacters = atob(sc.audioBase64);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: 'audio/mp3' });
-        const url = URL.createObjectURL(blob);
+        url = URL.createObjectURL(blob);
+      } else if (!url) {
+        // Try fetching just in time (Base64 path)
+        const b64 = await storageService.getSoundscapeAudio(id);
+        if (b64) {
+          const byteCharacters = atob(b64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'audio/mp3' });
+          url = URL.createObjectURL(blob);
+        }
+      }
 
+      if (url) {
         const audio = new Audio(url);
         audio.volume = 0.5;
         audio.loop = true;
-        audio.play();
+        audio.play().catch(e => console.warn("Autoplay blocked", e));
         audioPreviewRef.current = audio;
 
+        // Auto-stop preview after 8s
         setTimeout(() => {
           if (audioPreviewRef.current === audio) {
             audio.pause();
@@ -126,19 +140,14 @@ export const LoadingGeneration: React.FC = () => {
     setPreviewingId(null);
     setHasStarted(true);
 
-    const availableIds = categories[selectedCategory];
-    const finalSoundscapeId = availableIds.length > 0
-      ? availableIds[Math.floor(Math.random() * availableIds.length)]
-      : soundscapes[0]?.id;
-
     const config: MeditationConfig = {
       focus: pendingMeditationConfig.focus!,
       feeling: pendingMeditationConfig.feeling!,
       duration: pendingMeditationConfig.duration!,
       voice: selectedVoice,
       speed: selectedSpeed,
-      soundscapeId: finalSoundscapeId,
-      background: 'deep-space',
+      soundscapeId: selectedSoundscapeId || soundscapes[0]?.id, // Use specific ID
+      background: 'deep-space', // Visual only
       methodology: triage.selectedMethodology || 'NSDR',
       variables: triage.clinicalVariables
     };
@@ -237,19 +246,20 @@ export const LoadingGeneration: React.FC = () => {
                   <Wind size={14} className="text-primary" />
                   <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Atmosphere</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Drone', 'Nature', 'Musical'].map(cat => (
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                  {soundscapes.map(s => (
                     <button
-                      key={cat}
-                      onClick={() => handlePreview(cat)}
+                      key={s.id}
+                      onClick={() => handlePreview(s.id)}
                       className={cn(
-                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all",
-                        selectedCategory === cat
+                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all truncate text-left flex items-center justify-between",
+                        selectedSoundscapeId === s.id
                           ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(74,222,128,0.2)]"
                           : "bg-black/20 border-white/10 text-white/40 hover:border-primary/50 hover:text-primary/80"
                       )}
                     >
-                      {cat}
+                      <span className="truncate">{s.name}</span>
+                      {previewingId === s.id && <Volume2 size={12} className="animate-pulse text-primary shrink-0 ml-2" />}
                     </button>
                   ))}
                 </div>
