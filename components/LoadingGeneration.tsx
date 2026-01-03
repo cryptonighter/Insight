@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, ArrowLeft, Volume2, Mic2, Wind, Terminal, Cpu, Activity, Play } from 'lucide-react';
+import { Sparkles, ArrowLeft, Volume2, Mic2, Wind, Terminal, Cpu, Activity, Play, Brain } from 'lucide-react';
 import { VoiceId, MeditationConfig, ViewState } from '../types';
 import { storageService } from '../services/storageService';
 import { CLINICAL_PROTOCOLS } from '../server/protocols';
@@ -20,9 +20,15 @@ export const LoadingGeneration: React.FC = () => {
   const [hasStarted, setHasStarted] = useState(false);
 
   // Configuration State
+  const [selectedMethodology, setSelectedMethodology] = useState<string>('NSDR');
   const [selectedSoundscapeId, setSelectedSoundscapeId] = useState<string>('');
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>('Kore');
   const [selectedSpeed, setSelectedSpeed] = useState<number>(0.95);
+
+  // Sync with triage
+  useEffect(() => {
+    if (triage.selectedMethodology) setSelectedMethodology(triage.selectedMethodology);
+  }, [triage.selectedMethodology]);
 
   // Preview State
   const [previewingId, setPreviewingId] = useState<string | null>(null);
@@ -40,7 +46,7 @@ export const LoadingGeneration: React.FC = () => {
   }, [soundscapes]);
 
   const activeMeditation = useMemo(() => meditations.find(m => m.id === activeMeditationId), [meditations, activeMeditationId]);
-  const protocol = useMemo(() => CLINICAL_PROTOCOLS[triage.selectedMethodology || 'NSDR'], [triage.selectedMethodology]);
+  const protocol = useMemo(() => CLINICAL_PROTOCOLS[selectedMethodology] || CLINICAL_PROTOCOLS['NSDR'], [selectedMethodology]);
   const queueLength = activeMeditation?.audioQueue?.length || 0;
   const isGenerating = activeMeditation?.isGenerating || hasStarted;
   const showBeginButton = queueLength > 0;
@@ -59,7 +65,7 @@ export const LoadingGeneration: React.FC = () => {
         const selectedName = soundscapes.find(s => s.id === selectedSoundscapeId)?.name || 'UNKNOWN';
         const possibleLines = [
           `> ANALYZING NEURAL PATTERNS [${Math.floor(Math.random() * 99)}%MATCH]`,
-          `> WEAVING PROTOCOL: ${triage.selectedMethodology || 'UNKNOWN'}`,
+          `> WEAVING PROTOCOL: ${selectedMethodology}`,
           `> SYNTHESIZING VOICE LAYERS: ${selectedVoice.toUpperCase()}`,
           `> LOADING ATMOSPHERE: ${selectedName.toUpperCase()}...`,
           `> GENERATING SOMATIC INSTRUCTIONS...`
@@ -68,7 +74,7 @@ export const LoadingGeneration: React.FC = () => {
       }, 800);
       return () => clearInterval(interval);
     }
-  }, [isGenerating, showBeginButton, triage.selectedMethodology, selectedVoice, selectedSoundscapeId]);
+  }, [isGenerating, showBeginButton, selectedMethodology, selectedVoice, selectedSoundscapeId]);
 
   const handlePreview = async (id: string) => {
     setSelectedSoundscapeId(id);
@@ -148,7 +154,7 @@ export const LoadingGeneration: React.FC = () => {
       speed: selectedSpeed,
       soundscapeId: selectedSoundscapeId || soundscapes[0]?.id, // Use specific ID
       background: 'deep-space', // Visual only
-      methodology: triage.selectedMethodology || 'NSDR',
+      methodology: (selectedMethodology as any) || 'NSDR',
       variables: triage.clinicalVariables
     };
 
@@ -239,6 +245,30 @@ export const LoadingGeneration: React.FC = () => {
         {!hasStarted && (
           <div className="w-full space-y-6 animate-slide-up-fade">
             <div className="border border-primary/10 bg-white/5 p-6 rounded-lg space-y-6 backdrop-blur-sm">
+
+              {/* PROTOCOL */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                  <Brain size={14} className="text-primary" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Clinical Protocol</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+                  {Object.values(CLINICAL_PROTOCOLS).map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedMethodology(p.id)}
+                      className={cn(
+                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all truncate text-left",
+                        selectedMethodology === p.id
+                          ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                          : "bg-black/20 border-white/10 text-white/40 hover:border-primary/50 hover:text-primary/80"
+                      )}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* ATMOSPHERE */}
               <div className="space-y-3">
