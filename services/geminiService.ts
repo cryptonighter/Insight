@@ -242,7 +242,8 @@ ${text}
               prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
             }
           },
-        });
+        },
+      });
 
       const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
       if (audioPart?.inlineData?.data) {
