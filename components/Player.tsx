@@ -214,17 +214,29 @@ export const Player: React.FC = () => {
                 const sc = soundscapes.find(s => s.id === meditation.soundscapeId);
                 if (sc) {
                     try {
+                        let buffer: AudioBuffer | null = null;
+
+                        // 1. Try Base64 (Legacy / Local)
                         let base64 = sc.audioBase64;
                         if (!base64 || base64.length < 100) {
                             base64 = await storageService.getSoundscapeAudio(sc.id) || '';
                         }
-                        if (base64 && isMounted) {
+
+                        if (base64 && base64.length > 100) {
                             const bytes = decodeBase64(base64);
-                            const buffer = await ctx.decodeAudioData(bytes.buffer);
-                            if (isMounted) {
-                                soundEngineRef.current.playBuffer('atmosphere', buffer, volAtmosphere);
-                                atmosphereLoaded = true;
-                            }
+                            buffer = await ctx.decodeAudioData(bytes.buffer);
+                        }
+                        // 2. Try URL (Supabase)
+                        else if (sc.audioUrl) {
+                            console.log("Fetching soundscape from URL:", sc.audioUrl);
+                            const resp = await fetch(sc.audioUrl);
+                            const ab = await resp.arrayBuffer();
+                            buffer = await ctx.decodeAudioData(ab);
+                        }
+
+                        if (buffer && isMounted) {
+                            soundEngineRef.current.playBuffer('atmosphere', buffer, volAtmosphere);
+                            atmosphereLoaded = true;
                         }
                     } catch (e) {
                         console.error("Failed soundscape load", e);
@@ -234,7 +246,7 @@ export const Player: React.FC = () => {
 
             if (isMounted) {
                 if (!atmosphereLoaded) {
-                    soundEngineRef.current.playTexture('atmosphere', volAtmosphere * 0.8);
+                    console.warn("No atmosphere loaded. Staying silent (User preference).");
                 }
 
                 // Initialize at Beta (14Hz) for alert focus, then drift down
