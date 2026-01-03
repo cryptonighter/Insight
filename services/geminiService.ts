@@ -232,7 +232,14 @@ ${text}
     try {
       if (retries > 0) await delay(1000 * Math.pow(2, retries));
 
-      const speechResponse = await ai.models.generateContent({
+      console.log(`🎤 TTS Attempt ${retries + 1}/${MAX_RETRIES} - Model: ${AUDIO_MODEL}`);
+
+      // Wrap in timeout to prevent hangs
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out after 30s")), 30000)
+      );
+
+      const apiCall = ai.models.generateContent({
         model: AUDIO_MODEL,
         contents: [{ parts: [{ text: directorPrompt }] }],
         config: {
@@ -244,6 +251,10 @@ ${text}
           },
         },
       });
+
+      const speechResponse = await Promise.race([apiCall, timeoutPromise]) as any;
+
+      console.log("🎤 TTS Response Received");
 
       const audioPart = speechResponse.candidates?.[0]?.content?.parts?.[0];
       if (audioPart?.inlineData?.data) {
