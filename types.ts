@@ -171,6 +171,7 @@ export interface Meditation {
 
   // Legacy support (optional)
   audioUrl?: string;
+  supabaseId?: string; // Real DB ID for feedback/sync
 }
 
 export interface GenerationRequest {

@@ -233,6 +233,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const rateMeditation = async (id: string, feedback: any) => {
     console.log("Submitting feedback for:", id, feedback);
     if (!user.supabaseId) return;
+
+    // Resolve Real ID
+    const meditation = meditations.find(m => m.id === id);
+    const realId = meditation?.supabaseId;
+
+    if (!realId) {
+      console.warn("⚠️ Cannot submit feedback: No synced Supabase ID found for local ID:", id);
+      return;
+    }
+
     try {
       await supabase.from('session_logs')
         .update({
@@ -241,7 +251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           immersion_score: feedback.immersion,
           user_feedback: feedback.note
         })
-        .eq('id', id);
+        .eq('id', realId);
     } catch (e) {
       console.error("Failed to save feedback", e);
     }

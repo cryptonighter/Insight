@@ -174,6 +174,12 @@ export const useMeditationGenerator = (
                                 .eq('resolution_id', activeResolution.id || 'unknown');
                         }
                         console.log("✅ Morning Session Persisted:", logData.id);
+
+                        // SAVE REAL ID TO STATE
+                        setMeditations(current => current.map(m => {
+                            if (m.id === tempId) return { ...m, supabaseId: logData.id };
+                            return m;
+                        }));
                     } else {
                         console.error("Failed to save session log", logError);
                     }
