@@ -219,7 +219,7 @@ export const generateAudioChunk = async (
 
       const speechResponse = await ai.models.generateContent({
         model: AUDIO_MODEL,
-        contents: [{ role: 'user', parts: [{ text }] }],
+        contents: [{ parts: [{ text }] }],
         config: {
           responseModalities: ['AUDIO'] as any,
           speechConfig: {
