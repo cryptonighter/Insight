@@ -75,7 +75,7 @@ const Main: React.FC = () => {
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} // Custom "Apple-like" ease
-          className="h-full w-full"
+          className="h-[100dvh] w-full bg-background-dark overflow-hidden fixed inset-0"
         >
           {renderView()}
         </motion.div>
