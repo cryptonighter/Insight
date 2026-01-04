@@ -121,13 +121,14 @@ export const useMeditationGenerator = (
                 return m;
             }));
 
-            // Merge into one big batch (User Request: Single Chunk) to minimize API calls
-            const fullText = batches.map((b: any) => b.text).join('\n\n');
-            const mergedBatches = [{ text: fullText }];
+            // Optimization: Use granular batches for streaming (TTFB < 5s) instead of single chunk
+            // const fullText = batches.map((b: any) => b.text).join('\n\n');
+            // const mergedBatches = [{ text: fullText }];
 
             // B. Init Pipeline (Audio)
             const pipeline = new MeditationPipeline(
-                mergedBatches,
+                batches,
+                config.voice,
                 config.voice,
                 (segments) => {
                     // Update Queue
