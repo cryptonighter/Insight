@@ -313,10 +313,17 @@ export const useVoiceReflection = () => {
 
         setTimeout(() => {
             if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                console.warn("⚠️ Session End Timeout: Forcing completion.");
                 disconnect();
-                setView(ViewState.DASHBOARD);
+
+                // Fallback Summary if AI hung
+                const finalSummary = summaryAccumulator.current.trim().length > 5
+                    ? summaryAccumulator.current
+                    : "Session finalized. Detailed insights may appear in your daily log.";
+
+                completeEveningReflection(finalSummary, transcriptAccumulator.current).catch(console.error);
             }
-        }, 5000);
+        }, 8000); // Increased to 8s to give AI more time
 
         wsRef.current.send(JSON.stringify({
             clientContent: {
