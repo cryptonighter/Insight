@@ -131,6 +131,44 @@ export const storageService = {
     if (error) throw error;
   },
 
+  async uploadSessionAudio(userId: string, sessionId: string, audioBlob: Blob): Promise<string | null> {
+    const fileName = `${userId}/${sessionId}.wav`;
+    const { data, error } = await supabase.storage
+      .from('meditations')
+      .upload(fileName, audioBlob, {
+        contentType: 'audio/wav',
+        upsert: true
+      });
+
+    if (error) {
+      console.error("Storage upload failed", error);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('meditations').getPublicUrl(fileName);
+    console.log("💾 Audio uploaded to:", publicUrl);
+    return publicUrl;
+  },
+
+  async uploadSessionAudio(userId: string, sessionId: string, audioBlob: Blob): Promise<string | null> {
+    const fileName = `${userId}/${sessionId}.wav`;
+    const { data, error } = await supabase.storage
+      .from('meditations')
+      .upload(fileName, audioBlob, {
+        contentType: 'audio/wav',
+        upsert: true
+      });
+
+    if (error) {
+      console.error("Storage upload failed", error);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('meditations').getPublicUrl(fileName);
+    console.log("💾 Audio uploaded to:", publicUrl);
+    return publicUrl;
+  },
+
   async getSessionLogs(userId: string) {
     const { data, error } = await supabase.from('session_logs')
       .select('*')
