@@ -24,11 +24,31 @@ export const LoadingGeneration: React.FC = () => {
   const [selectedSoundscapeId, setSelectedSoundscapeId] = useState<string>('');
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>('Kore');
   const [selectedSpeed, setSelectedSpeed] = useState<number>(0.95);
+  const [focusInput, setFocusInput] = useState("");
 
-  // Sync with triage
+  // Sync with triage & pending config
   useEffect(() => {
     if (triage.selectedMethodology) setSelectedMethodology(triage.selectedMethodology);
-  }, [triage.selectedMethodology]);
+    if (pendingMeditationConfig?.focus) setFocusInput(pendingMeditationConfig.focus);
+  }, [triage.selectedMethodology, pendingMeditationConfig]);
+
+  // Smart Defaults: Protocol -> Soundscape
+  useEffect(() => {
+    // If user is just exploring protocols, suggest soundscapes
+    const map: Record<string, string> = {
+      'NSDR': 'rain',
+      'IFS': 'stream',
+      'SOMATIC_AGENCY': 'deep-space',
+      'FUTURE_SELF': 'deep-space',
+      'ACT': 'stream',
+      'NVC': 'stream'
+    };
+    const keyword = map[selectedMethodology];
+    if (keyword && soundscapes.length > 0) {
+      const match = soundscapes.find(s => s.metadata?.atmosphere?.includes(keyword) || s.name.toLowerCase().includes(keyword));
+      if (match) setSelectedSoundscapeId(match.id);
+    }
+  }, [selectedMethodology, soundscapes]);
 
   // Preview State
   const [previewingId, setPreviewingId] = useState<string | null>(null);
@@ -140,20 +160,32 @@ export const LoadingGeneration: React.FC = () => {
     }
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    // 1. iOS Audio Unlock Strategy
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const ctx = new AudioContextClass();
+        await ctx.resume();
+        setTimeout(() => ctx.close(), 1000);
+      }
+    } catch (e) {
+      console.warn("Audio unlock failed (non-critical)", e);
+    }
+
     if (!pendingMeditationConfig) return;
     if (audioPreviewRef.current) audioPreviewRef.current.pause();
     setPreviewingId(null);
     setHasStarted(true);
 
     const config: MeditationConfig = {
-      focus: pendingMeditationConfig.focus!,
+      focus: focusInput || pendingMeditationConfig.focus || "Focus",
       feeling: pendingMeditationConfig.feeling!,
       duration: pendingMeditationConfig.duration!,
       voice: selectedVoice,
       speed: selectedSpeed,
-      soundscapeId: selectedSoundscapeId || soundscapes[0]?.id, // Use specific ID
-      background: 'deep-space', // Visual only
+      soundscapeId: selectedSoundscapeId || soundscapes[0]?.id,
+      background: 'deep-space',
       methodology: (selectedMethodology as any) || 'NSDR',
       variables: triage.clinicalVariables
     };
@@ -245,6 +277,21 @@ export const LoadingGeneration: React.FC = () => {
         {!hasStarted && (
           <div className="w-full space-y-6 animate-slide-up-fade">
             <div className="border border-primary/10 bg-white/5 p-6 rounded-lg space-y-6 backdrop-blur-sm">
+
+              {/* OBJECTIVE INPUT */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 pb-1">
+                  <Sparkles size={14} className="text-primary" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Objective</span>
+                </div>
+                <input
+                  type="text"
+                  value={focusInput}
+                  onChange={(e) => setFocusInput(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-sm p-3 text-sm text-white focus:border-primary/50 focus:outline-none transition-colors placeholder:text-white/20 font-mono"
+                  placeholder="What is your intention?"
+                />
+              </div>
 
               {/* PROTOCOL */}
               <div className="space-y-3">
