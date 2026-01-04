@@ -16,7 +16,8 @@ export const LoadingGeneration: React.FC = () => {
     triage,
     meditations,
     activeMeditationId,
-    activeResolution
+    activeResolution,
+    isLoading
   } = useApp();
 
   const [hasStarted, setHasStarted] = useState(false);
@@ -33,6 +34,8 @@ export const LoadingGeneration: React.FC = () => {
 
   // Director Intelligence (Adaptive Session Planning)
   useEffect(() => {
+    // Wait for hydration to ensure we have the Resolution
+    if (isLoading) return;
     // Only run if we haven't started and haven't run it yet
     if (directorSuggestion || hasStarted) return;
 
@@ -59,7 +62,7 @@ export const LoadingGeneration: React.FC = () => {
     // Small delay to feel "alive" after mount
     const timer = setTimeout(runDirector, 800);
     return () => clearTimeout(timer);
-  }, [hasStarted, activeResolution, meditations]);
+  }, [hasStarted, activeResolution, meditations, isLoading]);
 
 
   // Sync with triage & pending config (Overrides Director if manual triage happened)
