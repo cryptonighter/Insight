@@ -95,6 +95,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     meditations,
     activeMeditationId,
     pendingMeditationConfig,
+    setPendingMeditationConfig,
     finalizeMeditationGeneration,
     playMeditation,
     setMeditations
@@ -146,7 +147,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const startMorningSession = async () => {
-    console.log("Starting Morning Session...");
+    console.log("Starting Morning Session (Config Mode)...");
     try {
       const success = await debitToken();
       if (!success) {
@@ -154,9 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
 
-      // Prepare Config
-      // Robust fallback: If no soundscapes loaded, use a hardcoded "default" string.
-      // Ideally we should have a fallback ID known to the backend or handle "default" in generator.
+      // Prepare Initial Config (But DON'T generate yet)
       const defaultSoundscapeId = soundscapes.length > 0 ? soundscapes[0].id : "default";
 
       const config: MeditationConfig = {
@@ -166,11 +165,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         voice: 'Kore',
         speed: 1.0,
         soundscapeId: defaultSoundscapeId,
-        background: 'deep-space'
+        background: 'deep-space',
+        methodology: 'NSDR' // Default
       };
 
-      console.log("Initializing Generator with:", config);
-      await finalizeMeditationGeneration(config);
+      console.log("Setting Pending Config:", config);
+      setPendingMeditationConfig(config);
+      setCurrentView(ViewState.LOADING); // Go to "Cab"
 
     } catch (err) {
       console.error("CRITICAL: Failed to start session", err);

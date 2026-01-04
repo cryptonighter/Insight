@@ -205,6 +205,7 @@ export const useMeditationGenerator = (
         meditations,
         activeMeditationId,
         pendingMeditationConfig,
+        setPendingMeditationConfig, // EXPORTED
         finalizeMeditationGeneration,
         playMeditation,
         setMeditations
