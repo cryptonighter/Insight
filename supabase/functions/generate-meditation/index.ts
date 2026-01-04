@@ -3,8 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { CLINICAL_PROTOCOLS } from "../_shared/protocols.ts";
 import { MethodologyType } from "../_shared/types.ts";
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "google/gemini-2.0-flash-exp";
+const GEMINI_MODEL = "gemini-2.0-flash-exp";
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -53,29 +52,37 @@ serve(async (req) => {
     - Start binaural beats at ${protocol.sonicCues.startFreq}Hz and ramp to ${protocol.sonicCues.endFreq}Hz.
     `;
 
-        const openRouterKey = Deno.env.get('OPENROUTER_API_KEY');
-        if (!openRouterKey) throw new Error("Missing OPENROUTER_API_KEY");
+        // Use GOOGLE_API_KEY from Supabase Secrets
+        const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
+        if (!googleApiKey) throw new Error("Missing GOOGLE_API_KEY");
 
-        const response = await fetch(OPENROUTER_URL, {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${googleApiKey}`;
+
+        const response = await fetch(url, {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${openRouterKey}`,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: OPENROUTER_MODEL,
-                messages: [{ role: "user", content: generatorPrompt }],
-                response_format: { type: "json_object" }
+                contents: [{
+                    parts: [{ text: generatorPrompt }]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
             })
         });
 
         if (!response.ok) {
-            throw new Error(`OpenRouter Error: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`Google API Error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || "{}";
-        const cleanContent = content.replace(/```json\n?|```/g, '').trim();
+
+        // Parse Google Response
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+        const cleanContent = rawText.replace(/```json\n?|```/g, '').trim();
         const parsed = JSON.parse(cleanContent);
 
         return new Response(JSON.stringify(parsed), {

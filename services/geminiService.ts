@@ -20,7 +20,7 @@ if (!googleApiKey || googleApiKey === "") {
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 
 // Constants for models
-const TEXT_MODEL = "gemini-2.0-flash"; // Faster, stable 2.0
+const TEXT_MODEL = "gemini-2.0-flash-exp"; // Faster, stable 2.0
 const AUDIO_MODEL = "gemini-2.5-flash-preview-tts"; // 2.5 TTS Preview (Text-Only Input)
 
 // Director Tool Definitions
