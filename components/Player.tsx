@@ -404,14 +404,7 @@ export const Player: React.FC = () => {
 
     if (!meditation) return null;
 
-    if (phase === 'feedback') {
-        return (
-            <ResonanceCheck
-                sessionTitle={meditation.title || "Session"}
-                onClose={() => setView(ViewState.HOME)}
-            />
-        );
-    }
+
 
     // 2. MAIN PLAYER
     return (

@@ -174,8 +174,4 @@ export const OnboardingView: React.FC = () => {
                             </span>
                         </button>
                     </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
+
