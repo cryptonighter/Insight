@@ -239,7 +239,7 @@ export const LoadingGeneration: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-[100dvh] bg-background-dark font-display flex flex-col items-center py-12 px-6 overflow-y-auto text-primary">
+    <div className="relative h-full bg-background-dark font-display flex flex-col items-center py-12 px-6 overflow-y-auto text-primary">
       {/* Matrix Grid Background */}
       <div className="fixed top-0 left-0 w-full h-full bg-grid-pattern opacity-10 pointer-events-none"></div>
 
