@@ -4,7 +4,7 @@ import { CLINICAL_PROTOCOLS } from "../_shared/protocols.ts";
 import { MethodologyType } from "../_shared/types.ts";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "google/gemini-3-flash-preview";
+const OPENROUTER_MODEL = "google/gemini-2.0-flash-exp";
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {

@@ -24,6 +24,7 @@ export const LoadingGeneration: React.FC = () => {
 
   // Configuration State
   const [selectedMethodology, setSelectedMethodology] = useState<string>('NSDR');
+  const [hasManualSelection, setHasManualSelection] = useState(false);
   const [selectedSoundscapeId, setSelectedSoundscapeId] = useState<string>('');
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>('Kore');
   const [selectedSpeed, setSelectedSpeed] = useState<number>(0.95);
@@ -55,7 +56,9 @@ export const LoadingGeneration: React.FC = () => {
       console.log("Director Output:", ctx);
 
       setFocusInput(ctx.angle);
-      setSelectedMethodology(ctx.protocol);
+      if (!hasManualSelection) {
+        setSelectedMethodology(ctx.protocol);
+      }
       setDirectorSuggestion({ reason: ctx.reason, loading: false });
     };
 
@@ -372,7 +375,10 @@ export const LoadingGeneration: React.FC = () => {
                   {Object.values(CLINICAL_PROTOCOLS).map(p => (
                     <button
                       key={p.id}
-                      onClick={() => setSelectedMethodology(p.id)}
+                      onClick={() => {
+                        setSelectedMethodology(p.id);
+                        setHasManualSelection(true);
+                      }}
                       className={cn(
                         "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all truncate text-left",
                         selectedMethodology === p.id
