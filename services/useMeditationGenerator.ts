@@ -129,7 +129,6 @@ export const useMeditationGenerator = (
             const pipeline = new MeditationPipeline(
                 batches,
                 config.voice,
-                config.voice,
                 (segments) => {
                     // Update Queue
                     setMeditations(current => current.map(m => {
