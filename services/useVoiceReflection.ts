@@ -4,7 +4,7 @@ import { ViewState } from '../types';
 import { supabase } from '../services/supabaseClient';
 
 const HOST = "generativelanguage.googleapis.com";
-const MODEL = "models/gemini-2.0-flash-exp";
+const MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
 
 export const useVoiceReflection = () => {
     const { setView, completeEveningReflection, activeResolution, user, meditations } = useApp();
