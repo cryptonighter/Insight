@@ -304,7 +304,12 @@ export const LoadingGeneration: React.FC = () => {
                   <span className="skew-x-[10deg]">Init Sequence</span>
                 </button>
               ) : (
-                <p className="text-xs text-primary/40 animate-pulse pt-2 font-mono">ESTIMATED TIME: CALC...</p>
+                <div className="flex flex-col items-center gap-1 animate-pulse">
+                  <p className="text-xs text-primary/40 pt-2 font-mono">COMPILING NEURAL PATHWAYS...</p>
+                  <p className="text-[10px] text-white/30 font-mono tracking-wide">
+                    EST. WAIT: ~{Math.ceil(3 + ((pendingMeditationConfig?.duration || 10) * 0.4))} SECONDS
+                  </p>
+                </div>
               )}
             </div>
           ) : (
