@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, ArrowLeft, Volume2, Mic2, Wind, Terminal, Cpu, Activity, Play, Brain } from 'lucide-react';
+import { Sparkles, ArrowLeft, Volume2, Mic2, Wind, Terminal, Cpu, Activity, Play, Brain, Target } from 'lucide-react';
 import { VoiceId, MeditationConfig, ViewState } from '../types';
 import { storageService } from '../services/storageService';
+import { generateDailyContext } from '../services/geminiService';
 import { CLINICAL_PROTOCOLS } from '../server/protocols';
 import { cn } from '@/utils';
 
@@ -14,7 +15,8 @@ export const LoadingGeneration: React.FC = () => {
     setView,
     triage,
     meditations,
-    activeMeditationId
+    activeMeditationId,
+    activeResolution
   } = useApp();
 
   const [hasStarted, setHasStarted] = useState(false);
@@ -26,10 +28,47 @@ export const LoadingGeneration: React.FC = () => {
   const [selectedSpeed, setSelectedSpeed] = useState<number>(0.95);
   const [focusInput, setFocusInput] = useState("");
 
-  // Sync with triage & pending config
+  // Director State
+  const [directorSuggestion, setDirectorSuggestion] = useState<{ reason: string; loading: boolean } | null>(null);
+
+  // Director Intelligence (Adaptive Session Planning)
+  useEffect(() => {
+    // Only run if we haven't started and haven't run it yet
+    if (directorSuggestion || hasStarted) return;
+
+    const runDirector = async () => {
+      setDirectorSuggestion({ reason: "Calibrating session to your context...", loading: true });
+
+      const hour = new Date().getHours();
+      const timeOfDay = hour < 12 ? 'MORNING' : hour < 18 ? 'AFTERNOON' : 'EVENING';
+
+      // Find last meaningful reflection
+      const lastSession = [...meditations].reverse().find(m => m.transcript || (m.feedback && m.feedback.user_feedback));
+      const lastNote = lastSession?.feedback?.user_feedback || lastSession?.transcript?.slice(0, 150) || "None";
+      const resolution = activeResolution?.statement || "General Growth";
+
+      console.log("Director Input:", { resolution, lastNote, timeOfDay });
+      const ctx = await generateDailyContext(resolution, lastNote, timeOfDay);
+      console.log("Director Output:", ctx);
+
+      setFocusInput(ctx.angle);
+      setSelectedMethodology(ctx.protocol);
+      setDirectorSuggestion({ reason: ctx.reason, loading: false });
+    };
+
+    // Small delay to feel "alive" after mount
+    const timer = setTimeout(runDirector, 800);
+    return () => clearTimeout(timer);
+  }, [hasStarted, activeResolution, meditations]);
+
+
+  // Sync with triage & pending config (Overrides Director if manual triage happened)
   useEffect(() => {
     if (triage.selectedMethodology) setSelectedMethodology(triage.selectedMethodology);
-    if (pendingMeditationConfig?.focus) setFocusInput(pendingMeditationConfig.focus);
+    // Only set focus from pending if it's explicitly differing from default to avoid overwriting AI
+    if (pendingMeditationConfig?.focus && pendingMeditationConfig.focus !== "Focus") {
+      setFocusInput(pendingMeditationConfig.focus);
+    }
   }, [triage.selectedMethodology, pendingMeditationConfig]);
 
   // Smart Defaults: Protocol -> Soundscape
@@ -280,17 +319,39 @@ export const LoadingGeneration: React.FC = () => {
 
               {/* OBJECTIVE INPUT */}
               <div className="space-y-2">
-                <div className="flex items-center gap-2 pb-1">
-                  <Sparkles size={14} className="text-primary" />
-                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Objective</span>
+                <div className="flex items-center justify-between pb-1">
+                  <div className="flex items-center gap-2">
+                    <Target size={14} className="text-primary" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Today's Focus</span>
+                  </div>
+                  {directorSuggestion?.loading && <span className="text-[10px] text-primary/50 animate-pulse font-mono">CALIBRATING...</span>}
                 </div>
+
+                {/* DIRECTOR REASONING */}
+                {directorSuggestion && !directorSuggestion.loading && (
+                  <div className="bg-primary/5 border-l-2 border-primary p-3 rounded-r-sm mb-2 animate-in fade-in slide-in-from-top-1">
+                    <p className="text-[10px] text-primary/80 font-mono leading-relaxed">
+                      <span className="font-bold text-primary mr-2 uppercase tracking-wider">Director:</span>
+                      "{directorSuggestion.reason}"
+                    </p>
+                  </div>
+                )}
+
                 <input
                   type="text"
                   value={focusInput}
                   onChange={(e) => setFocusInput(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-sm p-3 text-sm text-white focus:border-primary/50 focus:outline-none transition-colors placeholder:text-white/20 font-mono"
-                  placeholder="What is your intention?"
+                  placeholder="Calibrating intention..."
                 />
+
+                {/* STATIC NORTH STAR REFERENCE */}
+                {activeResolution && (
+                  <div className="flex items-center gap-2 px-1 pt-1 opacity-50">
+                    <span className="text-[9px] uppercase tracking-widest text-white/60">North Star:</span>
+                    <span className="text-[9px] text-white italic truncate max-w-[200px]">{activeResolution.statement}</span>
+                  </div>
+                )}
               </div>
 
               {/* PROTOCOL */}
