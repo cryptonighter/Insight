@@ -292,6 +292,52 @@ ${text}
 };
 
 
+export const generateDailyContext = async (
+  resolution: string,
+  lastReflection: string,
+  timeOfDay: 'MORNING' | 'AFTERNOON' | 'EVENING'
+): Promise<{ angle: string; protocol: string; reason: string }> => {
+  const prompt = `
+    Role: Personal Meditation Director.
+    User's North Star (Resolution): "${resolution}"
+    Last Journal Note: "${lastReflection}"
+    Current Time Category: ${timeOfDay}
+
+    Task: Suggest a specific 'Daily Angle' (3-6 words) for today's session.
+    - The Angle should make progress on the North Star but be adapted to the immediate context (Time/Last Note).
+    - If Morning: Focus on priming, energy, or intention (e.g. "Visualizing the win").
+    - If Evening: Focus on integration, release, or sleep (e.g. "Letting go of the day").
+    - If Last Note was stressed: Focus on relief/reframing.
+
+    Also select the BEST Clinical Protocol ID from:
+    - [NSDR] (Rest/Focus/Sleep)
+    - [IFS] (Internal Conflict/Parts)
+    - [SOMATIC_AGENCY] (Confidence/Body)
+    - [FUTURE_SELF] (Vision/Motivation)
+    - [ACT] (Acceptance/Action)
+    - [NVC] (Relationships/Empathy)
+
+    Return JSON: { "angle": "string", "protocol": "string", "reason": "string" }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json" }
+    });
+    const parsed = JSON.parse(response.text || '{}');
+    return {
+      angle: parsed.angle || resolution,
+      protocol: parsed.protocol || "NSDR",
+      reason: parsed.reason || "Default"
+    };
+  } catch (e) {
+    console.error("Context Generation Failed", e);
+    return { angle: resolution || "Daily Focus", protocol: "NSDR", reason: "Expert System Offline" };
+  }
+};
+
 export const analyzeInsightsForPatterns = async (insights: Insight[]): Promise<Pattern[]> => {
   if (insights.length < 2) return [];
   const insightTexts = insights.map(i => `"${i.text}"`).join('\n');
