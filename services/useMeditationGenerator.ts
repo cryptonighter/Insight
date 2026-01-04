@@ -1,9 +1,23 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution } from '../types';
+import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution, PlayableSegment } from '../types';
 import { generateMeditationScript } from './geminiService';
 import { MeditationPipeline } from './MeditationPipeline';
 import { supabase } from './supabaseClient';
+import { storageService } from './storageService';
+
+// Helper to stitch audio blobs
+const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
+    const buffers = [];
+    for (const seg of segments) {
+        try {
+            const resp = await fetch(seg.audioUrl);
+            const blob = await resp.blob();
+            buffers.push(blob);
+        } catch (e) { console.error("Segment fetch failed", e); }
+    }
+    return new Blob(buffers, { type: 'audio/wav' });
+};
 
 export const useMeditationGenerator = (
     soundscapes: Soundscape[],
@@ -127,13 +141,41 @@ export const useMeditationGenerator = (
                     // We can clear pending config once we have data
                     if (segments.length > 0) setPendingMeditationConfig(null);
                 },
-                () => {
+                async () => {
                     // On Complete
+                    console.log("✨ Pipeline Complete");
+
+                    // 1. Mark as done locally
                     setMeditations(current => current.map(m => {
                         if (m.id === tempId) return { ...m, isGenerating: false };
                         return m;
                     }));
-                    console.log("✨ Pipeline Complete");
+
+                    // 2. Upload Audio (Background) - Hack to access latest state
+                    if (userId) {
+                        setMeditations(current => {
+                            const target = current.find(m => m.id === tempId);
+                            if (target && target.supabaseId && target.audioQueue.length > 0) {
+                                (async () => {
+                                    try {
+                                        console.log("☁️ Stitching and uploading session audio...");
+                                        const fullBlob = await stitchAudio(target.audioQueue);
+                                        const publicUrl = await storageService.uploadSessionAudio(userId, target.supabaseId!, fullBlob);
+
+                                        if (publicUrl) {
+                                            await supabase.from('session_logs')
+                                                .update({ audio_url: publicUrl })
+                                                .eq('id', target.supabaseId);
+                                            console.log("✅ Audio persisted to DB:", publicUrl);
+                                        }
+                                    } catch (err) {
+                                        console.error("Audio persist failed", err);
+                                    }
+                                })();
+                            }
+                            return current;
+                        });
+                    }
                 }
             );
 
