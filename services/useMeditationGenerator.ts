@@ -112,7 +112,9 @@ export const useMeditationGenerator = (
                 config.duration,
                 selectedSoundscape.metadata.description,
                 config.voice,
-                contextTexts
+                contextTexts,
+                config.methodology,
+                config.variables
             );
 
             // Update title/transcript immediately

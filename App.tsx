@@ -81,38 +81,7 @@ const Main: React.FC = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Global Hard Reset (Dev Tool) - RESTORED FOR TESTING */}
-      <div className="fixed top-24 right-4 z-[9999]">
-        <button
-          onClick={async () => {
-            if (confirm("⚠️ GLOBAL RESET? This wipes everything AND Logs you out.")) {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user?.id) {
-                const uid = user.id;
-                console.log("Resetting data for:", uid);
-                // 1. Wipe Data
-                await supabase.from('user_economy').delete().eq('user_id', uid);
-                await supabase.from('resolutions').delete().eq('user_id', uid);
-                await supabase.from('daily_entries').delete().eq('user_id', uid);
-                await supabase.from('session_logs').delete().eq('user_id', uid);
 
-                // 2. Sign Out to force Login Screen
-                await supabase.auth.signOut();
-
-                window.location.reload();
-              } else {
-                // Even if no user found, force sign out to see login screen
-                await supabase.auth.signOut();
-                window.location.reload();
-              }
-            }
-          }}
-          className="w-12 h-12 rounded-full bg-red-600 text-white font-bold text-xl flex items-center justify-center shadow-2xl border-2 border-white/20 hover:scale-110 active:scale-95 transition-all"
-          title="Reset & Logout"
-        >
-          R
-        </button>
-      </div>
     </div>
   );
 };
