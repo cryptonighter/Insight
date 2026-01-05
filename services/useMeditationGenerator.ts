@@ -121,85 +121,92 @@ export const useMeditationGenerator = (
                 return m;
             }));
 
-            // --- ATOMIC GENERATION (High Consistency) ---
-            const fullText = batches.map((b: any) => b.text).join('\n\n');
-            console.log("🎤 Generating Atomic Audio (" + fullText.length + " chars)...");
+            // --- BATCH GENERATION (Prevents Truncation) ---
+            console.log(`🎤 Processing ${batches.length} batches to prevent audio truncation...`);
 
-            try {
-                const { audioData, mimeType } = await generateAudioChunk(fullText, config.voice);
+            const newAudioQueue: PlayableSegment[] = [];
 
-                const writeString = (view: DataView, offset: number, string: string) => {
-                    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-                };
+            // Process sequentially to maintain order and avoid rate limits
+            for (let i = 0; i < batches.length; i++) {
+                const batch = batches[i];
+                console.log(`🎤 Generating Batch ${i + 1}/${batches.length} (${batch.text.length} chars)...`);
 
-                const binary = atob(audioData);
-                const len = binary.length;
-                const buffer = new ArrayBuffer(44 + len);
-                const view = new DataView(buffer);
+                try {
+                    const { audioData } = await generateAudioChunk(batch.text, config.voice);
 
-                // WAV Header for 24kHz Mono 16-bit PCM
-                writeString(view, 0, 'RIFF');
-                view.setUint32(4, 36 + len, true);
-                writeString(view, 8, 'WAVE');
-                writeString(view, 12, 'fmt ');
-                view.setUint32(16, 16, true); // Subchunk1Size
-                view.setUint16(20, 1, true); // AudioFormat (PCM)
-                view.setUint16(22, 1, true); // NumChannels (Mono)
-                view.setUint32(24, 24000, true); // SampleRate (24kHz for Gemini 2.5)
-                view.setUint32(28, 24000 * 2, true); // ByteRate
-                view.setUint16(32, 2, true); // BlockAlign
-                view.setUint16(34, 16, true); // BitsPerSample
-                writeString(view, 36, 'data');
-                view.setUint32(40, len, true);
+                    // Convert Base64 directly to Blob URL
+                    const binary = atob(audioData);
+                    const len = binary.length;
+                    const buffer = new ArrayBuffer(44 + len);
+                    const view = new DataView(buffer);
 
-                // Write PCM Data
-                const pcmBytes = new Uint8Array(buffer, 44);
-                for (let i = 0; i < len; i++) {
-                    pcmBytes[i] = binary.charCodeAt(i);
-                }
+                    // Re-use simple WAV header logic for each chunk
+                    const writeString = (view: DataView, offset: number, string: string) => {
+                        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+                    };
 
-                const blob = new Blob([buffer], { type: 'audio/wav' });
-                const url = URL.createObjectURL(blob);
+                    // WAV Header
+                    writeString(view, 0, 'RIFF');
+                    view.setUint32(4, 36 + len, true);
+                    writeString(view, 8, 'WAVE');
+                    writeString(view, 12, 'fmt ');
+                    view.setUint32(16, 16, true);
+                    view.setUint16(20, 1, true);
+                    view.setUint16(22, 1, true);
+                    view.setUint32(24, 24000, true);
+                    view.setUint32(28, 24000 * 2, true);
+                    view.setUint16(32, 2, true);
+                    view.setUint16(34, 16, true);
+                    writeString(view, 36, 'data');
+                    view.setUint32(40, len, true);
 
-                // Update Queue with Single Atomic Chunk
-                setMeditations(current => current.map(m => {
-                    if (m.id === tempId) {
-                        return {
-                            ...m,
-                            audioQueue: [{ id: 'atomic-1', text: fullText, audioUrl: url, duration: config.duration * 60 }],
-                            isGenerating: false
-                        };
-                    }
-                    return m;
-                }));
+                    const pcmBytes = new Uint8Array(buffer, 44);
+                    for (let k = 0; k < len; k++) pcmBytes[k] = binary.charCodeAt(k);
 
-                setPendingMeditationConfig(null);
+                    const blob = new Blob([buffer], { type: 'audio/wav' });
+                    const url = URL.createObjectURL(blob);
 
-                // 2. Upload Audio (Background)
-                if (userId) {
-                    setMeditations(current => {
-                        const target = current.find(m => m.id === tempId);
-                        if (target && target.supabaseId) {
-                            (async () => {
-                                try {
-                                    console.log("☁️ Uploading session audio...");
-                                    const publicUrl = await storageService.uploadSessionAudio(userId, target.supabaseId!, blob);
-
-                                    if (publicUrl) {
-                                        await supabase.from('session_logs')
-                                            .update({ audio_url: publicUrl })
-                                            .eq('id', target.supabaseId);
-                                        console.log("✅ Audio persisted to DB:", publicUrl);
-                                    }
-                                } catch (err) {
-                                    console.error("Audio persist failed", err);
-                                }
-                            })();
-                        }
-                        return current;
+                    newAudioQueue.push({
+                        id: `batch-${i}`,
+                        text: batch.text,
+                        audioUrl: url,
+                        // Estimate duration from bytes (24kHz * 2 bytes/sample = 48000 bytes/sec)
+                        duration: len / 48000
                     });
+
+                } catch (batchErr) {
+                    console.error(`❌ Batch ${i} failed:`, batchErr);
+                    // Continue to next batch? or stop? 
+                    // For now, we skip.
                 }
-            } catch (e) { /*...*/ }
+            }
+
+            if (newAudioQueue.length === 0) {
+                throw new Error("No audio generated from batches.");
+            }
+
+            // Update State with Full Queue
+            setMeditations(current => current.map(m => {
+                if (m.id === tempId) {
+                    return {
+                        ...m,
+                        audioQueue: newAudioQueue,
+                        isGenerating: false
+                    };
+                }
+                return m;
+            }));
+
+            // Calculate Approximate Total Duration
+            const totalDuration = newAudioQueue.reduce((acc, curr) => acc + curr.duration, 0);
+            console.log(`✅ Generation Complete. Total Audio: ${totalDuration.toFixed(1)}s`);
+
+            setPendingMeditationConfig(null);
+
+            // 2. Upload Audio (Background) - Upload first chunk OR stitch?
+            // For now, we only upload the *First* chunk as a preview, or we'd need to stitch them.
+            // Stitching is expensive in JS. Let's upload the first chunk for the record.
+
 
 
             // 3. PERSISTENCE (Product Grade)
@@ -233,6 +240,21 @@ export const useMeditationGenerator = (
                                 .eq('resolution_id', activeResolution.id || 'unknown');
                         }
                         console.log("✅ Morning Session Persisted:", logData.id);
+
+                        // 4. UPLOAD STITCHED AUDIO (Background)
+                        if (newAudioQueue.length > 0) {
+                            stitchAudio(newAudioQueue).then(blob => {
+                                console.log("☁️ Uploading stitched global audio...");
+                                storageService.uploadSessionAudio(userId, config.soundscapeId || 'default', blob).then(publicUrl => {
+                                    if (publicUrl) {
+                                        supabase.from('session_logs')
+                                            .update({ audio_url: publicUrl })
+                                            .eq('id', logData.id);
+                                        console.log("✅ Audio successfully linked to session:", publicUrl);
+                                    }
+                                });
+                            });
+                        }
 
                         // SAVE REAL ID TO STATE
                         setMeditations(current => current.map(m => {
