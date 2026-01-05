@@ -17,7 +17,8 @@ export const LoadingGeneration: React.FC = () => {
     meditations,
     activeMeditationId,
     activeResolution,
-    isLoading
+    isLoading,
+    setPendingMeditationConfig
   } = useApp();
 
   const [hasStarted, setHasStarted] = useState(false);
