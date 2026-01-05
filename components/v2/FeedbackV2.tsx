@@ -17,7 +17,7 @@ const NEGATIVE_TAGS = [
 ];
 
 export const FeedbackV2: React.FC = () => {
-    const { setView, rateMeditation, activeMeditationId } = useApp();
+    const { setView, rateMeditation, activeMeditationId, completeEveningReflection, meditations } = useApp();
     const [selectedPositive, setSelectedPositive] = useState<string[]>([]);
     const [selectedNegative, setSelectedNegative] = useState<string[]>([]);
     const [customNote, setCustomNote] = useState("");
@@ -39,6 +39,7 @@ export const FeedbackV2: React.FC = () => {
         // If mostly positive, high score. If negative, low.
         const score = selectedNegative.length > 0 ? 3 : 5;
 
+        // 1. Submit Feedback to DB
         await rateMeditation(activeMeditationId, {
             pacing: 5, // Legacy
             voice: 5, // Legacy
@@ -50,10 +51,14 @@ export const FeedbackV2: React.FC = () => {
             })
         });
 
-        // Add a small delay for "Sending..." feel
-        setTimeout(() => {
-            setView(ViewState.SESSION_SUMMARY); // Go to Summary after feedback
-        }, 800);
+        // 2. Complete Session Lifecycle (Grants tokens, updates Context for Summary View)
+        const meditation = meditations.find(m => m.id === activeMeditationId);
+        await completeEveningReflection(
+            customNote || "Session completed successfully.",
+            meditation?.transcript
+        );
+
+        // Note: completeEveningReflection handles routing to SESSION_SUMMARY
     };
 
     return (
@@ -77,8 +82,8 @@ export const FeedbackV2: React.FC = () => {
                                 key={tag}
                                 onClick={() => toggleTag(tag, 'POS')}
                                 className={`px-3 py-2 text-[10px] uppercase tracking-wider border transition-all ${selectedPositive.includes(tag)
-                                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                                        : 'bg-black/30 border-white/10 text-white/40 hover:border-emerald-500/50'
+                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                    : 'bg-black/30 border-white/10 text-white/40 hover:border-emerald-500/50'
                                     }`}
                             >
                                 {tag}
@@ -99,8 +104,8 @@ export const FeedbackV2: React.FC = () => {
                                 key={tag}
                                 onClick={() => toggleTag(tag, 'NEG')}
                                 className={`px-3 py-2 text-[10px] uppercase tracking-wider border transition-all ${selectedNegative.includes(tag)
-                                        ? 'bg-red-500/20 border-red-500 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                                        : 'bg-black/30 border-white/10 text-white/40 hover:border-red-500/50'
+                                    ? 'bg-red-500/20 border-red-500 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                                    : 'bg-black/30 border-white/10 text-white/40 hover:border-red-500/50'
                                     }`}
                             >
                                 {tag}
