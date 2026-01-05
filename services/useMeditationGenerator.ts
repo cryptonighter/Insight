@@ -82,6 +82,11 @@ export const useMeditationGenerator = (
                 }
             }
 
+            console.log("🎵 Soundscape Selection Debug:", {
+                requestedId: config.soundscapeId,
+                availableCount: soundscapes.length,
+                availableIds: soundscapes.map(s => s.id)
+            });
             let selectedSoundscape = soundscapes.find(s => s.id === config.soundscapeId) || soundscapes[0];
 
             const newMeditation: Meditation = {

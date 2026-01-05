@@ -25,6 +25,7 @@ serve(async (req: Request) => {
     - Focus: ${focus}
     - Feeling: ${targetFeeling}
     - Duration: ${durationMinutes} minutes
+    - Target Word Count: ~${durationMinutes * 130} words (Vital for pacing)
     - Protocol Context: ${protocol.description}
     - System Instruction: ${protocol.systemInput}
     - Variables: ${JSON.stringify(variables)}

@@ -213,18 +213,13 @@ export const generateAudioChunk = async (
   let retries = 0;
   const MAX_RETRIES = 3;
 
-  // Enhancing the prompt with "Director Mode" instructions as per docs
+  // Enhancing the prompt with STRICT consistency for batches
   const directorPrompt = `
-# AUDIO PROFILE: ${voice}
-## THE SCENE: Inner Space
-The guide is a warm, eternal presence speaking directly to the listener's soul. The environment is vast, quiet using only the voice to ground the user.
+Instruction: Speak the following text clearly, slowly, and with a warm, compassionate tone.
+Voice Profile: ${voice || 'Kore'}
+Style: Meditation Guide. Hypnotic, calm, very slow pacing.
 
-### DIRECTOR'S NOTES
-Style: Hypnotic, Deep, Slow, compassionate.
-Pacing: Very slow. Allow space between thoughts.
-Articulation: Soft, precise, but relaxed.
-
-#### TRANSCRIPT
+TEXT TO SPEAK:
 ${text}
 `;
 
