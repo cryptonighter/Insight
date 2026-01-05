@@ -3,7 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { CLINICAL_PROTOCOLS } from "../_shared/protocols.ts";
 import { MethodologyType } from "../_shared/types.ts";
 
-const GEMINI_MODEL = "gemini-2.0-flash-exp";
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -52,38 +52,60 @@ serve(async (req) => {
     - Start binaural beats at ${protocol.sonicCues.startFreq}Hz and ramp to ${protocol.sonicCues.endFreq}Hz.
     `;
 
-        // Use GOOGLE_API_KEY from Supabase Secrets
-        const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
-        if (!googleApiKey) throw new Error("Missing GOOGLE_API_KEY");
+        // Try multiple env vars
+        const googleApiKey = Deno.env.get('GOOGLE_API_KEY') ||
+            Deno.env.get('VITE_GOOGLE_API_KEY') ||
+            Deno.env.get('NEXT_PUBLIC_GOOGLE_API_KEY');
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${googleApiKey}`;
+        const keySource = Deno.env.get('GOOGLE_API_KEY') ? 'GOOGLE_API_KEY' :
+            Deno.env.get('VITE_GOOGLE_API_KEY') ? 'VITE_GOOGLE_API_KEY' : 'UNKNOWN';
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: generatorPrompt }]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
-            })
-        });
+        if (!googleApiKey) throw new Error("Missing GOOGLE_API_KEY (checked GOOGLE_API_KEY, VITE_..., NEXT_...)");
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Google API Error: ${response.status} - ${errorText}`);
+        const callGoogleAI = async (model: string) => {
+            console.log(`Attempting generation with model: ${model}`);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`;
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: generatorPrompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                // EXPOSE KEY DETAILS FOR DEBUGGING
+                throw new Error(`Google API Error (${model}): ${response.status} - ${errorText} || KeySource: ${keySource} || KeyPrefix: ${googleApiKey.substring(0, 5)}...`);
+            }
+
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+            const cleanContent = rawText.replace(/```json\n?|```/g, '').trim();
+            return JSON.parse(cleanContent);
+        };
+
+        const PRIMARY_MODEL = "gemini-2.5-flash";
+        const FALLBACK_MODEL = "gemini-1.5-flash";
+
+        let parsed;
+        try {
+            parsed = await callGoogleAI(PRIMARY_MODEL);
+        } catch (primaryError) {
+            console.warn(`Primary model (${PRIMARY_MODEL}) failed. Falling back to ${FALLBACK_MODEL}. Error:`, primaryError);
+            try {
+                parsed = await callGoogleAI(FALLBACK_MODEL);
+            } catch (fallbackError) {
+                console.error("Fallback model failed too:", fallbackError);
+                // Return the detailed error to the client
+                throw new Error(fallbackError.message);
+            }
         }
 
-        const data = await response.json();
-
-        // Parse Google Response
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-        const cleanContent = rawText.replace(/```json\n?|```/g, '').trim();
-        const parsed = JSON.parse(cleanContent);
+        return new Response(JSON.stringify(parsed), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
 
         return new Response(JSON.stringify(parsed), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

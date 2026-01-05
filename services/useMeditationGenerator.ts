@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution, PlayableSegment } from '../types';
-import { generateMeditationScript } from './geminiService';
+import { generateMeditationScript, generateAudioChunk } from './geminiService';
 import { MeditationPipeline } from './MeditationPipeline';
 import { supabase } from './supabaseClient';
 import { storageService } from './storageService';
@@ -103,8 +103,6 @@ export const useMeditationGenerator = (
             setActiveMeditationId(tempId);
             setView(ViewState.LOADING);
 
-            // --- PIPELINE ARCHITECTURE START ---
-
             // A. Generate Script (Text)
             const { title, lines, batches } = await generateMeditationScript(
                 config.focus,
@@ -123,68 +121,59 @@ export const useMeditationGenerator = (
                 return m;
             }));
 
-            // Optimization: Use granular batches for streaming (TTFB < 5s) instead of single chunk
-            // const fullText = batches.map((b: any) => b.text).join('\n\n');
-            // const mergedBatches = [{ text: fullText }];
+            // --- ATOMIC GENERATION (High Consistency) ---
+            const fullText = batches.map((b: any) => b.text).join('\n\n');
+            console.log("🎤 Generating Atomic Audio (" + fullText.length + " chars)...");
 
-            // B. Init Pipeline (Audio)
-            const pipeline = new MeditationPipeline(
-                batches,
-                config.voice,
-                (segments) => {
-                    // Update Queue
-                    setMeditations(current => current.map(m => {
-                        if (m.id === tempId) {
-                            return { ...m, audioQueue: [...m.audioQueue, ...segments] };
-                        }
-                        return m;
-                    }));
-                    // After first chunk, we are "Playing" (conceptually), but loading screen handles 'ready'
-                    // We can clear pending config once we have data
-                    if (segments.length > 0) setPendingMeditationConfig(null);
-                },
-                async () => {
-                    // On Complete
-                    console.log("✨ Pipeline Complete");
+            try {
+                const { audioData, mimeType } = await generateAudioChunk(fullText, config.voice);
 
-                    // 1. Mark as done locally
-                    setMeditations(current => current.map(m => {
-                        if (m.id === tempId) return { ...m, isGenerating: false };
-                        return m;
-                    }));
+                // Convert Base64 (from Gemini) to Blob URL
+                const binary = atob(audioData);
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+                const blob = new Blob([array], { type: mimeType });
+                const url = URL.createObjectURL(blob);
 
-                    // 2. Upload Audio (Background) - Hack to access latest state
-                    if (userId) {
-                        setMeditations(current => {
-                            const target = current.find(m => m.id === tempId);
-                            if (target && target.supabaseId && target.audioQueue.length > 0) {
-                                (async () => {
-                                    try {
-                                        console.log("☁️ Stitching and uploading session audio...");
-                                        const fullBlob = await stitchAudio(target.audioQueue);
-                                        const publicUrl = await storageService.uploadSessionAudio(userId, target.supabaseId!, fullBlob);
-
-                                        if (publicUrl) {
-                                            await supabase.from('session_logs')
-                                                .update({ audio_url: publicUrl })
-                                                .eq('id', target.supabaseId);
-                                            console.log("✅ Audio persisted to DB:", publicUrl);
-                                        }
-                                    } catch (err) {
-                                        console.error("Audio persist failed", err);
-                                    }
-                                })();
-                            }
-                            return current;
-                        });
+                // Update Queue with Single Atomic Chunk
+                setMeditations(current => current.map(m => {
+                    if (m.id === tempId) {
+                        return {
+                            ...m,
+                            audioQueue: [{ id: 'atomic-1', text: fullText, audioUrl: url, duration: config.duration * 60 }],
+                            isGenerating: false
+                        };
                     }
+                    return m;
+                }));
+
+                setPendingMeditationConfig(null);
+
+                // 2. Upload Audio (Background)
+                if (userId) {
+                    setMeditations(current => {
+                        const target = current.find(m => m.id === tempId);
+                        if (target && target.supabaseId) {
+                            (async () => {
+                                try {
+                                    console.log("☁️ Uploading session audio...");
+                                    const publicUrl = await storageService.uploadSessionAudio(userId, target.supabaseId!, blob);
+
+                                    if (publicUrl) {
+                                        await supabase.from('session_logs')
+                                            .update({ audio_url: publicUrl })
+                                            .eq('id', target.supabaseId);
+                                        console.log("✅ Audio persisted to DB:", publicUrl);
+                                    }
+                                } catch (err) {
+                                    console.error("Audio persist failed", err);
+                                }
+                            })();
+                        }
+                        return current;
+                    });
                 }
-            );
-
-            pipelineRef.current = pipeline;
-            pipeline.start();
-
-            // --- PIPELINE ARCHITECTURE END ---
+            } catch (e) { /*...*/ }
 
 
             // 3. PERSISTENCE (Product Grade)

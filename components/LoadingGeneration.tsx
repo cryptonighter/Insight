@@ -417,6 +417,30 @@ export const LoadingGeneration: React.FC = () => {
                 </div>
               </div>
 
+              {/* DURATION */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                  <Activity size={14} className="text-primary" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Duration</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[5, 10, 15, 20].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setPendingMeditationConfig(prev => ({ ...prev, duration: d }))}
+                      className={cn(
+                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all",
+                        (pendingMeditationConfig?.duration || 5) === d
+                          ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                          : "bg-black/20 border-white/10 text-white/40 hover:border-primary/50 hover:text-primary/80"
+                      )}
+                    >
+                      {d}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* VOICE */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 border-b border-white/10 pb-2">
