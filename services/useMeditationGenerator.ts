@@ -82,7 +82,7 @@ export const useMeditationGenerator = (
                 }
             }
 
-            let selectedSoundscape = soundscapes[0];
+            let selectedSoundscape = soundscapes.find(s => s.id === config.soundscapeId) || soundscapes[0];
 
             const newMeditation: Meditation = {
                 id: tempId,

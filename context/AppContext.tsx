@@ -248,10 +248,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       await supabase.from('session_logs')
         .update({
-          pacing_score: feedback.pacing,
-          voice_score: feedback.voice,
-          immersion_score: feedback.immersion,
-          feedback: feedback.note // Renamed from user_feedback to match schema
+          // Storage Policy: 'feedback' is a JSONB column that stores all subjective ratings
+          feedback: {
+            pacing_score: feedback.pacing,
+            voice_score: feedback.voice,
+            immersion_score: feedback.immersion,
+            note: feedback.note
+          }
         })
         .eq('id', realId);
     } catch (e) {

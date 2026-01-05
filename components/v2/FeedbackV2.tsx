@@ -118,12 +118,12 @@ export const FeedbackV2: React.FC = () => {
                 <section>
                     <div className="flex items-center gap-2 mb-4 text-primary">
                         <MessageSquare size={16} />
-                        <span className="text-xs uppercase tracking-wider font-bold">Custom Report</span>
+                        <span className="text-xs uppercase tracking-wider font-bold">My Insights & Realisations</span>
                     </div>
                     <textarea
                         value={customNote}
                         onChange={(e) => setCustomNote(e.target.value)}
-                        placeholder="Detailed observations on generation quality..."
+                        placeholder="What came up for you during this session? Any breakthroughs?"
                         className="w-full h-24 bg-black/40 border border-white/10 p-3 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50 resize-none"
                     />
                 </section>
