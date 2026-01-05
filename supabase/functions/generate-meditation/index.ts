@@ -5,7 +5,7 @@ import { MethodologyType } from "../_shared/types.ts";
 
 const GEMINI_MODEL = "gemini-1.5-flash";
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -99,7 +99,8 @@ serve(async (req) => {
             } catch (fallbackError) {
                 console.error("Fallback model failed too:", fallbackError);
                 // Return the detailed error to the client
-                throw new Error(fallbackError.message);
+                const errorMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                throw new Error(errorMessage);
             }
         }
 
@@ -112,8 +113,9 @@ serve(async (req) => {
         });
 
     } catch (error) {
-        console.error("Generate Function Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Generate Function Error:", errorMessage);
+        return new Response(JSON.stringify({ error: errorMessage }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 500
         });

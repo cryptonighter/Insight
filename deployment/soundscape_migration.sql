@@ -12,12 +12,16 @@ CREATE TABLE IF NOT EXISTS soundscapes (
 ALTER TABLE soundscapes ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+-- Policies
+DROP POLICY IF EXISTS "Public read access for soundscapes" ON soundscapes;
 CREATE POLICY "Public read access for soundscapes" ON soundscapes
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admins start upload soundscapes" ON soundscapes;
 CREATE POLICY "Admins start upload soundscapes" ON soundscapes
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can delete soundscapes" ON soundscapes;
 CREATE POLICY "Admins can delete soundscapes" ON soundscapes
   FOR DELETE USING (auth.uid() = user_id);
 
