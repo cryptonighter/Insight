@@ -44,11 +44,11 @@ export const FeedbackV2: React.FC = () => {
             pacing: 5, // Legacy
             voice: 5, // Legacy
             immersion: score,
-            note: JSON.stringify({
+            note: {
                 positive: selectedPositive,
                 negative: selectedNegative,
                 custom: customNote
-            })
+            }
         });
 
         // 2. Complete Session Lifecycle (Grants tokens, updates Context for Summary View)

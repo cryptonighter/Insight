@@ -251,7 +251,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           pacing_score: feedback.pacing,
           voice_score: feedback.voice,
           immersion_score: feedback.immersion,
-          user_feedback: feedback.note
+          feedback: feedback.note // Renamed from user_feedback to match schema
         })
         .eq('id', realId);
     } catch (e) {
