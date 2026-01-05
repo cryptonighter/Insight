@@ -42,6 +42,7 @@ interface AppState {
   meditations: Meditation[];
   activeMeditationId: string | null;
   pendingMeditationConfig: Partial<MeditationConfig> | null;
+  setPendingMeditationConfig: React.Dispatch<React.SetStateAction<Partial<MeditationConfig> | null>>;
 
   // Legacy/Context State (Keeping for now)
   insights: Insight[];
@@ -268,6 +269,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       meditations,
       activeMeditationId,
       pendingMeditationConfig,
+      setPendingMeditationConfig,
       isLoading,
 
       // actions
