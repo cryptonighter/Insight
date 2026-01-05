@@ -128,11 +128,37 @@ export const useMeditationGenerator = (
             try {
                 const { audioData, mimeType } = await generateAudioChunk(fullText, config.voice);
 
-                // Convert Base64 (from Gemini) to Blob URL
+                const writeString = (view: DataView, offset: number, string: string) => {
+                    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+                };
+
                 const binary = atob(audioData);
-                const array = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-                const blob = new Blob([array], { type: mimeType });
+                const len = binary.length;
+                const buffer = new ArrayBuffer(44 + len);
+                const view = new DataView(buffer);
+
+                // WAV Header for 24kHz Mono 16-bit PCM
+                writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + len, true);
+                writeString(view, 8, 'WAVE');
+                writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true); // Subchunk1Size
+                view.setUint16(20, 1, true); // AudioFormat (PCM)
+                view.setUint16(22, 1, true); // NumChannels (Mono)
+                view.setUint32(24, 24000, true); // SampleRate (24kHz for Gemini 2.5)
+                view.setUint32(28, 24000 * 2, true); // ByteRate
+                view.setUint16(32, 2, true); // BlockAlign
+                view.setUint16(34, 16, true); // BitsPerSample
+                writeString(view, 36, 'data');
+                view.setUint32(40, len, true);
+
+                // Write PCM Data
+                const pcmBytes = new Uint8Array(buffer, 44);
+                for (let i = 0; i < len; i++) {
+                    pcmBytes[i] = binary.charCodeAt(i);
+                }
+
+                const blob = new Blob([buffer], { type: 'audio/wav' });
                 const url = URL.createObjectURL(blob);
 
                 // Update Queue with Single Atomic Chunk
