@@ -226,6 +226,11 @@ Style:
 * Tone: Warm, compassionate, non-judgmental, and hypnotic.
 * Dynamics: Soft, intimate projection. Avoid any "announcer" or "reading" tone. It must feel like a natural, heartfelt conversation with the soul.
 
+Performance Instructions:
+- [Audible Inhale] / [Audible Exhale]: YOU MUST PERFORM THESE SOUNDS AUDIBLY. Do not speak the words. Take a deep, slow breath in/out.
+- [Silence] / ... : Pause for 2-3 seconds to let the words land.
+- Spacing: Leave ample space between sentences.
+
 Pacing:
 * The "Drift": The tempo is incredibly slow and liquid. Words bleed into each other. There is zero urgency.
 * Allow pauses to breathe.

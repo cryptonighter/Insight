@@ -51,6 +51,11 @@ serve(async (req: Request) => {
     IMPORTANT:
     - Use ${protocol.sonicCues.atmosphere} as the implied atmosphere.
     - Start binaural beats at ${protocol.sonicCues.startFreq}Hz and ramp to ${protocol.sonicCues.endFreq}Hz.
+
+    BREATHING AND PACING:
+    - You MUST include audible breathing cues such as "[Audible Inhale]" and "[Audible Exhale]" where appropriate.
+    - Use "..." or "[Silence]" to indicate pauses between phrases.
+    - Pacing should be SLOW.
     `;
 
         // Try multiple env vars
