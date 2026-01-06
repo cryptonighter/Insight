@@ -214,12 +214,27 @@ export const generateAudioChunk = async (
   const MAX_RETRIES = 3;
 
   // Enhancing the prompt with STRICT consistency for batches
+  // Enhancing the prompt with STRICT consistency for batches
   const directorPrompt = `
-Instruction: Speak the following text clearly, slowly, and with a warm, compassionate tone.
-Voice Profile: ${voice || 'Kore'}
-Style: Meditation Guide. Hypnotic, calm, very slow pacing.
+# AUDIO PROFILE: ${voice || 'Kore'}
+## THE SCENE: The Inner Sanctuary
+A vast, boundless space of perfect stillness. The acoustics are warm and intimate, as if the guide is speaking directly next to the listener's ear, yet the environment feels expansive. There is a sense of safety and timelessness. The guide is a compassionate, eternal presence.
 
-TEXT TO SPEAK:
+### DIRECTOR'S NOTES
+Style:
+* The "Grounding Presence": The voice should be deeply rooted, stable, and incredibly soothing.
+* Tone: Warm, compassionate, non-judgmental, and hypnotic.
+* Dynamics: Soft, intimate projection. Avoid any "announcer" or "reading" tone. It must feel like a natural, heartfelt conversation with the soul.
+
+Pacing:
+* The "Drift": The tempo is incredibly slow and liquid. Words bleed into each other. There is zero urgency.
+* Allow pauses to breathe.
+* Speak slowly, clearly, and deliberate.
+
+Accent:
+* Neutral, clear, global English.
+
+#### TRANSCRIPT
 ${text}
 `;
 
