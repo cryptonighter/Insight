@@ -18,6 +18,37 @@ serve(async (req: Request) => {
             throw new Error("Invalid methodology");
         }
 
+        const getStructureInstructions = (mins: number) => {
+            if (mins <= 5) {
+                return `
+                STRUCTURE (5 Minutes):
+                - Create 1 SINGLE batch containing the entire session.
+                - Flow: Short intro -> Quick technique -> Brief outro.
+                `;
+            } else if (mins <= 10) {
+                return `
+                STRUCTURE (10 Minutes):
+                - Create EXACTLY 3 BATCHES:
+                  1. Intro (approx 2 mins): Settling in, preparing context.
+                  2. Main Session (approx 7 mins): The core protocol/technique.
+                  3. Outro (approx 1 min): Grounding back, CTA.
+                - Ensure context flows smoothly between them.
+                `;
+            } else {
+                return `
+                STRUCTURE (20+ Minutes):
+                - Create EXACTLY 4 BATCHES:
+                  1. Intro (approx 2 mins): Deep settling.
+                  2. Main Part 1 (approx 7 mins): Core technique A.
+                  3. Main Part 2 (approx 7 mins): Core technique B / Deepening.
+                  4. Outro (approx 4 mins): Long integration & Landing.
+                - Ensure distinct progression between parts.
+                `;
+            }
+        };
+
+        const structureInstructions = getStructureInstructions(durationMinutes);
+
         const generatorPrompt = `
     You are an expert Clinical Generator. Generate a meditation script following the ${protocol.name} protocol.
     
@@ -32,7 +63,8 @@ serve(async (req: Request) => {
     
     TASK:
     Generate a JSON object containing the meditation script.
-    The script should be broken into "batches" or chunks for progressive loading.
+    
+    ${structureInstructions}
     
     JSON FORMAT:
     {
@@ -41,7 +73,7 @@ serve(async (req: Request) => {
         {
           "text": "Spoken text...",
           "instructions": [
-             { "action": "FADE_VOL", "layer": "music", "targetValue": 0.5, "duration": 5 }
+            { "action": "FADE_VOL", "layer": "music", "targetValue": 0.5, "duration": 5 }
           ]
         }
       ],
@@ -109,10 +141,6 @@ serve(async (req: Request) => {
                 throw new Error(errorMessage);
             }
         }
-
-        return new Response(JSON.stringify(parsed), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
 
         return new Response(JSON.stringify(parsed), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
