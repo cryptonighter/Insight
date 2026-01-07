@@ -62,18 +62,18 @@ Pacing:
 `,
   'Puck': `
 # AUDIO PROFILE: Puck
-## THE SCENE: The Sunlit Meadow
-A bright, open field with a light breeze. The energy is lighter, clearer, and more awakening.
+## THE SCENE: The Sunlit Studio
+A warm, acoustically treated space filled with soft natural light. It feels safe, clear, and focused.
 
 ### DIRECTOR'S NOTES
 Style:
-* "The Guide": Neutral, clear, slightly more energetic but still calm.
-* Tone: Clean, crisp, modern.
-* Dynamics: Gentle encouragement.
+* "The Balanced Companion": Grounded, mellow, and clear.
+* Tone: Warm mid-range, relaxed, conversational but deeply present.
+* Dynamics: Gentle, even, reassuring.
 
 Pacing:
-* "The Flow": Smooth, steady, slightly faster than Kore but still meditative.
-* [Audible Inhale/Exhale]: Clear breaths.
+* "The Flow": Smooth, steady, relaxed tempo. Not rushed.
+* [Audible Inhale/Exhale]: Do not speak the words. Perform a deep, audible breath.
 `
 };
 

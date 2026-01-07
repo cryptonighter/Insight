@@ -26,22 +26,26 @@ serve(async (req: Request) => {
                 - Flow: Short intro -> Quick technique -> Brief outro.
                 `;
             } else if (mins <= 10) {
+                // Split into 4 to keep chunks small (<2000 chars) to prevent TTS timeout
                 return `
                 STRUCTURE (10 Minutes):
-                - Create EXACTLY 3 BATCHES:
+                - Create EXACTLY 4 BATCHES:
                   1. Intro (approx 2 mins): Settling in, preparing context.
-                  2. Main Session (approx 7 mins): The core protocol/technique.
-                  3. Outro (approx 1 min): Grounding back, CTA.
+                  2. Main Part 1 (approx 3.5 mins): First half of protocol.
+                  3. Main Part 2 (approx 3.5 mins): Second half of protocol / Deepening.
+                  4. Outro (approx 1 min): Grounding back, CTA.
                 - Ensure context flows smoothly between them.
                 `;
             } else {
+                // Split into 5 to keep chunks small
                 return `
                 STRUCTURE (20+ Minutes):
-                - Create EXACTLY 4 BATCHES:
+                - Create EXACTLY 5 BATCHES:
                   1. Intro (approx 2 mins): Deep settling.
-                  2. Main Part 1 (approx 7 mins): Core technique A.
-                  3. Main Part 2 (approx 7 mins): Core technique B / Deepening.
-                  4. Outro (approx 4 mins): Long integration & Landing.
+                  2. Main Part 1 (approx 5 mins): Core technique A.
+                  3. Main Part 2 (approx 5 mins): Core technique B.
+                  4. Main Part 3 (approx 5 mins): Deepening / Insight.
+                  5. Outro (approx 3 mins): Long integration & Landing.
                 - Ensure distinct progression between parts.
                 `;
             }
