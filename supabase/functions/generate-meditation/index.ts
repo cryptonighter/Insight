@@ -26,25 +26,26 @@ serve(async (req: Request) => {
                 - Flow: Short intro -> Quick technique -> Brief outro.
                 `;
             } else if (mins <= 10) {
-                // Consolidated back to 3 batches since we increased Client Timeout to 10 mins
+                // 4 Batches: Greeting (Fast Start) -> Intro -> Main (Long) -> Outro
                 return `
                 STRUCTURE (10 Minutes):
-                - Create EXACTLY 3 BATCHES:
-                  1. Intro (approx 2 mins): Settling in, preparing context.
-                  2. Main Session (approx 7 mins): The core protocol/technique (ONE CONTINUOUS BLOCK).
-                  3. Outro (approx 1 min): Grounding back, CTA.
+                - Create EXACTLY 4 BATCHES:
+                  1. Greeting (approx 45s): Very brief, immediate settling. (OPTIMIZED FOR FAST START).
+                  2. Intro (approx 1.5 mins): Deeper framing and context.
+                  3. Main Session (approx 6.5 mins): The core protocol/technique (ONE CONTINUOUS BLOCK).
+                  4. Outro (approx 1.5 mins): Grounding back, CTA.
                 - Ensure context flows smoothly between them.
                 `;
             } else {
-                // Split into 5 to keep chunks small
+                // 5 Batches: Greeting -> Intro -> Main A -> Main B -> Outro
                 return `
                 STRUCTURE (20+ Minutes):
                 - Create EXACTLY 5 BATCHES:
-                  1. Intro (approx 2 mins): Deep settling.
-                  2. Main Part 1 (approx 5 mins): Core technique A.
-                  3. Main Part 2 (approx 5 mins): Core technique B.
-                  4. Main Part 3 (approx 5 mins): Deepening / Insight.
-                  5. Outro (approx 3 mins): Long integration & Landing.
+                  1. Greeting (approx 45s): Very brief, immediate settling. (OPTIMIZED FOR FAST START).
+                  2. Intro (approx 2 mins): Deep settling.
+                  3. Main Part 1 (approx 6 mins): Core technique A.
+                  4. Main Part 2 (approx 6 mins): Core technique B / Deepening.
+                  5. Outro (approx 5 mins): Long integration & Landing.
                 - Ensure distinct progression between parts.
                 `;
             }
