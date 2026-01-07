@@ -26,14 +26,13 @@ serve(async (req: Request) => {
                 - Flow: Short intro -> Quick technique -> Brief outro.
                 `;
             } else if (mins <= 10) {
-                // Split into 4 to keep chunks small (<2000 chars) to prevent TTS timeout
+                // Consolidated back to 3 batches since we increased Client Timeout to 10 mins
                 return `
                 STRUCTURE (10 Minutes):
-                - Create EXACTLY 4 BATCHES:
+                - Create EXACTLY 3 BATCHES:
                   1. Intro (approx 2 mins): Settling in, preparing context.
-                  2. Main Part 1 (approx 3.5 mins): First half of protocol.
-                  3. Main Part 2 (approx 3.5 mins): Second half of protocol / Deepening.
-                  4. Outro (approx 1 min): Grounding back, CTA.
+                  2. Main Session (approx 7 mins): The core protocol/technique (ONE CONTINUOUS BLOCK).
+                  3. Outro (approx 1 min): Grounding back, CTA.
                 - Ensure context flows smoothly between them.
                 `;
             } else {
@@ -54,13 +53,14 @@ serve(async (req: Request) => {
         const structureInstructions = getStructureInstructions(durationMinutes);
 
         const generatorPrompt = `
-    You are an expert Clinical Generator. Generate a meditation script following the ${protocol.name} protocol.
-    
+    You are an expert Clinical Hypnotherapist and Meditation Guide. 
+    Generate a deep, immersive meditation script following the ${protocol.name} protocol.
+
     META-DATA:
     - Focus: ${focus}
     - Feeling: ${targetFeeling}
     - Duration: ${durationMinutes} minutes
-    - Target Word Count: ~${durationMinutes * 130} words (Vital for pacing)
+    - Target Word Count: ~${durationMinutes * 130} words
     - Protocol Context: ${protocol.description}
     - System Instruction: ${protocol.systemInput}
     - Variables: ${JSON.stringify(variables)}
@@ -70,6 +70,13 @@ serve(async (req: Request) => {
     
     ${structureInstructions}
     
+    STYLE GUIDELINES (CRITICAL):
+    1. **Show, Don't Tell**: Do not explain what you are doing. Do not say "In this session we will...". Just lead the experience.
+    2. **Hypnotic Pacing**: Use short, sensory-rich sentences. 
+    3. **NO BLOG TALK**: Avoid intellectualizing. No "It is important to...", No "Research shows...". 
+    4. **Direct Experience**: Use present tense. "Noticing the breath..." instead of "Now I want you to notice your breath."
+    5. **Micro-Pacing**: Insert "[Silence]" or "..." OFTEN to control the speed. 
+
     JSON FORMAT:
     {
       "title": "Title of Session",
@@ -89,9 +96,9 @@ serve(async (req: Request) => {
     - Start binaural beats at ${protocol.sonicCues.startFreq}Hz and ramp to ${protocol.sonicCues.endFreq}Hz.
 
     BREATHING AND PACING:
-    - You MUST include audible breathing cues such as "[Audible Inhale]" and "[Audible Exhale]" where appropriate.
-    - Use "..." or "[Silence]" to indicate pauses between phrases.
-    - Pacing should be SLOW.
+    - You MUST include audible breathing cues: "[Perform a deep, audible breath]" (Do not use "Audible Inhale/Exhale").
+    - Use "[Silence]" to indicate 3-5 second pauses.
+    - Pacing should be EXTREMELY SLOW.
     `;
 
         // Try multiple env vars
@@ -105,7 +112,7 @@ serve(async (req: Request) => {
         if (!googleApiKey) throw new Error("Missing GOOGLE_API_KEY (checked GOOGLE_API_KEY, VITE_..., NEXT_...)");
 
         const callGoogleAI = async (model: string) => {
-            console.log(`Attempting generation with model: ${model}`);
+            console.log(`Attempting generation with model: ${model} `);
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`;
             const response = await fetch(url, {
                 method: "POST",
