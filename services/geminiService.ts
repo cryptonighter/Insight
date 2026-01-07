@@ -20,8 +20,62 @@ if (!googleApiKey || googleApiKey === "") {
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 
 // Constants for models
-const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025"; // User Specified Director Model
-const AUDIO_MODEL = "gemini-2.5-flash-preview-tts"; // 2.5 TTS Preview (Text-Only Input)
+// Constants for models
+const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025"; // Keeping 2.5 as stable base for Logic, but User asked for 3.
+// UPDATED: Using Gemini 3 Flash Preview as requested
+const BRAIN_MODEL = "gemini-3-flash-preview";
+const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
+
+// Voice Profiles Strategy
+const VOICE_PROFILES: Record<string, string> = {
+  'Kore': `
+# AUDIO PROFILE: Kore
+## THE SCENE: The Inner Sanctuary
+A vast, boundless space of perfect stillness. The acoustics are warm and intimate, as if the guide is speaking directly next to the listener's ear, yet the environment feels expansive. There is a sense of safety and timelessness.
+
+### DIRECTOR'S NOTES
+Style:
+* "The Grounding Mother": Deeply rooted, stable, and compassionate.
+* Tone: Warm, ethereal, slightly airy but consistent.
+* Dynamics: Soft, intimate projection. No "announcer" voice.
+
+Pacing:
+* "The Drift": Incredibly slow, liquid tempo.
+* [Audible Inhale/Exhale]: Perform these sounds audibly.
+* [Silence]: Pause for 3-5 seconds.
+`,
+  'Fenrir': `
+# AUDIO PROFILE: Fenrir
+## THE SCENE: The Ancient Forest
+A deep, old growth forest at twilight. The air is cool and heavy with the scent of pine. The acoustics are dry and grounded, absorbing sound.
+
+### DIRECTOR'S NOTES
+Style:
+* "The Sage": Deep, rumbling, authoritative but gentle.
+* Tone: Lower register, rich resonance, protective.
+* Dynamics: Steady, unwavering, calming.
+
+Pacing:
+* "The Mountain": Slow, deliberate, with weight behind every word.
+* [Audible Inhale/Exhale]: Deep, audible chest breaths.
+* [Silence]: profound silence.
+`,
+  'Puck': `
+# AUDIO PROFILE: Puck
+## THE SCENE: The Sunlit Meadow
+A bright, open field with a light breeze. The energy is lighter, clearer, and more awakening.
+
+### DIRECTOR'S NOTES
+Style:
+* "The Guide": Neutral, clear, slightly more energetic but still calm.
+* Tone: Clean, crisp, modern.
+* Dynamics: Gentle encouragement.
+
+Pacing:
+* "The Flow": Smooth, steady, slightly faster than Kore but still meditative.
+* [Audible Inhale/Exhale]: Clear breaths.
+`
+};
 
 // Director Tool Definitions
 const directorTools = [
@@ -214,30 +268,9 @@ export const generateAudioChunk = async (
   const MAX_RETRIES = 3;
 
   // Enhancing the prompt with STRICT consistency for batches
-  // Enhancing the prompt with STRICT consistency for batches
+  const baseProfile = VOICE_PROFILES[voice] || VOICE_PROFILES['Kore'];
   const directorPrompt = `
-# AUDIO PROFILE: ${voice || 'Kore'}
-## THE SCENE: The Inner Sanctuary
-A vast, boundless space of perfect stillness. The acoustics are warm and intimate, as if the guide is speaking directly next to the listener's ear, yet the environment feels expansive. There is a sense of safety and timelessness. The guide is a compassionate, eternal presence.
-
-### DIRECTOR'S NOTES
-Style:
-* The "Grounding Presence": The voice should be deeply rooted, stable, and incredibly soothing.
-* Tone: Warm, compassionate, non-judgmental, and hypnotic.
-* Dynamics: Soft, intimate projection. Avoid any "announcer" or "reading" tone. It must feel like a natural, heartfelt conversation with the soul.
-
-Performance Instructions:
-- [Audible Inhale] / [Audible Exhale]: YOU MUST PERFORM THESE SOUNDS AUDIBLY. Do not speak the words. Take a deep, slow breath in/out.
-- [Silence] / ... : Pause for 2-3 seconds to let the words land.
-- Spacing: Leave ample space between sentences.
-
-Pacing:
-* The "Drift": The tempo is incredibly slow and liquid. Words bleed into each other. There is zero urgency.
-* Allow pauses to breathe.
-* Speak slowly, clearly, and deliberate.
-
-Accent:
-* Neutral, clear, global English.
+${baseProfile}
 
 #### TRANSCRIPT
 ${text}
@@ -337,7 +370,7 @@ export const generateDailyContext = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: BRAIN_MODEL,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json" }
     });
@@ -359,7 +392,7 @@ export const analyzeInsightsForPatterns = async (insights: Insight[]): Promise<P
   const prompt = `Analyze these journal entries for patterns. Return JSON: [{title, description, color, observationCount}]\nEntries:\n${insightTexts}`;
   try {
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: BRAIN_MODEL,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json" }
     });
