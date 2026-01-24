@@ -84,16 +84,41 @@ export const DashboardV2: React.FC = () => {
                     </div>
                 )}
 
-                {/* Intention Input */}
-                <div className="w-full max-w-xs mt-8 pointer-events-auto">
-                    <label className="block text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase mb-2 text-center">What's on your mind today?</label>
-                    <input
-                        type="text"
-                        value={intentionInput}
-                        onChange={(e) => setIntentionInput(e.target.value)}
-                        placeholder="Stress, sleep, focus, a specific challenge..."
-                        className="w-full bg-surface/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:border-primary/50 focus:outline-none transition-colors text-center"
-                    />
+                {/* Quick Theme Selection */}
+                <div className="w-full max-w-sm mt-8 pointer-events-auto">
+                    <label className="block text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase mb-3 text-center">
+                        Today's focus
+                    </label>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {[
+                            { label: '🧘 Calm', value: 'Finding calm and peace' },
+                            { label: '💪 Energy', value: 'Boosting energy and motivation' },
+                            { label: '😴 Sleep', value: 'Better sleep and rest' },
+                            { label: '🎯 Focus', value: 'Deep focus and clarity' },
+                            { label: '💭 Stress', value: 'Releasing stress and tension' },
+                            { label: '✨ Custom', value: '' }
+                        ].map(theme => (
+                            <button
+                                key={theme.label}
+                                onClick={() => setIntentionInput(theme.value)}
+                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${intentionInput === theme.value
+                                        ? 'bg-primary/20 border-primary text-primary border'
+                                        : 'bg-surface/50 border-white/10 text-white/70 border hover:border-white/30'
+                                    }`}
+                            >
+                                {theme.label}
+                            </button>
+                        ))}
+                    </div>
+                    {intentionInput === '' && (
+                        <input
+                            type="text"
+                            value=""
+                            onChange={(e) => setIntentionInput(e.target.value)}
+                            placeholder="Type your own intention..."
+                            className="w-full mt-3 bg-surface/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:border-primary/50 focus:outline-none transition-colors text-center"
+                        />
+                    )}
                 </div>
             </main>
 

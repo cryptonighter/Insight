@@ -183,12 +183,18 @@ export const useMeditationGenerator = (
             ).then(async (greeting) => {
                 // Immediately generate TTS for greeting
                 console.log('⚡ Fast Start: Generating greeting audio...');
-                const { audioData } = await generateAudioChunk(greeting.text, config.voice, {
-                    chunkIndex: 0,
-                    totalChunks: 3, // Estimated
-                    previousChunkEnd: undefined
-                });
-                return { text: greeting.text, audioData };
+                try {
+                    const { audioData } = await generateAudioChunk(greeting.text, config.voice, {
+                        chunkIndex: 0,
+                        totalChunks: 3, // Estimated
+                        previousChunkEnd: undefined
+                    });
+                    console.log('⚡ Greeting audio generated, length:', audioData?.length || 0);
+                    return { text: greeting.text, audioData };
+                } catch (ttsError) {
+                    console.error('⚠️ Greeting TTS failed:', ttsError);
+                    throw ttsError; // Re-throw to be caught by main handler
+                }
             });
 
             const scriptPromise = generateMeditationScript(
@@ -203,32 +209,44 @@ export const useMeditationGenerator = (
             );
 
             // Wait for greeting (fast) - this completes in ~3-4s
-            const greetingResult = await greetingPromise;
+            let greetingResult;
+            try {
+                greetingResult = await greetingPromise;
+            } catch (greetingError) {
+                console.error('❌ Fast greeting failed, proceeding without:', greetingError);
+                // Skip greeting, wait for script and proceed with batches only
+                greetingResult = null;
+            }
 
-            // Create greeting audio blob
-            const greetingBlob = await createAudioBlob(greetingResult.audioData);
-            const greetingUrl = URL.createObjectURL(greetingBlob);
+            // Only create greeting segment if we have valid audio
+            if (greetingResult && greetingResult.audioData) {
+                // Create greeting audio blob
+                const greetingBlob = await createAudioBlob(greetingResult.audioData);
+                const greetingUrl = URL.createObjectURL(greetingBlob);
 
-            // Push greeting to queue IMMEDIATELY - user can start listening
-            const greetingSegment: PlayableSegment = {
-                id: 'greeting',
-                text: greetingResult.text,
-                audioUrl: greetingUrl,
-                duration: greetingResult.audioData.length / 48000, // Estimate
-                instructions: [] // Greeting has no special sonic instructions
-            };
-
-            // Update meditation with greeting - PLAYER CAN START NOW
-            setMeditations(current => current.map(m => {
-                if (m.id === tempId) return {
-                    ...m,
-                    audioQueue: [greetingSegment],
-                    isGenerating: true // Still generating remaining batches
+                // Push greeting to queue IMMEDIATELY - user can start listening
+                const greetingSegment: PlayableSegment = {
+                    id: 'greeting',
+                    text: greetingResult.text,
+                    audioUrl: greetingUrl,
+                    duration: greetingResult.audioData.length / 48000, // Estimate
+                    instructions: [] // Greeting has no special sonic instructions
                 };
-                return m;
-            }));
 
-            console.log('⚡ Fast Start: Greeting ready! Player can begin.');
+                // Update meditation with greeting - PLAYER CAN START NOW
+                setMeditations(current => current.map(m => {
+                    if (m.id === tempId) return {
+                        ...m,
+                        audioQueue: [greetingSegment],
+                        isGenerating: true // Still generating remaining batches
+                    };
+                    return m;
+                }));
+
+                console.log('⚡ Fast Start: Greeting ready! Player can begin.');
+            } else {
+                console.log('⚠️ No greeting audio, player will wait for first batch');
+            }
 
             // Now wait for full script
             const { title, lines, batches } = await scriptPromise;
