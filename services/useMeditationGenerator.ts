@@ -29,15 +29,34 @@ const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
     const bytes = new Uint8Array(len);
     for (let k = 0; k < len; k++) bytes[k] = binary.charCodeAt(k);
 
-    // If already encoded (MP3, WAV, etc.), return directly
-    if (mimeType && !mimeType.includes('L16') && !mimeType.includes('pcm')) {
-        console.log('🔊 Audio already encoded:', mimeType);
+    console.log('🔊 createAudioBlob - mimeType:', mimeType, 'length:', len);
+
+    // Check for audio file signatures to detect actual format
+    const hasWavHeader = len > 12 && binary.slice(0, 4) === 'RIFF' && binary.slice(8, 12) === 'WAVE';
+    const hasMp3Header = len > 3 && (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) || // Frame sync
+        (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33); // ID3 tag
+
+    console.log('🔊 Format detection - hasWavHeader:', hasWavHeader, 'hasMp3Header:', hasMp3Header);
+
+    // If already has WAV or MP3 header, return as-is
+    if (hasWavHeader) {
+        console.log('🔊 Audio already has WAV header, passing through');
+        return new Blob([bytes], { type: 'audio/wav' });
+    }
+    if (hasMp3Header) {
+        console.log('🔊 Audio already has MP3 header, passing through');
+        return new Blob([bytes], { type: 'audio/mp3' });
+    }
+
+    // If mimeType indicates pre-encoded audio, pass through
+    if (mimeType && (mimeType.includes('mp3') || mimeType.includes('mpeg') || mimeType.includes('wav'))) {
+        console.log('🔊 MimeType indicates encoded audio:', mimeType);
         return new Blob([bytes], { type: mimeType });
     }
 
-    // Raw L16 PCM - needs WAV header AND byte order swap
-    // Gemini TTS returns L16 in BIG-ENDIAN, WAV requires LITTLE-ENDIAN
-    console.log('🔊 Raw L16 PCM detected, adding WAV header + byte swap');
+    // Raw PCM data (L16 or no mimeType) - needs WAV header
+    // Gemini TTS returns little-endian 16-bit PCM at 24kHz - no byte swap needed
+    console.log('🔊 Raw PCM detected, wrapping with WAV header (little-endian, 24kHz)');
     const buffer = new ArrayBuffer(44 + len);
     const view = new DataView(buffer);
 
@@ -45,7 +64,7 @@ const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
         for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
     };
 
-    // WAV Header for 24kHz 16-bit mono
+    // WAV Header for 24kHz 16-bit mono little-endian PCM
     writeString(view, 0, 'RIFF');
     view.setUint32(4, 36 + len, true);
     writeString(view, 8, 'WAVE');
@@ -60,16 +79,9 @@ const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
     writeString(view, 36, 'data');
     view.setUint32(40, len, true);
 
-    // CRITICAL: Swap byte order (big-endian → little-endian)
+    // Copy PCM data directly (already little-endian from Gemini)
     const pcmBytes = new Uint8Array(buffer, 44);
-    for (let k = 0; k < len; k += 2) {
-        if (k + 1 < len) {
-            pcmBytes[k] = bytes[k + 1];     // Low byte (was high)
-            pcmBytes[k + 1] = bytes[k];     // High byte (was low)
-        } else {
-            pcmBytes[k] = bytes[k];  // Odd byte at end
-        }
-    }
+    for (let k = 0; k < len; k++) pcmBytes[k] = bytes[k];
 
     return new Blob([buffer], { type: 'audio/wav' });
 };
