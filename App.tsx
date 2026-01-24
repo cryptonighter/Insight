@@ -21,7 +21,6 @@ import { SessionSummaryV2 } from './components/v2/SessionSummaryV2';
 import { NewResolutionV2 } from './components/v2/NewResolutionV2';
 import { FeedbackV2 } from './components/v2/FeedbackV2';
 import { OnboardingView } from './components/v2/OnboardingView';
-import { SessionPrep } from './components/v2/SessionPrep';
 import { supabase } from './services/supabaseClient';
 
 const Main: React.FC = () => {
@@ -50,7 +49,6 @@ const Main: React.FC = () => {
       case ViewState.NEW_RESOLUTION: return <NewResolutionV2 />;
       case ViewState.FEEDBACK: return <FeedbackV2 />;
       case ViewState.CONTEXT: return <ContextInterview />;
-      case ViewState.SESSION_PREP: return <SessionPrep />;
 
       // Legacy / Admin
       case ViewState.CARDS: return <CardsView />;

@@ -200,8 +200,7 @@ export enum ViewState {
   NEW_RESOLUTION = 'NEW_RESOLUTION',
   FEEDBACK = 'FEEDBACK',
   TRIAGE = 'TRIAGE',
-  CONTEXT = 'CONTEXT',
-  SESSION_PREP = 'SESSION_PREP'
+  CONTEXT = 'CONTEXT'
 }
 
 export interface SessionSummaryData {

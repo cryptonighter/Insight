@@ -80,18 +80,15 @@ export const LoadingGeneration: React.FC = () => {
     return () => clearTimeout(timer);
   }, [hasStarted, activeResolution, meditations, isLoading]);
 
-  // Auto-start countdown after Director completes
-  useEffect(() => {
-    if (!autoStartPending || hasStarted || showAdvanced) return;
-
-    const autoStartTimer = setTimeout(() => {
-      if (!hasStarted && autoStartPending) {
-        handleStart();
-      }
-    }, 3000); // 3 second delay gives user time to tap "Customize" if desired
-
-    return () => clearTimeout(autoStartTimer);
-  }, [autoStartPending, hasStarted, showAdvanced]);
+  // Auto-start DISABLED - Let user explicitly press Start to begin session
+  // This gives them time to review Director suggestion and customize if desired
+  // useEffect(() => {
+  //   if (!autoStartPending || hasStarted || showAdvanced) return;
+  //   const autoStartTimer = setTimeout(() => {
+  //     if (!hasStarted && autoStartPending) handleStart();
+  //   }, 3000);
+  //   return () => clearTimeout(autoStartTimer);
+  // }, [autoStartPending, hasStarted, showAdvanced]);
 
 
   // Sync with triage & pending config (Overrides Director if manual triage happened)

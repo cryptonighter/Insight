@@ -35,8 +35,9 @@ const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
         return new Blob([bytes], { type: mimeType });
     }
 
-    // Raw L16 PCM - needs WAV header
-    console.log('🔊 Raw L16 PCM detected, adding WAV header');
+    // Raw L16 PCM - needs WAV header AND byte order swap
+    // Gemini TTS returns L16 in BIG-ENDIAN, WAV requires LITTLE-ENDIAN
+    console.log('🔊 Raw L16 PCM detected, adding WAV header + byte swap');
     const buffer = new ArrayBuffer(44 + len);
     const view = new DataView(buffer);
 
@@ -50,17 +51,25 @@ const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
     writeString(view, 8, 'WAVE');
     writeString(view, 12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, 24000, true);
-    view.setUint32(28, 24000 * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
+    view.setUint16(20, 1, true);  // PCM format
+    view.setUint16(22, 1, true);  // Mono
+    view.setUint32(24, 24000, true);  // Sample rate
+    view.setUint32(28, 24000 * 2, true);  // Byte rate
+    view.setUint16(32, 2, true);  // Block align
+    view.setUint16(34, 16, true);  // Bits per sample
     writeString(view, 36, 'data');
     view.setUint32(40, len, true);
 
+    // CRITICAL: Swap byte order (big-endian → little-endian)
     const pcmBytes = new Uint8Array(buffer, 44);
-    for (let k = 0; k < len; k++) pcmBytes[k] = bytes[k];
+    for (let k = 0; k < len; k += 2) {
+        if (k + 1 < len) {
+            pcmBytes[k] = bytes[k + 1];     // Low byte (was high)
+            pcmBytes[k + 1] = bytes[k];     // High byte (was low)
+        } else {
+            pcmBytes[k] = bytes[k];  // Odd byte at end
+        }
+    }
 
     return new Blob([buffer], { type: 'audio/wav' });
 };

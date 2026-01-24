@@ -129,8 +129,8 @@ export const DashboardV2: React.FC = () => {
                             if (todaysEntry?.morningGenerated && !todaysEntry?.eveningCompleted) {
                                 setView(ViewState.EVENING_REFLECTION);
                             } else {
-                                // Navigate to pre-session prep screen for guided setup
-                                setView(ViewState.SESSION_PREP);
+                                // Start session with selected intention
+                                startMorningSession(intentionInput);
                             }
                         }}
                         animate={{ scale: [1, 1.02, 1] }}
