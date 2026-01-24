@@ -102,8 +102,8 @@ export const DashboardV2: React.FC = () => {
                                 key={theme.label}
                                 onClick={() => setIntentionInput(theme.value)}
                                 className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${intentionInput === theme.value
-                                        ? 'bg-primary/20 border-primary text-primary border'
-                                        : 'bg-surface/50 border-white/10 text-white/70 border hover:border-white/30'
+                                    ? 'bg-primary/20 border-primary text-primary border'
+                                    : 'bg-surface/50 border-white/10 text-white/70 border hover:border-white/30'
                                     }`}
                             >
                                 {theme.label}
@@ -129,7 +129,8 @@ export const DashboardV2: React.FC = () => {
                             if (todaysEntry?.morningGenerated && !todaysEntry?.eveningCompleted) {
                                 setView(ViewState.EVENING_REFLECTION);
                             } else {
-                                startMorningSession(intentionInput);
+                                // Navigate to pre-session prep screen for guided setup
+                                setView(ViewState.SESSION_PREP);
                             }
                         }}
                         animate={{ scale: [1, 1.02, 1] }}
