@@ -20,10 +20,23 @@ const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
     return new Blob(buffers, { type: 'audio/wav' });
 };
 
-// Helper to create audio blob from base64
-const createAudioBlob = (audioBase64: string): Blob => {
+// Helper to create audio blob from base64, respecting mimeType
+const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
     const binary = atob(audioBase64);
     const len = binary.length;
+
+    // Convert string to byte array
+    const bytes = new Uint8Array(len);
+    for (let k = 0; k < len; k++) bytes[k] = binary.charCodeAt(k);
+
+    // If already encoded (MP3, WAV, etc.), return directly
+    if (mimeType && !mimeType.includes('L16') && !mimeType.includes('pcm')) {
+        console.log('🔊 Audio already encoded:', mimeType);
+        return new Blob([bytes], { type: mimeType });
+    }
+
+    // Raw L16 PCM - needs WAV header
+    console.log('🔊 Raw L16 PCM detected, adding WAV header');
     const buffer = new ArrayBuffer(44 + len);
     const view = new DataView(buffer);
 
@@ -31,7 +44,7 @@ const createAudioBlob = (audioBase64: string): Blob => {
         for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
     };
 
-    // WAV Header
+    // WAV Header for 24kHz 16-bit mono
     writeString(view, 0, 'RIFF');
     view.setUint32(4, 36 + len, true);
     writeString(view, 8, 'WAVE');
@@ -47,7 +60,7 @@ const createAudioBlob = (audioBase64: string): Blob => {
     view.setUint32(40, len, true);
 
     const pcmBytes = new Uint8Array(buffer, 44);
-    for (let k = 0; k < len; k++) pcmBytes[k] = binary.charCodeAt(k);
+    for (let k = 0; k < len; k++) pcmBytes[k] = bytes[k];
 
     return new Blob([buffer], { type: 'audio/wav' });
 };
@@ -184,13 +197,13 @@ export const useMeditationGenerator = (
                 // Immediately generate TTS for greeting
                 console.log('⚡ Fast Start: Generating greeting audio...');
                 try {
-                    const { audioData } = await generateAudioChunk(greeting.text, config.voice, {
+                    const { audioData, mimeType } = await generateAudioChunk(greeting.text, config.voice, {
                         chunkIndex: 0,
                         totalChunks: 3, // Estimated
                         previousChunkEnd: undefined
                     });
-                    console.log('⚡ Greeting audio generated, length:', audioData?.length || 0);
-                    return { text: greeting.text, audioData };
+                    console.log('⚡ Greeting audio generated, length:', audioData?.length || 0, 'mimeType:', mimeType);
+                    return { text: greeting.text, audioData, mimeType };
                 } catch (ttsError) {
                     console.error('⚠️ Greeting TTS failed:', ttsError);
                     throw ttsError; // Re-throw to be caught by main handler
@@ -220,8 +233,8 @@ export const useMeditationGenerator = (
 
             // Only create greeting segment if we have valid audio
             if (greetingResult && greetingResult.audioData) {
-                // Create greeting audio blob
-                const greetingBlob = await createAudioBlob(greetingResult.audioData);
+                // Create greeting audio blob with correct mimeType
+                const greetingBlob = await createAudioBlob(greetingResult.audioData, greetingResult.mimeType);
                 const greetingUrl = URL.createObjectURL(greetingBlob);
 
                 // Push greeting to queue IMMEDIATELY - user can start listening
@@ -276,45 +289,18 @@ export const useMeditationGenerator = (
                 try {
                     // Pass context for voice consistency between chunks
                     const previousBatch = i > 0 ? batches[i - 1] : null;
-                    const previousChunkEnd = previousBatch ? previousBatch.text.slice(-100) : greetingResult.text.slice(-100);
+                    const previousChunkEnd = previousBatch ? previousBatch.text.slice(-100) : greetingResult?.text?.slice(-100);
 
-                    const { audioData } = await generateAudioChunk(batch.text, config.voice, {
+                    const { audioData, mimeType } = await generateAudioChunk(batch.text, config.voice, {
                         chunkIndex: i + 1, // +1 because greeting is index 0
                         totalChunks: batches.length + 1,
                         previousChunkEnd
                     });
 
-                    // Convert Base64 directly to Blob URL
-                    const binary = atob(audioData);
-                    const len = binary.length;
-                    const buffer = new ArrayBuffer(44 + len);
-                    const view = new DataView(buffer);
-
-                    // Re-use simple WAV header logic for each chunk
-                    const writeString = (view: DataView, offset: number, string: string) => {
-                        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-                    };
-
-                    // WAV Header
-                    writeString(view, 0, 'RIFF');
-                    view.setUint32(4, 36 + len, true);
-                    writeString(view, 8, 'WAVE');
-                    writeString(view, 12, 'fmt ');
-                    view.setUint32(16, 16, true);
-                    view.setUint16(20, 1, true);
-                    view.setUint16(22, 1, true);
-                    view.setUint32(24, 24000, true);
-                    view.setUint32(28, 24000 * 2, true);
-                    view.setUint16(32, 2, true);
-                    view.setUint16(34, 16, true);
-                    writeString(view, 36, 'data');
-                    view.setUint32(40, len, true);
-
-                    const pcmBytes = new Uint8Array(buffer, 44);
-                    for (let k = 0; k < len; k++) pcmBytes[k] = binary.charCodeAt(k);
-
-                    const blob = new Blob([buffer], { type: 'audio/wav' });
+                    // Use createAudioBlob which handles mimeType correctly
+                    const blob = createAudioBlob(audioData, mimeType);
                     const url = URL.createObjectURL(blob);
+                    const len = audioData.length; // For duration estimate
 
                     const newSegment: PlayableSegment = {
                         id: `batch-${i}`,
