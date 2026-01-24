@@ -12,6 +12,12 @@ class SoundEngine {
     ctx: AudioContext;
     masterGain: GainNode;
 
+    // Reverb chain
+    convolver: ConvolverNode;
+    dryGain: GainNode;
+    wetGain: GainNode;
+    reverbMix: number = 0.3; // 30% wet by default
+
     // Track layers by ID
     layers: Map<string, { source: any, gain: GainNode, type: 'buffer' | 'procedural', params?: any }> = new Map();
 
@@ -20,6 +26,51 @@ class SoundEngine {
         this.masterGain = ctx.createGain();
         this.masterGain.connect(ctx.destination);
         this.masterGain.gain.value = 1.0;
+
+        // Initialize reverb chain
+        this.convolver = ctx.createConvolver();
+        this.dryGain = ctx.createGain();
+        this.wetGain = ctx.createGain();
+
+        this.dryGain.connect(this.masterGain);
+        this.wetGain.connect(this.masterGain);
+        this.convolver.connect(this.wetGain);
+
+        this.setReverbMix(0.3);
+        this.generateImpulseResponse();
+    }
+
+    // Generate a synthetic impulse response for reverb (meditation hall)
+    generateImpulseResponse() {
+        const sampleRate = this.ctx.sampleRate;
+        const length = sampleRate * 2.5; // 2.5 second reverb tail
+        const impulse = this.ctx.createBuffer(2, length, sampleRate);
+
+        for (let channel = 0; channel < 2; channel++) {
+            const data = impulse.getChannelData(channel);
+            for (let i = 0; i < length; i++) {
+                // Exponential decay with early reflections
+                const decay = Math.exp(-3.5 * i / length);
+                const earlyReflection = i < sampleRate * 0.05 ? 0.3 : 0;
+                data[i] = (Math.random() * 2 - 1) * decay + earlyReflection * (Math.random() * 0.5);
+            }
+        }
+
+        this.convolver.buffer = impulse;
+    }
+
+    // Set reverb wet/dry mix (0 = fully dry, 1 = fully wet)
+    setReverbMix(mix: number) {
+        this.reverbMix = Math.max(0, Math.min(1, mix));
+        this.dryGain.gain.setTargetAtTime(1 - this.reverbMix, this.ctx.currentTime, 0.1);
+        this.wetGain.gain.setTargetAtTime(this.reverbMix, this.ctx.currentTime, 0.1);
+    }
+
+    // Connect a source through the reverb chain
+    connectWithReverb(source: AudioNode, gain: GainNode) {
+        source.connect(gain);
+        gain.connect(this.dryGain);
+        gain.connect(this.convolver);
     }
 
     setLayerVolume(id: string, val: number, duration: number = 0.5) {
@@ -170,10 +221,12 @@ export const Player: React.FC = () => {
         note: ""
     });
 
-    // Mix Settings
-    const [volVoice, setVolVoice] = useState(1.0);
-    const [volAtmosphere, setVolAtmosphere] = useState(0.5);
-    const [volResonance, setVolResonance] = useState(0.15);
+    // Mix Settings - Load from localStorage if available
+    const savedPrefs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('sonicPreferences') || '{}') : {};
+    const [volVoice, setVolVoice] = useState(savedPrefs.voice ?? 1.0);
+    const [volAtmosphere, setVolAtmosphere] = useState(savedPrefs.atmosphere ?? 0.5);
+    const [volResonance, setVolResonance] = useState(savedPrefs.resonance ?? 0.15);
+    const [voiceSpace, setVoiceSpace] = useState(savedPrefs.voiceSpace ?? 0.3); // Reverb amount
     const [showSettings, setShowSettings] = useState(false);
 
     // Refs
@@ -203,10 +256,14 @@ export const Player: React.FC = () => {
             }
 
             voiceGainRef.current = ctx.createGain();
-            voiceGainRef.current.connect(ctx.destination);
             voiceGainRef.current.gain.value = volVoice;
+            // Voice will be routed through SoundEngine's reverb chain
 
             soundEngineRef.current = new SoundEngine(ctx);
+            soundEngineRef.current.setReverbMix(voiceSpace);
+
+            // Connect voice gain through the reverb chain
+            soundEngineRef.current.connectWithReverb(voiceGainRef.current, voiceGainRef.current);
 
             // Setup Layers
             let atmosphereLoaded = false;
@@ -313,7 +370,22 @@ export const Player: React.FC = () => {
                 const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
 
                 playSegmentBuffer(audioBuffer, () => {
-                    const gap = 2000 + (Math.random() * 800);
+                    // Intelligent gap calculation for fixed-length sessions
+                    const targetDurationMs = (meditation?.config?.duration || 10) * 60 * 1000;
+                    const totalSegments = currentMeditation.audioQueue.length;
+                    const totalAudioDuration = currentMeditation.audioQueue.reduce((sum, s) => sum + (s.duration || 0), 0) * 1000;
+                    const remainingSegments = totalSegments - (index + 1);
+
+                    // Calculate ideal gap to reach target duration
+                    let gap = 2500; // Default
+                    if (remainingSegments > 0 && totalAudioDuration > 0) {
+                        const silenceNeeded = Math.max(0, targetDurationMs - totalAudioDuration);
+                        gap = Math.max(1500, Math.min(8000, silenceNeeded / totalSegments));
+                    }
+
+                    // Add slight randomness for natural feel (±15%)
+                    gap = gap * (0.85 + Math.random() * 0.3);
+
                     timeoutRef.current = setTimeout(() => processQueue(index + 1), gap);
                 });
             } catch (e) {
@@ -358,7 +430,14 @@ export const Player: React.FC = () => {
 
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
-        source.connect(voiceGainRef.current);
+
+        // Route voice through the reverb chain for spatial effect
+        if (soundEngineRef.current && voiceGainRef.current) {
+            source.connect(voiceGainRef.current);
+            // Voice gain already connected to reverb chain in init
+        } else {
+            source.connect(voiceGainRef.current!);
+        }
         source.onended = () => {
             // Return volume to normal
             soundEngineRef.current?.setLayerVolume('atmosphere', volAtmosphere, 1.5);
@@ -384,7 +463,7 @@ export const Player: React.FC = () => {
         }
     };
 
-    const updateVol = (type: 'voice' | 'atmosphere' | 'resonance', val: number) => {
+    const updateVol = (type: 'voice' | 'atmosphere' | 'resonance' | 'voiceSpace', val: number) => {
         if (type === 'voice') {
             setVolVoice(val);
             if (voiceGainRef.current) voiceGainRef.current.gain.setTargetAtTime(val, audioContextRef.current!.currentTime, 0.1);
@@ -394,7 +473,15 @@ export const Player: React.FC = () => {
         } else if (type === 'resonance') {
             setVolResonance(val);
             soundEngineRef.current?.setLayerVolume('resonance', val);
+        } else if (type === 'voiceSpace') {
+            setVoiceSpace(val);
+            soundEngineRef.current?.setReverbMix(val);
         }
+
+        // Persist preferences to localStorage
+        const currentPrefs = JSON.parse(localStorage.getItem('sonicPreferences') || '{}');
+        const updatedPrefs = { ...currentPrefs, [type]: val };
+        localStorage.setItem('sonicPreferences', JSON.stringify(updatedPrefs));
     };
 
     const submitFeedback = () => {
@@ -498,6 +585,21 @@ export const Player: React.FC = () => {
                                         type="range" min="0" max="1.5" step="0.1"
                                         value={volVoice} onChange={e => updateVol('voice', parseFloat(e.target.value))}
                                         className="w-full h-1 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="w-8 flex justify-center"><Sliders size={16} className="text-violet-400" /></div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between text-xs app-text-secondary mb-1">
+                                        <span>Voice Space</span>
+                                        <span>{voiceSpace < 0.2 ? 'Dry' : voiceSpace < 0.5 ? 'Intimate' : voiceSpace < 0.8 ? 'Spacious' : 'Cathedral'}</span>
+                                    </div>
+                                    <input
+                                        type="range" min="0" max="1" step="0.05"
+                                        value={voiceSpace} onChange={e => updateVol('voiceSpace', parseFloat(e.target.value))}
+                                        className="w-full h-1 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-violet-400"
                                     />
                                 </div>
                             </div>

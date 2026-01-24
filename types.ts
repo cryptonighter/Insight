@@ -119,6 +119,7 @@ export interface MeditationConfig {
   background?: SoundscapeType;
   methodology?: MethodologyType;
   variables?: Record<string, any>;
+  intensity?: 'GENTLE' | 'MODERATE' | 'DEEP';
 }
 
 // --- NEW: THE SONIC DIRECTOR TYPES ---

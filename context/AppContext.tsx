@@ -44,10 +44,14 @@ interface AppState {
   pendingMeditationConfig: Partial<MeditationConfig> | null;
   setPendingMeditationConfig: React.Dispatch<React.SetStateAction<Partial<MeditationConfig> | null>>;
 
+  // Clinical Registry State
+  parts: Part[];
+  anchors: SomaticAnchor[];
+  patterns: Pattern[];
+
   // Legacy/Context State (Keeping for now)
   insights: Insight[];
   soundscapes: Soundscape[];
-  // ... other legacy fields can remain for seamless refactor, or be cleaned up
 
   // Actions
   completeOnboarding: () => void;
@@ -55,18 +59,30 @@ interface AppState {
   startMorningSession: () => Promise<void>;
   completeEveningReflection: (summary: string) => Promise<void>;
 
-  // Shared Actions
+  // Generation Actions
+  startMeditationGeneration: (focus: string, feeling: string, duration: number, methodology?: MethodologyType, variables?: Record<string, any>) => void;
   finalizeMeditationGeneration: (config: MeditationConfig) => Promise<void>;
   setView: (view: ViewState) => void;
   playMeditation: (id: string) => void;
+  rateMeditation: (id: string, feedback: any) => Promise<void>;
 
-  // Legacy actions needed for compilation
-  // Legacy actions needed for compilation
-  sendChatMessage: (text: string) => Promise<void>;
+  // Clinical Registry Actions
+  updatePart: (id: string, updates: Partial<Part>) => void;
+  updateAnchor: (id: string, updates: Partial<SomaticAnchor>) => void;
+  acceptPattern: (id: string) => void;
+  updatePatternNote: (id: string, note: string) => void;
+
+  // Soundscape Management
   addSoundscape: (sc: Soundscape) => void;
   removeSoundscape: (id: string) => void;
+
+  // Legacy stubs
+  sendChatMessage: (text: string) => Promise<void>;
   lastSessionData: SessionSummaryData | null;
   chatHistory: ChatMessage[];
+  triage: TriageState;
+  setTriage: (t: TriageState) => void;
+  sessionState: SessionLifecycleState;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -105,8 +121,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [insights, setInsights] = useState<Insight[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
-  // Triage State (Legacy but referenced)
-  const [triage] = useState<TriageState>({ valence: 0, arousal: 0, clinicalVariables: {} });
+  // Clinical Registry State
+  const [parts, setParts] = useState<Part[]>([]);
+  const [anchors, setAnchors] = useState<SomaticAnchor[]>([]);
+  const [patterns, setPatterns] = useState<Pattern[]>([]);
+
+  // Triage State
+  const [triage, setTriage] = useState<TriageState>({ valence: 0, arousal: 0, clinicalVariables: {} });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -139,6 +160,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               createdAt: new Date(row.created_at).getTime()
             }));
             setSoundscapes(loaded);
+          }
+        });
+
+        // Fetch Clinical Registry Data
+        supabase.from('parts_ledger').select('*').eq('user_id', session.user.id).then(({ data }) => {
+          if (data) {
+            setParts(data.map(row => ({
+              id: row.id,
+              name: row.name,
+              role: row.role,
+              relationshipScore: row.relationship_score || 5,
+              originStory: row.origin_story,
+              somaticLocation: row.somatic_location,
+              createdAt: new Date(row.created_at).getTime(),
+              lastAccessed: new Date(row.last_accessed || row.created_at).getTime()
+            })));
+          }
+        });
+
+        supabase.from('somatic_anchors').select('*').eq('user_id', session.user.id).then(({ data }) => {
+          if (data) {
+            setAnchors(data.map(row => ({
+              id: row.id,
+              type: row.type,
+              description: row.description,
+              efficacyRating: row.efficacy_rating || 3,
+              createdAt: new Date(row.created_at).getTime()
+            })));
+          }
+        });
+
+        supabase.from('patterns').select('*').eq('user_id', session.user.id).then(({ data }) => {
+          if (data) {
+            setPatterns(data.map(row => ({
+              id: row.id,
+              title: row.title,
+              description: row.description,
+              observationCount: row.observation_count || 1,
+              lastObserved: Date.now(),
+              insights: [],
+              color: row.color || '#94a3b8',
+              status: row.status || 'pending'
+            })));
           }
         });
       }
@@ -207,14 +271,61 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const completeOnboarding = () => { /* ... */ };
 
-  // --- REUSED AUDIO ENGINE LOGIC ---
-  // This logic is now handled by useMeditationGenerator hook.
-  // const finalizeMeditationGeneration = async (config: MeditationConfig) => { ... };
+  // --- START MEDITATION GENERATION (For CardsView/Home compatibility) ---
+  const startMeditationGeneration = (
+    focus: string,
+    feeling: string,
+    duration: number,
+    methodology: MethodologyType = 'NSDR',
+    variables: Record<string, any> = {}
+  ) => {
+    const defaultSoundscapeId = soundscapes.length > 0 ? soundscapes[0].id : 'default';
+    const config: MeditationConfig = {
+      focus,
+      feeling,
+      duration,
+      voice: 'Kore',
+      speed: 1.0,
+      soundscapeId: defaultSoundscapeId,
+      background: 'deep-space',
+      methodology,
+      variables
+    };
+    setPendingMeditationConfig(config);
+    setCurrentView(ViewState.LOADING);
+  };
 
-  // const setView = (view: ViewState) => setCurrentView(view);
-  // const playMeditation = (id: string) => { setActiveMeditationId(id); setCurrentView(ViewState.PLAYER); };
+  // --- CLINICAL REGISTRY ACTIONS ---
+  const updatePart = async (id: string, updates: Partial<Part>) => {
+    setParts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    if (user.supabaseId) {
+      await supabase.from('parts_ledger').update({
+        relationship_score: updates.relationshipScore,
+        last_accessed: new Date().toISOString()
+      }).eq('id', id);
+    }
+  };
 
-  // Stubs for legacy
+  const updateAnchor = async (id: string, updates: Partial<SomaticAnchor>) => {
+    setAnchors(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    if (user.supabaseId) {
+      await supabase.from('somatic_anchors').update({
+        efficacy_rating: updates.efficacyRating
+      }).eq('id', id);
+    }
+  };
+
+  const acceptPattern = (id: string) => {
+    setPatterns(prev => prev.map(p => p.id === id ? { ...p, status: 'active' as const } : p));
+    if (user.supabaseId) {
+      supabase.from('patterns').update({ status: 'active' }).eq('id', id);
+    }
+  };
+
+  const updatePatternNote = (id: string, note: string) => {
+    setPatterns(prev => prev.map(p => p.id === id ? { ...p, userNotes: note } : p));
+  };
+
   // Stubs for legacy
   const sendChatMessage = async (t: string) => { };
 
@@ -245,6 +356,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
 
+    // Get current sonic preferences from localStorage for learning
+    const sonicPrefs = typeof window !== 'undefined'
+      ? JSON.parse(localStorage.getItem('sonicPreferences') || '{}')
+      : {};
+
     try {
       await supabase.from('session_logs')
         .update({
@@ -253,10 +369,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             pacing_score: feedback.pacing,
             voice_score: feedback.voice,
             immersion_score: feedback.immersion,
-            note: feedback.note
+            note: feedback.note,
+            // Store sonic preferences for learning
+            sonic_preferences: {
+              voice_volume: sonicPrefs.voice,
+              atmosphere_volume: sonicPrefs.atmosphere,
+              resonance_volume: sonicPrefs.resonance
+            },
+            protocol: meditation?.config?.methodology
           }
         })
         .eq('id', realId);
+
+      // Also update user profile with preferred sonic settings
+      await supabase.from('profiles')
+        .update({
+          settings: supabase.sql`
+              COALESCE(settings, '{}'::jsonb) || 
+              '{"sonicPreferences": ${JSON.stringify(sonicPrefs)}}'::jsonb
+            `
+        })
+        .eq('id', user.supabaseId);
+
     } catch (e) {
       console.error("Failed to save feedback", e);
     }
@@ -275,24 +409,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPendingMeditationConfig,
       isLoading,
 
-      // actions
+      // Clinical Registry State
+      parts,
+      anchors,
+      patterns,
+
+      // Actions
       completeOnboarding,
       createNewResolution,
       startMorningSession,
       completeEveningReflection,
+      startMeditationGeneration,
       finalizeMeditationGeneration,
       setView: setCurrentView,
       playMeditation,
       rateMeditation,
 
+      // Clinical Registry Actions
+      updatePart,
+      updateAnchor,
+      acceptPattern,
+      updatePatternNote,
+
       // Soundscape Management
       addSoundscape,
       removeSoundscape,
 
-      // Legacy stubs
-      insights, soundscapes, chatHistory, lastSessionData, setTriage: () => { }, sendChatMessage: async () => { },
-      // Dummy parts/patterns for TS compliance if needed by other components, or remove if unused
-      parts: [], anchors: [], patterns: [], acceptPattern: () => { }, updatePatternNote: () => { }, sessionState: SessionLifecycleState.TRIAGE, triage
+      // Legacy
+      insights,
+      soundscapes,
+      chatHistory,
+      lastSessionData,
+      sendChatMessage,
+      triage,
+      setTriage,
+      sessionState: SessionLifecycleState.TRIAGE
     }}>
       {children}
     </AppContext.Provider>

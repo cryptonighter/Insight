@@ -1,11 +1,10 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution, PlayableSegment, MethodologyType } from '../types';
+import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution, PlayableSegment } from '../types';
 import { generateMeditationScript, generateAudioChunk } from './geminiService';
 import { MeditationPipeline } from './MeditationPipeline';
 import { supabase } from './supabaseClient';
 import { storageService } from './storageService';
-import { generateSonicTimeline, SonicTimeline } from './sonicDirector';
 
 // Helper to stitch audio blobs
 const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
@@ -18,38 +17,6 @@ const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
         } catch (e) { console.error("Segment fetch failed", e); }
     }
     return new Blob(buffers, { type: 'audio/wav' });
-};
-
-// Helper to create audio blob from base64
-const createAudioBlob = (audioBase64: string): Blob => {
-    const binary = atob(audioBase64);
-    const len = binary.length;
-    const buffer = new ArrayBuffer(44 + len);
-    const view = new DataView(buffer);
-
-    const writeString = (view: DataView, offset: number, string: string) => {
-        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-    };
-
-    // WAV Header
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + len, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, 24000, true);
-    view.setUint32(28, 24000 * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(view, 36, 'data');
-    view.setUint32(40, len, true);
-
-    const pcmBytes = new Uint8Array(buffer, 44);
-    for (let k = 0; k < len; k++) pcmBytes[k] = binary.charCodeAt(k);
-
-    return new Blob([buffer], { type: 'audio/wav' });
 };
 
 export const useMeditationGenerator = (
@@ -91,25 +58,7 @@ export const useMeditationGenerator = (
                 `Why: ${activeResolution?.rootMotivation}`
             ];
 
-            // 2. Fetch User Session History for Personalization
-            if (userId) {
-                try {
-                    const { fetchSessionHistory, generatePersonalizationContext } = await import('./userHistoryService');
-                    const history = await fetchSessionHistory(userId);
-
-                    if (history.totalSessions > 0) {
-                        const personalizationContext = generatePersonalizationContext(history);
-                        contextTexts.push("### USER HISTORY ###");
-                        contextTexts.push(personalizationContext);
-                        contextTexts.push("### END HISTORY ###");
-                        console.log('📊 Personalization context injected:', history.totalSessions, 'sessions analyzed');
-                    }
-                } catch (err) {
-                    console.warn("Failed to fetch user history", err);
-                }
-            }
-
-            // 3. Fetch Recent Reflections (Context Injection)
+            // 2. Fetch Recent Reflections (Context Injection - Copied from previous step)
             if (userId) {
                 try {
                     const { data: recentEntries } = await supabase
@@ -159,39 +108,8 @@ export const useMeditationGenerator = (
             setActiveMeditationId(tempId);
             setView(ViewState.LOADING);
 
-            // ===== STREAMING ARCHITECTURE: FAST START =====
-            // 1. Generate greeting immediately (short, fast)
-            // 2. Start TTS on greeting while script generates in parallel
-            // 3. Push greeting to queue and switch to player
-            // 4. Continue generating remaining content in background
-
-            console.log('⚡ Fast Start: Generating greeting...');
-
-            // Determine context hint for personalized greeting
-            const hour = new Date().getHours();
-            const timeContext = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-
-            // Import dynamically to avoid circular dependency
-            const { generateFastGreeting, generateAudioChunk } = await import('./geminiService');
-
-            // PARALLEL EXECUTION: Greeting + Full Script
-            const greetingPromise = generateFastGreeting(
-                config.focus,
-                config.feeling,
-                config.methodology,
-                timeContext
-            ).then(async (greeting) => {
-                // Immediately generate TTS for greeting
-                console.log('⚡ Fast Start: Generating greeting audio...');
-                const { audioData } = await generateAudioChunk(greeting.text, config.voice, {
-                    chunkIndex: 0,
-                    totalChunks: 3, // Estimated
-                    previousChunkEnd: undefined
-                });
-                return { text: greeting.text, audioData };
-            });
-
-            const scriptPromise = generateMeditationScript(
+            // A. Generate Script (Text)
+            const { title, lines, batches } = await generateMeditationScript(
                 config.focus,
                 config.feeling,
                 config.duration,
@@ -202,55 +120,16 @@ export const useMeditationGenerator = (
                 config.variables
             );
 
-            // Wait for greeting (fast) - this completes in ~3-4s
-            const greetingResult = await greetingPromise;
-
-            // Create greeting audio blob
-            const greetingBlob = await createAudioBlob(greetingResult.audioData);
-            const greetingUrl = URL.createObjectURL(greetingBlob);
-
-            // Push greeting to queue IMMEDIATELY - user can start listening
-            const greetingSegment: PlayableSegment = {
-                id: 'greeting',
-                text: greetingResult.text,
-                audioUrl: greetingUrl,
-                duration: greetingResult.audioData.length / 48000, // Estimate
-                instructions: [] // Greeting has no special sonic instructions
-            };
-
-            // Update meditation with greeting - PLAYER CAN START NOW
-            setMeditations(current => current.map(m => {
-                if (m.id === tempId) return {
-                    ...m,
-                    audioQueue: [greetingSegment],
-                    isGenerating: true // Still generating remaining batches
-                };
-                return m;
-            }));
-
-            console.log('⚡ Fast Start: Greeting ready! Player can begin.');
-
-            // Now wait for full script
-            const { title, lines, batches } = await scriptPromise;
-
-            // Update title/transcript
+            // Update title/transcript immediately
             setMeditations(current => current.map(m => {
                 if (m.id === tempId) return { ...m, title, transcript: lines.join('\n'), lines };
                 return m;
             }));
 
-            // --- SONIC DIRECTOR: Generate Timeline ---
-            const sonicTimeline = generateSonicTimeline({
-                protocol: (config.methodology || 'GENERAL') as MethodologyType,
-                segmentCount: batches.length + 1, // +1 for greeting
-                totalDurationMs: config.duration * 60 * 1000
-            });
-            console.log('🎵 Sonic Timeline Generated:', sonicTimeline.metadata);
+            // --- BATCH GENERATION (Prevents Truncation) ---
+            console.log(`🎤 Processing ${batches.length} batches to prevent audio truncation...`);
 
-            // --- REMAINING BATCH GENERATION ---
-            console.log(`🎤 Processing ${batches.length} remaining batches...`);
-
-            const newAudioQueue: PlayableSegment[] = [greetingSegment]; // Start with greeting
+            const newAudioQueue: PlayableSegment[] = [];
 
             // Process sequentially to maintain order and avoid rate limits
             for (let i = 0; i < batches.length; i++) {
@@ -258,15 +137,7 @@ export const useMeditationGenerator = (
                 console.log(`🎤 Generating Batch ${i + 1}/${batches.length} (${batch.text.length} chars)...`);
 
                 try {
-                    // Pass context for voice consistency between chunks
-                    const previousBatch = i > 0 ? batches[i - 1] : null;
-                    const previousChunkEnd = previousBatch ? previousBatch.text.slice(-100) : undefined;
-
-                    const { audioData } = await generateAudioChunk(batch.text, config.voice, {
-                        chunkIndex: i,
-                        totalChunks: batches.length,
-                        previousChunkEnd
-                    });
+                    const { audioData } = await generateAudioChunk(batch.text, config.voice);
 
                     // Convert Base64 directly to Blob URL
                     const binary = atob(audioData);
@@ -305,9 +176,7 @@ export const useMeditationGenerator = (
                         text: batch.text,
                         audioUrl: url,
                         // Estimate duration from bytes (24kHz * 2 bytes/sample = 48000 bytes/sec)
-                        duration: len / 48000,
-                        // Attach sonic instructions for this segment
-                        instructions: sonicTimeline.segmentInstructions[i] || []
+                        duration: len / 48000
                     });
 
                 } catch (batchErr) {

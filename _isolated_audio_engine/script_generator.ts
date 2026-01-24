@@ -1,13 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CLINICAL_PROTOCOLS } from "../_shared/protocols.ts";
 import { MethodologyType } from "../_shared/types.ts";
 
 const GEMINI_MODEL = "gemini-1.5-flash";
-
-// Corrected TTS pacing: ~145 words/min spoken, with pauses ~85% effective
-const EFFECTIVE_WORDS_PER_MINUTE = 123; // 145 * 0.85
 
 serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
@@ -17,50 +13,11 @@ serve(async (req: Request) => {
     try {
         const { focus, targetFeeling, durationMinutes, methodology, variables, voice } = await req.json();
 
-        // Try to fetch protocol from database first, fallback to hardcoded
-        let protocol: any = null;
-
-        try {
-            const supabaseUrl = Deno.env.get('SUPABASE_URL');
-            const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-            if (supabaseUrl && supabaseKey) {
-                const supabase = createClient(supabaseUrl, supabaseKey);
-
-                const { data, error } = await supabase
-                    .from('clinical_protocols')
-                    .select('*')
-                    .eq('methodology', methodology)
-                    .eq('is_active', true)
-                    .single();
-
-                if (data && !error) {
-                    protocol = {
-                        name: data.name,
-                        description: data.description,
-                        systemInput: data.system_prompt,
-                        sonicCues: data.sonic_cues || { atmosphere: 'rain', startFreq: 14, endFreq: 4 }
-                    };
-                    console.log(`📚 Loaded protocol from database: ${methodology}`);
-                }
-            }
-        } catch (dbError) {
-            console.warn('Database protocol fetch failed, using fallback:', dbError);
-        }
-
-        // Fallback to hardcoded protocols
-        if (!protocol) {
-            protocol = CLINICAL_PROTOCOLS[methodology as MethodologyType] || CLINICAL_PROTOCOLS['NSDR'];
-            console.log(`📁 Using hardcoded protocol: ${methodology}`);
-        }
-
+        const protocol = CLINICAL_PROTOCOLS[methodology as MethodologyType] || CLINICAL_PROTOCOLS['NSDR'];
         if (!protocol) {
             throw new Error("Invalid methodology");
         }
 
-        const targetWords = Math.round(durationMinutes * EFFECTIVE_WORDS_PER_MINUTE);
-
-        // Reduced batch counts for better voice consistency (fewer TTS calls = more consistent voice)
         const getStructureInstructions = (mins: number) => {
             if (mins <= 5) {
                 return `
@@ -69,63 +26,32 @@ serve(async (req: Request) => {
                 - Flow: Short intro -> Quick technique -> Brief outro.
                 `;
             } else if (mins <= 10) {
-                // Reduced from 4 to 3 batches for better voice consistency
+                // 4 Batches: Greeting (Fast Start) -> Intro -> Main (Long) -> Outro
                 return `
                 STRUCTURE (10 Minutes):
-                - Create EXACTLY 3 BATCHES:
-                  1. Opening (approx 2 mins): Immediate settling, framing, and context.
-                  2. Main Session (approx 6.5 mins): The core protocol/technique (ONE CONTINUOUS BLOCK).
-                  3. Closing (approx 1.5 mins): Grounding back, gentle return to alertness.
-                - Ensure smooth transitions between batches.
+                - Create EXACTLY 4 BATCHES:
+                  1. Greeting (approx 45s): Very brief, immediate settling. (OPTIMIZED FOR FAST START).
+                  2. Intro (approx 1.5 mins): Deeper framing and context.
+                  3. Main Session (approx 6.5 mins): The core protocol/technique (ONE CONTINUOUS BLOCK).
+                  4. Outro (approx 1.5 mins): Grounding back, CTA.
+                - Ensure context flows smoothly between them.
                 `;
             } else {
-                // Reduced from 5 to 3 batches for better voice consistency
+                // 5 Batches: Greeting -> Intro -> Main A -> Main B -> Outro
                 return `
                 STRUCTURE (20+ Minutes):
-                - Create EXACTLY 3 BATCHES:
-                  1. Opening (approx 3 mins): Deep settling, breath awareness, body scan.
-                  2. Main Session (approx 12 mins): Core technique - combine multiple phases into one continuous flow.
-                  3. Closing (approx 5 mins): Long integration, grounding, gentle return to alertness.
-                - Maintain one continuous voice throughout each batch.
+                - Create EXACTLY 5 BATCHES:
+                  1. Greeting (approx 45s): Very brief, immediate settling. (OPTIMIZED FOR FAST START).
+                  2. Intro (approx 2 mins): Deep settling.
+                  3. Main Part 1 (approx 6 mins): Core technique A.
+                  4. Main Part 2 (approx 6 mins): Core technique B / Deepening.
+                  5. Outro (approx 5 mins): Long integration & Landing.
+                - Ensure distinct progression between parts.
                 `;
             }
         };
 
         const structureInstructions = getStructureInstructions(durationMinutes);
-
-        // Intensity-specific prompt modifiers
-        const getIntensityInstructions = (intensity: string) => {
-            switch (intensity) {
-                case 'GENTLE':
-                    return `
-    INTENSITY (GENTLE):
-    - Focus on relaxation and comfort only
-    - Avoid probing questions or emotional exploration
-    - Use soft, reassuring language throughout
-    - Keep suggestions light and non-challenging
-    - Prioritize safety and ease over depth
-    `;
-                case 'DEEP':
-                    return `
-    INTENSITY (DEEP):
-    - Guide deeper introspection and emotional exploration
-    - Include gentle challenges and probing questions
-    - Allow space for difficult emotions to surface
-    - Use powerful, evocative metaphors
-    - Create opportunities for insight and breakthrough
-    `;
-                default: // MODERATE
-                    return `
-    INTENSITY (MODERATE):
-    - Balance between relaxation and exploration
-    - Include some reflective questions
-    - Gently guide without forcing depth
-    - Allow organic deepening if it arises
-    `;
-            }
-        };
-
-        const intensityInstructions = getIntensityInstructions(variables?.intensity || 'MODERATE');
 
         const generatorPrompt = `
     You are an expert Clinical Hypnotherapist and Meditation Guide. 
@@ -135,7 +61,7 @@ serve(async (req: Request) => {
     - Focus: ${focus}
     - Feeling: ${targetFeeling}
     - Duration: ${durationMinutes} minutes
-    - Target Word Count: ~${targetWords} words
+    - Target Word Count: ~${durationMinutes * 130} words
     - Protocol Context: ${protocol.description}
     - System Instruction: ${protocol.systemInput}
     - Variables: ${JSON.stringify(variables)}
@@ -144,7 +70,6 @@ serve(async (req: Request) => {
     Generate a JSON object containing the meditation script.
     
     ${structureInstructions}
-    ${intensityInstructions}
     
     STYLE GUIDELINES (CRITICAL):
     1. **Show, Don't Tell**: Do not explain what you are doing. Do not say "In this session we will...". Just lead the experience.
@@ -157,20 +82,24 @@ serve(async (req: Request) => {
     {
       "title": "Title of Session",
       "batches": [
-        { "text": "Spoken text..." }
+        {
+          "text": "Spoken text...",
+          "instructions": [
+            { "action": "FADE_VOL", "layer": "music", "targetValue": 0.5, "duration": 5 }
+          ]
+        }
       ],
       "lines": ["Summary line 1", "Summary line 2"]
     }
     
+    IMPORTANT:
+    - Use ${protocol.sonicCues.atmosphere} as the implied atmosphere.
+    - Start binaural beats at ${protocol.sonicCues.startFreq}Hz and ramp to ${protocol.sonicCues.endFreq}Hz.
+
     BREATHING AND PACING:
     - You MUST include audible breathing cues: "[Perform a deep, audible breath]" (Do not use "Audible Inhale/Exhale").
     - Use "[Silence]" to indicate 3-5 second pauses.
     - Pacing should be EXTREMELY SLOW.
-    
-    GROUNDING SEQUENCE (MANDATORY FOR ALL SESSIONS):
-    - End every session with a gentle return to alertness.
-    - Include: body awareness, sounds in the room, invitation to open eyes.
-    - Never leave the listener in a deep state without guidance back.
     `;
 
         // Try multiple env vars

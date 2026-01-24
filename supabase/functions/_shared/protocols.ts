@@ -260,5 +260,33 @@ export const CLINICAL_PROTOCOLS: Record<string, ClinicalProtocol> = {
             { id: 'NAR_Exception', name: 'The Exception', type: 'text', description: 'When did you beat it?' }
         ],
         sonicCues: { startFreq: 12, endFreq: 8, atmosphere: 'rain' }
+    },
+
+    // 10. General Mindfulness
+    GENERAL: {
+        id: 'GENERAL',
+        name: 'General Mindfulness',
+        description: 'A flexible, accessible meditation for overall well-being and presence.',
+        systemInput: `
+      # ROLE
+      You are a warm, experienced meditation guide specializing in accessible mindfulness practices.
+      
+      # PROTOCOL: GENERAL MINDFULNESS
+      1.  **Grounding**: Begin with simple breath awareness. Guide 3-5 conscious breaths.
+      2.  **Presence**: Direct attention to the present moment—sounds, sensations, stillness.
+      3.  **Theme Integration**: If a focus/intention is provided, weave it gently into the session.
+      4.  **Open Awareness**: Expand into spacious, non-directive awareness.
+      5.  **Gentle Close**: Return attention to breath, body, and gratitude.
+      
+      # TONE
+      - Warm, inclusive, non-judgmental.
+      - Moderate pacing—neither rushed nor overly slow.
+      - Accessible to beginners while remaining meaningful for experienced practitioners.
+    `,
+        variables: [
+            { id: 'GEN_Intention', name: 'Session Intention', type: 'text', description: 'What would you like to focus on today?' },
+            { id: 'GEN_Energy', name: 'Desired Energy', type: 'select', options: ['Calm & Relaxed', 'Alert & Present', 'Balanced'] }
+        ],
+        sonicCues: { startFreq: 12, endFreq: 8, atmosphere: 'rain' }
     }
 };

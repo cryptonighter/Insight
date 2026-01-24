@@ -4,6 +4,7 @@ import { Sparkles, ArrowLeft, Volume2, Mic2, Wind, Terminal, Cpu, Activity, Play
 import { VoiceId, MeditationConfig, ViewState } from '../types';
 import { storageService } from '../services/storageService';
 import { generateDailyContext } from '../services/geminiService';
+import { checkContraindications, ContraindicationCheck } from '../services/userHistoryService';
 import { CLINICAL_PROTOCOLS } from '../server/protocols';
 import { cn } from '@/utils';
 
@@ -22,6 +23,8 @@ export const LoadingGeneration: React.FC = () => {
   } = useApp();
 
   const [hasStarted, setHasStarted] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [autoStartPending, setAutoStartPending] = useState(false);
 
   // Configuration State
   const [selectedMethodology, setSelectedMethodology] = useState<string>('NSDR');
@@ -30,6 +33,10 @@ export const LoadingGeneration: React.FC = () => {
   const [selectedVoice, setSelectedVoice] = useState<VoiceId>('Kore');
   const [selectedSpeed, setSelectedSpeed] = useState<number>(0.95);
   const [focusInput, setFocusInput] = useState("");
+  const [selectedIntensity, setSelectedIntensity] = useState<'GENTLE' | 'MODERATE' | 'DEEP'>('MODERATE');
+
+  // Safety State
+  const [contraindicationWarning, setContraindicationWarning] = useState<ContraindicationCheck | null>(null);
 
   // Director State
   const [directorSuggestion, setDirectorSuggestion] = useState<{ reason: string; loading: boolean } | null>(null);
@@ -61,12 +68,30 @@ export const LoadingGeneration: React.FC = () => {
         setSelectedMethodology(ctx.protocol);
       }
       setDirectorSuggestion({ reason: ctx.reason, loading: false });
+
+      // Auto-start pending if not in advanced mode
+      if (!showAdvanced) {
+        setAutoStartPending(true);
+      }
     };
 
     // Small delay to feel "alive" after mount
     const timer = setTimeout(runDirector, 800);
     return () => clearTimeout(timer);
   }, [hasStarted, activeResolution, meditations, isLoading]);
+
+  // Auto-start countdown after Director completes
+  useEffect(() => {
+    if (!autoStartPending || hasStarted || showAdvanced) return;
+
+    const autoStartTimer = setTimeout(() => {
+      if (!hasStarted && autoStartPending) {
+        handleStart();
+      }
+    }, 3000); // 3 second delay gives user time to tap "Customize" if desired
+
+    return () => clearTimeout(autoStartTimer);
+  }, [autoStartPending, hasStarted, showAdvanced]);
 
 
   // Sync with triage & pending config (Overrides Director if manual triage happened)
@@ -95,6 +120,23 @@ export const LoadingGeneration: React.FC = () => {
       if (match) setSelectedSoundscapeId(match.id);
     }
   }, [selectedMethodology, soundscapes]);
+
+  // Contraindication Safety Check
+  useEffect(() => {
+    // Check when methodology changes
+    if (!triage.clinicalContraindications || triage.clinicalContraindications.length === 0) {
+      setContraindicationWarning(null);
+      return;
+    }
+
+    const check = checkContraindications(selectedMethodology as any, triage.clinicalContraindications);
+    if (!check.safe) {
+      setContraindicationWarning(check);
+      console.warn('⚠️ Contraindication warning:', check.warnings);
+    } else {
+      setContraindicationWarning(null);
+    }
+  }, [selectedMethodology, triage.clinicalContraindications]);
 
   // Preview State
   const [previewingId, setPreviewingId] = useState<string | null>(null);
@@ -233,7 +275,8 @@ export const LoadingGeneration: React.FC = () => {
       soundscapeId: selectedSoundscapeId || soundscapes[0]?.id,
       background: 'deep-space',
       methodology: (selectedMethodology as any) || 'NSDR',
-      variables: triage.clinicalVariables
+      variables: { ...triage.clinicalVariables, intensity: selectedIntensity },
+      intensity: selectedIntensity
     };
 
     finalizeMeditationGeneration(config).catch(e => {
@@ -318,16 +361,82 @@ export const LoadingGeneration: React.FC = () => {
             </div>
           ) : (
             <>
-              <h2 className="text-2xl font-bold text-white tracking-wide">Configure Protocol</h2>
-              <p className="text-primary/60 text-xs font-mono tracking-wider">TARGET: <span className="text-white">{triage.selectedMethodology || 'NSDR'}</span></p>
+              {/* QUICK START MODE (Default) */}
+              {!showAdvanced ? (
+                <div className="flex flex-col items-center gap-4">
+                  <h2 className="text-2xl font-bold text-white tracking-wide">
+                    {directorSuggestion?.loading ? "Calibrating..." : "Session Ready"}
+                  </h2>
+
+                  {/* Director's Decision */}
+                  {directorSuggestion && !directorSuggestion.loading && (
+                    <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg max-w-xs text-center animate-in fade-in">
+                      <p className="text-xs text-white/70 mb-2">Today's approach:</p>
+                      <p className="text-primary font-bold uppercase tracking-wide text-sm mb-2">
+                        {CLINICAL_PROTOCOLS[selectedMethodology]?.name || selectedMethodology}
+                      </p>
+                      <p className="text-[10px] text-white/50 italic leading-relaxed">
+                        "{directorSuggestion.reason}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Auto-start countdown */}
+                  {autoStartPending && !directorSuggestion?.loading && (
+                    <div className="flex flex-col items-center gap-2 animate-pulse">
+                      <p className="text-xs text-primary/60 font-mono">AUTO-STARTING IN 3s...</p>
+                    </div>
+                  )}
+
+                  {/* Customize Button */}
+                  <button
+                    onClick={() => {
+                      setShowAdvanced(true);
+                      setAutoStartPending(false);
+                    }}
+                    className="text-xs text-white/40 hover:text-white/70 underline transition-colors"
+                  >
+                    Customize session →
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold text-white tracking-wide">Configure Protocol</h2>
+                  <p className="text-primary/60 text-xs font-mono tracking-wider">TARGET: <span className="text-white">{triage.selectedMethodology || 'NSDR'}</span></p>
+                </>
+              )}
             </>
           )}
         </div>
 
-        {/* CONFIG OPTIONS */}
-        {!hasStarted && (
+        {/* CONFIG OPTIONS - Only shown in Advanced mode */}
+        {!hasStarted && showAdvanced && (
           <div className="w-full space-y-6 animate-slide-up-fade">
             <div className="border border-primary/10 bg-white/5 p-6 rounded-lg space-y-6 backdrop-blur-sm">
+
+              {/* CONTRAINDICATION WARNING */}
+              {contraindicationWarning && !contraindicationWarning.safe && (
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 space-y-2 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-orange-400 text-lg">⚠️</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-orange-400">Safety Notice</span>
+                  </div>
+                  <p className="text-[11px] text-orange-200/80">
+                    {contraindicationWarning.warnings[0]}
+                  </p>
+                  {contraindicationWarning.suggestedAlternative && (
+                    <button
+                      onClick={() => {
+                        setSelectedMethodology(contraindicationWarning.suggestedAlternative!);
+                        setHasManualSelection(true);
+                      }}
+                      className="text-[10px] text-orange-300 hover:text-orange-100 underline transition-colors"
+                    >
+                      → Switch to {contraindicationWarning.suggestedAlternative} (safer alternative)
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* OBJECTIVE INPUT */}
               <div className="space-y-2">
@@ -391,6 +500,35 @@ export const LoadingGeneration: React.FC = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* INTENSITY */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                  <Activity size={14} className="text-primary" />
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Session Depth</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['GENTLE', 'MODERATE', 'DEEP'] as const).map(level => (
+                    <button
+                      key={level}
+                      onClick={() => setSelectedIntensity(level)}
+                      className={cn(
+                        "p-3 rounded-sm border text-[10px] font-bold uppercase tracking-wide transition-all",
+                        selectedIntensity === level
+                          ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                          : "bg-black/20 border-white/10 text-white/40 hover:border-primary/50 hover:text-primary/80"
+                      )}
+                    >
+                      {level === 'GENTLE' ? '☁️ Gentle' : level === 'MODERATE' ? '🌊 Moderate' : '🌀 Deep'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-white/30 italic">
+                  {selectedIntensity === 'GENTLE' && "Light relaxation, minimal emotional exploration"}
+                  {selectedIntensity === 'MODERATE' && "Balanced depth, guided introspection"}
+                  {selectedIntensity === 'DEEP' && "Profound exploration, deeper therapeutic work"}
+                </p>
               </div>
 
               {/* ATMOSPHERE */}

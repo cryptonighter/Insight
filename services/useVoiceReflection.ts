@@ -22,7 +22,7 @@ export const useVoiceReflection = () => {
     const summaryAccumulator = useRef<string>("");
     const transcriptAccumulator = useRef<string>("");
 
-    const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || "AIzaSyBx3c6VF9JnL-Qbc1rQKbAL-PHBA5anfys";
+    const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || "";
 
     const disconnect = useCallback(() => {
         if (wsRef.current) {

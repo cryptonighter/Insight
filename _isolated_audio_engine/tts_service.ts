@@ -6,7 +6,8 @@ import {
 import { CLINICAL_PROTOCOLS } from "./protocols";
 
 // Initialize Gemini Client
-const googleApiKey = import.meta.env.VITE_GOOGLE_API_KEY || "";
+const googleApiKey = import.meta.env.VITE_GOOGLE_API_KEY ||
+  "AIzaSyBx3c6VF9JnL-Qbc1rQKbAL-PHBA5anfys"; // Sync with LiveReflection fallback
 
 console.log("🛠️ AI Service Init:", {
   hasGoogleKey: !!googleApiKey,
@@ -230,82 +231,6 @@ interface ScriptBlock {
   instructions?: SonicInstruction[];
 }
 
-/**
- * Generate a FAST, personalized greeting for immediate playback (~30-40 words)
- * This runs while the main script generates in parallel
- * CRITICAL: Must be context-aware, not generic
- */
-export const generateFastGreeting = async (
-  focus: string,
-  targetFeeling: string,
-  methodology: MethodologyType = 'NSDR',
-  contextHint?: string // e.g., "morning", "evening", recent reflection theme
-): Promise<{ text: string }> => {
-
-  const greetingPrompt = `
-You are a meditation guide. Generate ONLY an opening greeting (30-40 words max).
-
-CONTEXT:
-- User's focus: "${focus}"
-- Desired feeling: "${targetFeeling}"
-- Protocol: ${methodology}
-${contextHint ? `- Additional context: ${contextHint}` : ''}
-
-RULES:
-1. Do NOT use generic phrases like "Welcome to this meditation" or "Find a comfortable position"
-2. DO reference their specific focus or feeling naturally
-3. Start with something evocative related to their intention
-4. End with an invitation to settle or breathe
-5. Include one "[Silence]" marker at the end
-
-STYLE:
-- Present tense, sensory language
-- Warm but not saccharine
-- Direct experience, not explanation
-
-OUTPUT: Return ONLY the greeting text, nothing else.
-  `;
-
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${googleApiKey}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: greetingPrompt }] }],
-        generationConfig: {
-          maxOutputTokens: 100,
-          temperature: 0.7
-        }
-      })
-    });
-
-    if (!response.ok) throw new Error('Greeting generation failed');
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
-    // Ensure the greeting ends with silence marker
-    const finalText = text.includes('[Silence]') ? text : `${text} [Silence]`;
-
-    console.log('⚡ Fast Greeting Generated:', finalText.substring(0, 50) + '...');
-    return { text: finalText };
-
-  } catch (error) {
-    console.warn('Fast greeting failed, using contextual fallback');
-    // Contextual fallback - NOT generic
-    const fallbacks: Record<MethodologyType, string> = {
-      'NSDR': `Arriving here... letting ${focus} settle into awareness. The body knowing how to rest. [Silence]`,
-      'IFS': `Turning inward with curiosity... noticing what surfaces around ${focus}. Breathing with it. [Silence]`,
-      'SOMATIC_AGENCY': `Feeling the body's presence... inviting awareness to ${focus}. Grounding here. [Silence]`,
-      'FUTURE_SELF': `Breathing into possibility... ${targetFeeling} already beginning to emerge. [Silence]`,
-      'GENERAL': `Settling into this moment... ${focus} present... breath arriving. [Silence]`
-    };
-    return { text: fallbacks[methodology] || fallbacks['GENERAL'] };
-  }
-};
-
 
 export const generateMeditationScript = async (
   focus: string,
@@ -337,26 +262,16 @@ export const generateMeditationScript = async (
 
 export const generateAudioChunk = async (
   text: string,
-  voice: VoiceId,
-  context?: { chunkIndex: number; totalChunks: number; previousChunkEnd?: string }
+  voice: VoiceId
 ): Promise<{ audioData: string; mimeType: string }> => {
   let retries = 0;
   const MAX_RETRIES = 3;
 
   // Enhancing the prompt with STRICT consistency for batches
   const baseProfile = VOICE_PROFILES[voice] || VOICE_PROFILES['Kore'];
-
-  // Add context for voice consistency between chunks
-  const contextSection = context ? `
-## CONTINUITY CONTEXT
-This is chunk ${context.chunkIndex + 1} of ${context.totalChunks}.
-${context.previousChunkEnd ? `Previous chunk ended with: "${context.previousChunkEnd}"` : 'This is the session beginning.'}
-CRITICAL: Maintain IDENTICAL voice characteristics, tone, pacing, and energy as the previous chunk.
-` : '';
-
   const directorPrompt = `
 ${baseProfile}
-${contextSection}
+
 #### TRANSCRIPT
 ${text}
 `;

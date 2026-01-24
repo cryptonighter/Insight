@@ -15,16 +15,13 @@ import { ContextInterview } from './components/ContextInterview';
 import { AuthView } from './components/AuthView';
 import { ViewState } from './types';
 
-import { Dashboard } from './components/Dashboard';
 import { DashboardV2 } from './components/v2/DashboardV2';
 import { ReflectionV2 } from './components/v2/ReflectionV2';
 import { SessionSummaryV2 } from './components/v2/SessionSummaryV2';
 import { NewResolutionV2 } from './components/v2/NewResolutionV2';
 import { FeedbackV2 } from './components/v2/FeedbackV2';
 import { OnboardingView } from './components/v2/OnboardingView';
-import { LiveReflection } from './components/LiveReflection';
-import { OnboardingWizard } from './components/OnboardingWizard';
-import { supabase } from './services/supabaseClient'; // Ensure imported
+import { supabase } from './services/supabaseClient';
 
 const Main: React.FC = () => {
   const { currentView, user, userEconomy } = useApp();
