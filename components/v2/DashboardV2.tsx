@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../services/supabaseClient';
 import { useApp } from '../../context/AppContext';
@@ -6,7 +6,8 @@ import { Settings, History, ChevronRight, Zap, Activity } from 'lucide-react';
 import { ViewState } from '../../types';
 
 export const DashboardV2: React.FC = () => {
-    const { userEconomy, activeResolution, startMorningSession, setView, todaysEntry, isLoading } = useApp();
+    const { userEconomy, activeResolution, startMorningSession, setView, todaysEntry, isLoading, setPendingMeditationConfig } = useApp();
+    const [intentionInput, setIntentionInput] = useState('');
 
     const daysProgress = useMemo(() => {
         if (!activeResolution?.createdAt) return 0;
@@ -82,6 +83,18 @@ export const DashboardV2: React.FC = () => {
                         <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/10 to-transparent mt-6"></div>
                     </div>
                 )}
+
+                {/* Intention Input */}
+                <div className="w-full max-w-xs mt-8 pointer-events-auto">
+                    <label className="block text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase mb-2 text-center">What's on your mind today?</label>
+                    <input
+                        type="text"
+                        value={intentionInput}
+                        onChange={(e) => setIntentionInput(e.target.value)}
+                        placeholder="Stress, sleep, focus, a specific challenge..."
+                        className="w-full bg-surface/50 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:border-primary/50 focus:outline-none transition-colors text-center"
+                    />
+                </div>
             </main>
 
             <footer className="relative z-10 w-full px-6 pb-8 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent shrink-0">
@@ -91,7 +104,7 @@ export const DashboardV2: React.FC = () => {
                             if (todaysEntry?.morningGenerated && !todaysEntry?.eveningCompleted) {
                                 setView(ViewState.EVENING_REFLECTION);
                             } else {
-                                startMorningSession();
+                                startMorningSession(intentionInput);
                             }
                         }}
                         animate={{ scale: [1, 1.02, 1] }}

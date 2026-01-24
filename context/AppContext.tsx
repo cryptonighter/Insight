@@ -56,7 +56,7 @@ interface AppState {
   // Actions
   completeOnboarding: () => void;
   createNewResolution: (statement: string, motivation: string) => Promise<void>;
-  startMorningSession: () => Promise<void>;
+  startMorningSession: (customFocus?: string) => Promise<void>;
   completeEveningReflection: (summary: string) => Promise<void>;
 
   // Generation Actions
@@ -211,8 +211,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => subscription.unsubscribe();
   }, []);
 
-  const startMorningSession = async () => {
-    console.log("Starting Morning Session (Config Mode)...");
+  const startMorningSession = async (customFocus?: string) => {
+    console.log("Starting Morning Session (Config Mode)...", { customFocus });
     try {
       const success = await debitToken();
       if (!success) {
@@ -223,8 +223,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Prepare Initial Config (But DON'T generate yet)
       const defaultSoundscapeId = soundscapes.length > 0 ? soundscapes[0].id : "default";
 
+      // Use custom focus if provided, otherwise fall back to resolution
+      const sessionFocus = customFocus?.trim() || activeResolution?.statement || "Focus";
+
       const config: MeditationConfig = {
-        focus: activeResolution?.statement || "Focus",
+        focus: sessionFocus,
         feeling: "Determined",
         duration: 5,
         voice: 'Kore',

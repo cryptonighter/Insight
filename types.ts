@@ -207,6 +207,9 @@ export interface SessionSummaryData {
   transcript: string;
   summary: string;
   takeaways?: string[]; // Optional parsed takeaways
+  focus?: string; // What the session was about
+  methodology?: string; // Protocol used
+  userInsights?: string; // User's own reflection
 }
 
 // --- RESOLUTION ENGINE TYPES ---

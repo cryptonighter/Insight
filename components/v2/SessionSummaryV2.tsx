@@ -30,8 +30,10 @@ export const SessionSummaryV2: React.FC = () => {
                         <ChevronRight className="rotate-180 w-6 h-6" />
                     </button>
                     <div className="flex flex-col items-center">
-                        <h2 className="text-white text-lg font-bold leading-none tracking-tight">EVENING PROTOCOL</h2>
-                        <span className="text-primary text-[10px] tracking-[0.2em] font-medium mt-1 uppercase text-emerald-400">Session Complete</span>
+                        <h2 className="text-white text-lg font-bold leading-none tracking-tight">SESSION COMPLETE</h2>
+                        <span className="text-primary text-[10px] tracking-[0.2em] font-medium mt-1 uppercase text-emerald-400">
+                            {lastSessionData.methodology || 'Alignment'} Protocol
+                        </span>
                     </div>
                     <div className="w-6 h-6" /> {/* Spacer */}
                 </div>
@@ -39,6 +41,16 @@ export const SessionSummaryV2: React.FC = () => {
 
             {/* Scrollable Content */}
             <main className="flex-1 overflow-y-auto w-full px-6 pt-6 pb-32">
+                {/* Session Focus */}
+                {lastSessionData.focus && (
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-primary/10 border border-primary/30 rounded-lg px-4 py-2 text-center">
+                            <span className="text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase block mb-1">Today's Focus</span>
+                            <span className="text-sm text-white font-medium">{lastSessionData.focus}</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Timestamp Pill */}
                 <div className="flex justify-center mb-8">
                     <span className="bg-surface border border-white/5 text-white/40 text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-bold">
@@ -57,7 +69,9 @@ export const SessionSummaryV2: React.FC = () => {
                                     <Brain className="w-3 h-3" />
                                     Session Intel
                                 </p>
-                                <h3 className="text-white text-xl md:text-2xl font-bold leading-tight">CORE TAKEAWAYS</h3>
+                                <h3 className="text-white text-xl md:text-2xl font-bold leading-tight">
+                                    {lastSessionData.summary ? 'KEY INSIGHTS' : 'SESSION SUMMARY'}
+                                </h3>
                             </div>
                             <div className="bg-black/30 px-2 py-1 rounded border border-white/10">
                                 <Bookmark className="w-4 h-4 text-primary" />
@@ -66,8 +80,19 @@ export const SessionSummaryV2: React.FC = () => {
 
                         {/* AI Summary Text */}
                         <div className="text-white/80 text-sm leading-relaxed border-l-2 border-primary/50 pl-4 py-1">
-                            {lastSessionData.summary || "No insights generated."}
+                            {lastSessionData.summary || `You completed a ${lastSessionData.methodology || 'focus'} session${lastSessionData.focus ? ` on "${lastSessionData.focus}"` : ''}. Take a moment to reflect on how you feel.`}
                         </div>
+
+                        {/* User's Own Insights */}
+                        {lastSessionData.userInsights && (
+                            <div className="mt-4 pt-4 border-t border-white/10">
+                                <p className="text-primary text-[10px] font-bold tracking-widest uppercase mb-2 flex items-center gap-1.5">
+                                    <MessageSquare className="w-3 h-3" />
+                                    Your Reflection
+                                </p>
+                                <p className="text-white/70 text-sm italic">"{lastSessionData.userInsights}"</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 

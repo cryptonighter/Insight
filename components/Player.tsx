@@ -16,7 +16,7 @@ class SoundEngine {
     convolver: ConvolverNode;
     dryGain: GainNode;
     wetGain: GainNode;
-    reverbMix: number = 0.3; // 30% wet by default
+    reverbMix: number = 0.1; // 10% wet - subtle, safe default
 
     // Track layers by ID
     layers: Map<string, { source: any, gain: GainNode, type: 'buffer' | 'procedural', params?: any }> = new Map();
@@ -36,7 +36,7 @@ class SoundEngine {
         this.wetGain.connect(this.masterGain);
         this.convolver.connect(this.wetGain);
 
-        this.setReverbMix(0.3);
+        this.setReverbMix(0.1); // Start with subtle reverb to avoid noise
         this.generateImpulseResponse();
     }
 
@@ -49,10 +49,11 @@ class SoundEngine {
         for (let channel = 0; channel < 2; channel++) {
             const data = impulse.getChannelData(channel);
             for (let i = 0; i < length; i++) {
-                // Exponential decay with early reflections
-                const decay = Math.exp(-3.5 * i / length);
-                const earlyReflection = i < sampleRate * 0.05 ? 0.3 : 0;
-                data[i] = (Math.random() * 2 - 1) * decay + earlyReflection * (Math.random() * 0.5);
+                // Smooth exponential decay (no random artifacts)
+                const decay = Math.exp(-4.0 * i / length);
+                // Gentle noise - reduced amplitude to prevent harsh artifacts
+                const noise = (Math.random() * 2 - 1) * 0.3;
+                data[i] = noise * decay;
             }
         }
 

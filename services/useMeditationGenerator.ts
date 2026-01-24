@@ -247,10 +247,8 @@ export const useMeditationGenerator = (
             });
             console.log('🎵 Sonic Timeline Generated:', sonicTimeline.metadata);
 
-            // --- REMAINING BATCH GENERATION ---
-            console.log(`🎤 Processing ${batches.length} remaining batches...`);
-
-            const newAudioQueue: PlayableSegment[] = [greetingSegment]; // Start with greeting
+            // --- REMAINING BATCH GENERATION (STREAMING) ---
+            console.log(`🎤 Processing ${batches.length} remaining batches (streaming)...`);
 
             // Process sequentially to maintain order and avoid rate limits
             for (let i = 0; i < batches.length; i++) {
@@ -260,11 +258,11 @@ export const useMeditationGenerator = (
                 try {
                     // Pass context for voice consistency between chunks
                     const previousBatch = i > 0 ? batches[i - 1] : null;
-                    const previousChunkEnd = previousBatch ? previousBatch.text.slice(-100) : undefined;
+                    const previousChunkEnd = previousBatch ? previousBatch.text.slice(-100) : greetingResult.text.slice(-100);
 
                     const { audioData } = await generateAudioChunk(batch.text, config.voice, {
-                        chunkIndex: i,
-                        totalChunks: batches.length,
+                        chunkIndex: i + 1, // +1 because greeting is index 0
+                        totalChunks: batches.length + 1,
                         previousChunkEnd
                     });
 
@@ -300,42 +298,51 @@ export const useMeditationGenerator = (
                     const blob = new Blob([buffer], { type: 'audio/wav' });
                     const url = URL.createObjectURL(blob);
 
-                    newAudioQueue.push({
+                    const newSegment: PlayableSegment = {
                         id: `batch-${i}`,
                         text: batch.text,
                         audioUrl: url,
-                        // Estimate duration from bytes (24kHz * 2 bytes/sample = 48000 bytes/sec)
                         duration: len / 48000,
-                        // Attach sonic instructions for this segment
-                        instructions: sonicTimeline.segmentInstructions[i] || []
-                    });
+                        instructions: sonicTimeline.segmentInstructions[i + 1] || [] // +1 for greeting offset
+                    };
+
+                    // STREAM: Append this segment to queue immediately
+                    setMeditations(current => current.map(m => {
+                        if (m.id === tempId) {
+                            return {
+                                ...m,
+                                audioQueue: [...m.audioQueue, newSegment],
+                                isGenerating: i < batches.length - 1 // Still generating if not last batch
+                            };
+                        }
+                        return m;
+                    }));
+
+                    console.log(`✅ Batch ${i + 1} streamed to queue`);
 
                 } catch (batchErr) {
                     console.error(`❌ Batch ${i} failed:`, batchErr);
-                    // Continue to next batch? or stop? 
-                    // For now, we skip.
+                    // Continue to next batch
                 }
             }
 
-            if (newAudioQueue.length === 0) {
-                throw new Error("No audio generated from batches.");
-            }
-
-            // Update State with Full Queue
+            // Mark generation complete
             setMeditations(current => current.map(m => {
                 if (m.id === tempId) {
-                    return {
-                        ...m,
-                        audioQueue: newAudioQueue,
-                        isGenerating: false
-                    };
+                    return { ...m, isGenerating: false };
                 }
                 return m;
             }));
 
-            // Calculate Approximate Total Duration
-            const totalDuration = newAudioQueue.reduce((acc, curr) => acc + curr.duration, 0);
-            console.log(`✅ Generation Complete. Total Audio: ${totalDuration.toFixed(1)}s`);
+            // Calculate Approximate Total Duration (get from current meditation state)
+            setMeditations(current => {
+                const meditation = current.find(m => m.id === tempId);
+                if (meditation) {
+                    const totalDuration = meditation.audioQueue.reduce((acc, curr) => acc + curr.duration, 0);
+                    console.log(`✅ Generation Complete. Total Audio: ${totalDuration.toFixed(1)}s`);
+                }
+                return current;
+            });
 
             setPendingMeditationConfig(null);
 
@@ -353,7 +360,7 @@ export const useMeditationGenerator = (
                         .from('session_logs')
                         .insert({
                             user_id: userId,
-                            modality: 'MORNING_ALIGNMENT',
+                            modality: config.methodology || 'MORNING_ALIGNMENT',
                             focus: config.focus,
                             feeling: config.feeling,
                             transcript: lines.join('\n'),
@@ -375,22 +382,26 @@ export const useMeditationGenerator = (
                                 .eq('date', today)
                                 .eq('resolution_id', activeResolution.id || 'unknown');
                         }
-                        console.log("✅ Morning Session Persisted:", logData.id);
+                        console.log("✅ Session Persisted:", logData.id);
 
-                        // 4. UPLOAD STITCHED AUDIO (Background)
-                        if (newAudioQueue.length > 0) {
-                            stitchAudio(newAudioQueue).then(blob => {
-                                console.log("☁️ Uploading stitched global audio...");
-                                storageService.uploadSessionAudio(userId, config.soundscapeId || 'default', blob).then(publicUrl => {
-                                    if (publicUrl) {
-                                        supabase.from('session_logs')
-                                            .update({ audio_url: publicUrl })
-                                            .eq('id', logData.id);
-                                        console.log("✅ Audio successfully linked to session:", publicUrl);
-                                    }
+                        // 4. UPLOAD STITCHED AUDIO (Background) - Get current queue from state
+                        setMeditations(current => {
+                            const meditation = current.find(m => m.id === tempId);
+                            if (meditation && meditation.audioQueue.length > 0) {
+                                stitchAudio(meditation.audioQueue).then(blob => {
+                                    console.log("☁️ Uploading stitched global audio...");
+                                    storageService.uploadSessionAudio(userId, config.soundscapeId || 'default', blob).then(publicUrl => {
+                                        if (publicUrl) {
+                                            supabase.from('session_logs')
+                                                .update({ audio_url: publicUrl })
+                                                .eq('id', logData.id);
+                                            console.log("✅ Audio successfully linked to session:", publicUrl);
+                                        }
+                                    });
                                 });
-                            });
-                        }
+                            }
+                            return current;
+                        });
 
                         // SAVE REAL ID TO STATE
                         setMeditations(current => current.map(m => {
