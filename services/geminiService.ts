@@ -164,6 +164,87 @@ export const chatWithInsight = async (
   }
 };
 
+/**
+ * Generates a session summary preview for the unified setup UX.
+ * Director chooses methodology, soundscape, and creates a short preview of what to expect.
+ */
+export const generateSessionSummary = async (
+  theme: string,
+  duration: number,
+  customContext?: string,
+  refinementRequest?: string,
+  availableSoundscapes?: { id: string; name: string; mood?: string }[]
+): Promise<{
+  title: string;
+  methodology: MethodologyType;
+  focus: string;
+  soundscapeId: string;
+  preview: string;
+}> => {
+  const soundscapeList = availableSoundscapes?.map(s => `${s.id}: ${s.name} (${s.mood || 'ambient'})`).join('\n') || 'default: Ambient';
+
+  const prompt = `You are a meditation session director. Create a personalized session based on user input.
+
+USER THEME: ${theme}
+DURATION: ${duration} minutes
+${customContext ? `ADDITIONAL CONTEXT: ${customContext}` : ''}
+${refinementRequest ? `USER REFINEMENT REQUEST: ${refinementRequest}` : ''}
+
+AVAILABLE METHODOLOGIES:
+- NSDR: Non-Sleep Deep Rest for stress relief and recovery
+- SOMATIC_AGENCY: Body-based practices for releasing tension and trauma
+- IFS: Internal Family Systems for inner dialogue and parts work  
+- GENERAL: Mindfulness and breath awareness
+
+AVAILABLE SOUNDSCAPES:
+${soundscapeList}
+
+Return a JSON object with:
+{
+  "title": "Short evocative session title (3-5 words)",
+  "methodology": "NSDR" | "SOMATIC_AGENCY" | "IFS" | "GENERAL",
+  "focus": "Refined focus statement based on user's theme",
+  "soundscapeId": "ID of the best matching soundscape",
+  "preview": "2-3 sentence description of what the user will experience. Be specific about techniques used."
+}
+
+${refinementRequest ? `IMPORTANT: The user requested "${refinementRequest}" - incorporate this into the session design.` : ''}
+
+Return ONLY valid JSON, no markdown.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: BRAIN_MODEL,
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const text = response.text?.trim() || '';
+    const parsed = JSON.parse(text);
+
+    return {
+      title: parsed.title || "Mindful Session",
+      methodology: parsed.methodology || "NSDR",
+      focus: parsed.focus || theme,
+      soundscapeId: parsed.soundscapeId || availableSoundscapes?.[0]?.id || 'default',
+      preview: parsed.preview || "A guided meditation tailored to your needs."
+    };
+  } catch (error) {
+    console.error("generateSessionSummary error:", error);
+    // Fallback
+    return {
+      title: "Calming Session",
+      methodology: "NSDR",
+      focus: theme,
+      soundscapeId: availableSoundscapes?.[0]?.id || 'default',
+      preview: `A ${duration}-minute session focused on ${theme.toLowerCase()}. We'll begin with grounding, move into deep relaxation, and close with gentle awareness.`
+    };
+  }
+};
+
 export const transcribeAudio = async (audioBase64: string): Promise<string> => {
   // OpenRouter doesn't always support native webm transcription as a direct model call (it's text-to-text)
   // For now, keep transcription on Google Native SDK if it's specialized, 

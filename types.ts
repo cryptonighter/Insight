@@ -48,6 +48,16 @@ export interface ChatMessage {
   };
 }
 
+/** Director-generated session preview for unified setup UX */
+export interface SessionSummaryPreview {
+  title: string;
+  methodology: MethodologyType;
+  focus: string;
+  duration: number;
+  soundscapeId?: string;
+  preview: string;  // "What to expect" short paragraph
+}
+
 export interface Pattern {
   id: string;
   title: string;
