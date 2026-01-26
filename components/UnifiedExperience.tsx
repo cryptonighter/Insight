@@ -1,25 +1,32 @@
 /**
- * UnifiedExperience - Meditation + Feedback in one screen
- * States: LOADING → POSTURE_INFO → PLAYING → FEEDBACK → COMPLETE
+ * UnifiedExperience - Meditation + Feedback + Insight Review
+ * States: POSTURE_INFO → PLAYING → FEEDBACK → INSIGHT_REVIEW → COMPLETE
  * Button stays at bottom throughout all states
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { ViewState, MethodologyType } from '../types';
+import { ViewState } from '../types';
 import { MainButton, ButtonState } from './MainButton';
 import { VolumeControls } from './VolumeControls';
-import { Headphones, AlertTriangle, Mic, Keyboard, Check, Loader2 } from 'lucide-react';
+import { Headphones, AlertTriangle, Mic, Keyboard, Check, Loader2, X, Sparkles } from 'lucide-react';
 import { transcribeAudio } from '../services/geminiService';
+import { saveSessionFeedback, saveInsight } from '../services/insightService';
 import { cn } from '@/utils';
 
-type ExperienceState = 'POSTURE_INFO' | 'PLAYING' | 'PAUSED' | 'FEEDBACK' | 'COMPLETE';
+type ExperienceState = 'POSTURE_INFO' | 'PLAYING' | 'PAUSED' | 'FEEDBACK' | 'INSIGHT_REVIEW' | 'COMPLETE';
 
 interface FeedbackQuestion {
     id: string;
     question: string;
     answer: string;
+}
+
+interface ExtractedInsight {
+    id: string;
+    text: string;
+    removed: boolean;
 }
 
 const FEEDBACK_QUESTIONS: Omit<FeedbackQuestion, 'answer'>[] = [
@@ -52,13 +59,61 @@ const POSTURE_INFO: Record<string, { position: string; icon: string; description
     }
 };
 
+/**
+ * Extract insights from feedback text using simple parsing
+ * (In production, this would use AI extraction)
+ */
+function extractInsightsFromFeedback(feedbackAnswers: FeedbackQuestion[]): ExtractedInsight[] {
+    const insights: ExtractedInsight[] = [];
+    let idCounter = 0;
+
+    // Get the insights answer (Q1)
+    const insightsText = feedbackAnswers.find(q => q.id === 'insights')?.answer || '';
+
+    if (insightsText.trim()) {
+        // Split by sentence endings or common separators
+        const sentences = insightsText
+            .split(/[.!?]\s+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 10 && s.length < 300);
+
+        // If we got sentences, use them; otherwise use the whole text
+        if (sentences.length > 0) {
+            sentences.forEach(sentence => {
+                insights.push({
+                    id: `extracted-${idCounter++}`,
+                    text: sentence.endsWith('.') ? sentence : sentence + '.',
+                    removed: false
+                });
+            });
+        } else if (insightsText.length >= 10) {
+            insights.push({
+                id: `extracted-${idCounter++}`,
+                text: insightsText,
+                removed: false
+            });
+        }
+    }
+
+    // Also extract from positive feedback if it contains insight-like content
+    const positiveText = feedbackAnswers.find(q => q.id === 'positive')?.answer || '';
+    if (positiveText.length > 20 && positiveText.toLowerCase().includes('realize')) {
+        insights.push({
+            id: `extracted-${idCounter++}`,
+            text: positiveText,
+            removed: false
+        });
+    }
+
+    return insights;
+}
+
 export const UnifiedExperience: React.FC = () => {
     const {
         pendingMeditationConfig,
         currentMeditation,
         setView,
-        soundscapes,
-        audioPlayback
+        user
     } = useApp();
 
     // State
@@ -72,6 +127,10 @@ export const UnifiedExperience: React.FC = () => {
     const [showTyping, setShowTyping] = useState(false);
     const [typingInput, setTypingInput] = useState('');
 
+    // Insight extraction state
+    const [extractedInsights, setExtractedInsights] = useState<ExtractedInsight[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+
     // Volume state
     const [voiceVolume, setVoiceVolume] = useState(0.8);
     const [soundscapeVolume, setSoundscapeVolume] = useState(0.5);
@@ -81,9 +140,9 @@ export const UnifiedExperience: React.FC = () => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
-    // Progress (mock for now, would come from actual audio playback)
+    // Progress
     const [playbackProgress, setPlaybackProgress] = useState(0);
-    const [playbackDuration, setPlaybackDuration] = useState(pendingMeditationConfig?.duration || 10);
+    const [playbackDuration] = useState(pendingMeditationConfig?.duration || 10);
 
     // Get methodology posture info
     const methodology = pendingMeditationConfig?.methodology || 'GENERAL';
@@ -95,10 +154,12 @@ export const UnifiedExperience: React.FC = () => {
             const interval = setInterval(() => {
                 setPlaybackProgress(prev => {
                     if (prev >= 100) {
+                        // Lower soundscape volume for feedback (soft soundscape during feedback)
+                        setSoundscapeVolume(0.2);
                         setExperienceState('FEEDBACK');
                         return 100;
                     }
-                    return prev + (100 / (playbackDuration * 60)); // 1 second increment
+                    return prev + (100 / (playbackDuration * 60));
                 });
             }, 1000);
             return () => clearInterval(interval);
@@ -150,7 +211,6 @@ export const UnifiedExperience: React.FC = () => {
                 const base64 = (reader.result as string).split(',')[1];
                 const transcription = await transcribeAudio(base64);
 
-                // Update current answer
                 setFeedbackAnswers(prev => prev.map((q, i) =>
                     i === currentQuestionIndex
                         ? { ...q, answer: q.answer + (q.answer ? ' ' : '') + transcription }
@@ -164,7 +224,62 @@ export const UnifiedExperience: React.FC = () => {
         }
     };
 
-    // Handle button click based on state
+    // Process feedback and extract insights
+    const processFeedbackAndExtract = async () => {
+        // Save feedback to Supabase
+        if (user?.supabaseId && currentMeditation?.id) {
+            await saveSessionFeedback(
+                user.supabaseId,
+                currentMeditation.id,
+                feedbackAnswers.find(q => q.id === 'insights')?.answer || '',
+                feedbackAnswers.find(q => q.id === 'positive')?.answer || '',
+                feedbackAnswers.find(q => q.id === 'improve')?.answer || ''
+            );
+        }
+
+        // Extract insights
+        const insights = extractInsightsFromFeedback(feedbackAnswers);
+        setExtractedInsights(insights);
+
+        // Move to insight review if we have insights, otherwise complete
+        if (insights.length > 0) {
+            setExperienceState('INSIGHT_REVIEW');
+        } else {
+            setExperienceState('COMPLETE');
+        }
+    };
+
+    // Save kept insights and complete
+    const saveInsightsAndComplete = async () => {
+        setIsSaving(true);
+
+        if (user?.supabaseId) {
+            const insightsToSave = extractedInsights.filter(i => !i.removed);
+
+            for (const insight of insightsToSave) {
+                await saveInsight(
+                    user.supabaseId,
+                    insight.text,
+                    'REFLECTION',
+                    currentMeditation?.id
+                );
+            }
+        }
+
+        setIsSaving(false);
+        // Fade out soundscape
+        setSoundscapeVolume(0);
+        setExperienceState('COMPLETE');
+    };
+
+    // Remove insight
+    const toggleInsightRemoval = (id: string) => {
+        setExtractedInsights(prev =>
+            prev.map(i => i.id === id ? { ...i, removed: !i.removed } : i)
+        );
+    };
+
+    // Handle button click
     const handleButtonClick = () => {
         switch (experienceState) {
             case 'POSTURE_INFO':
@@ -184,8 +299,11 @@ export const UnifiedExperience: React.FC = () => {
                     setShowTyping(false);
                     setTypingInput('');
                 } else {
-                    setExperienceState('COMPLETE');
+                    processFeedbackAndExtract();
                 }
+                break;
+            case 'INSIGHT_REVIEW':
+                saveInsightsAndComplete();
                 break;
             case 'COMPLETE':
                 setView(ViewState.DASHBOARD);
@@ -213,6 +331,7 @@ export const UnifiedExperience: React.FC = () => {
             case 'PLAYING': return 'playing';
             case 'PAUSED': return 'paused';
             case 'FEEDBACK': return 'feedback';
+            case 'INSIGHT_REVIEW': return 'feedback';
             case 'COMPLETE': return 'complete';
         }
     };
@@ -225,7 +344,8 @@ export const UnifiedExperience: React.FC = () => {
             case 'PAUSED': return 'RESUME';
             case 'FEEDBACK':
                 if (isRecording) return 'DONE';
-                return currentQuestionIndex < FEEDBACK_QUESTIONS.length - 1 ? 'NEXT' : 'FINISH';
+                return currentQuestionIndex < FEEDBACK_QUESTIONS.length - 1 ? 'NEXT' : 'REVIEW';
+            case 'INSIGHT_REVIEW': return isSaving ? 'SAVING' : 'SAVE';
             case 'COMPLETE': return 'DONE';
         }
     };
@@ -238,6 +358,7 @@ export const UnifiedExperience: React.FC = () => {
 
     const currentSeconds = (playbackProgress / 100) * playbackDuration * 60;
     const totalSeconds = playbackDuration * 60;
+    const keptInsightsCount = extractedInsights.filter(i => !i.removed).length;
 
     return (
         <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background-dark">
@@ -296,7 +417,7 @@ export const UnifiedExperience: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Waveform visualization placeholder */}
+                            {/* Waveform visualization */}
                             <div className="h-24 flex items-center justify-center gap-1">
                                 {Array.from({ length: 20 }).map((_, i) => (
                                     <motion.div
@@ -357,16 +478,10 @@ export const UnifiedExperience: React.FC = () => {
                                         autoFocus
                                     />
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setShowTyping(false)}
-                                            className="flex-1 py-2 rounded-lg bg-surface/50 text-white/60 text-sm"
-                                        >
+                                        <button onClick={() => setShowTyping(false)} className="flex-1 py-2 rounded-lg bg-surface/50 text-white/60 text-sm">
                                             Cancel
                                         </button>
-                                        <button
-                                            onClick={saveTypedAnswer}
-                                            className="flex-1 py-2 rounded-lg bg-primary text-black font-bold text-sm"
-                                        >
+                                        <button onClick={saveTypedAnswer} className="flex-1 py-2 rounded-lg bg-primary text-black font-bold text-sm">
                                             Save
                                         </button>
                                     </div>
@@ -416,6 +531,61 @@ export const UnifiedExperience: React.FC = () => {
                         </motion.div>
                     )}
 
+                    {/* INSIGHT REVIEW */}
+                    {experienceState === 'INSIGHT_REVIEW' && (
+                        <motion.div
+                            key="insight-review"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="w-full max-w-sm space-y-6"
+                        >
+                            <div className="text-center">
+                                <Sparkles className="w-8 h-8 text-primary/60 mx-auto mb-2" />
+                                <h2 className="text-lg font-bold text-white">Your Insights</h2>
+                                <p className="text-xs text-white/40 mt-1">
+                                    Remove any you don't want to keep
+                                </p>
+                            </div>
+
+                            <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+                                {extractedInsights.map((insight) => (
+                                    <div
+                                        key={insight.id}
+                                        className={cn(
+                                            "flex items-start gap-3 p-4 rounded-xl border transition-all",
+                                            insight.removed
+                                                ? 'bg-surface/20 border-white/5 opacity-50'
+                                                : 'bg-surface/40 border-primary/30'
+                                        )}
+                                    >
+                                        <p className={cn(
+                                            "flex-1 text-sm leading-relaxed",
+                                            insight.removed ? 'line-through text-white/30' : 'text-white/80'
+                                        )}>
+                                            {insight.text}
+                                        </p>
+                                        <button
+                                            onClick={() => toggleInsightRemoval(insight.id)}
+                                            className={cn(
+                                                "shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all",
+                                                insight.removed
+                                                    ? 'bg-primary/20 text-primary'
+                                                    : 'bg-white/5 text-white/40 hover:bg-red-500/20 hover:text-red-400'
+                                            )}
+                                        >
+                                            {insight.removed ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <p className="text-center text-xs text-white/30">
+                                {keptInsightsCount} insight{keptInsightsCount !== 1 ? 's' : ''} will be saved
+                            </p>
+                        </motion.div>
+                    )}
+
                     {/* COMPLETE */}
                     {experienceState === 'COMPLETE' && (
                         <motion.div
@@ -429,6 +599,9 @@ export const UnifiedExperience: React.FC = () => {
                             </div>
                             <h2 className="text-2xl font-bold text-white">Session Complete</h2>
                             <p className="text-sm text-white/50">+1 Token earned</p>
+                            {keptInsightsCount > 0 && (
+                                <p className="text-xs text-primary/70">{keptInsightsCount} insight{keptInsightsCount !== 1 ? 's' : ''} saved</p>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -440,7 +613,7 @@ export const UnifiedExperience: React.FC = () => {
                     position="bottom"
                     state={getButtonState()}
                     progress={experienceState === 'PLAYING' ? playbackProgress : experienceState === 'COMPLETE' ? 100 : 50}
-                    isLoading={isTranscribing}
+                    isLoading={isTranscribing || isSaving}
                     label={getButtonLabel()}
                     onClick={handleButtonClick}
                 />

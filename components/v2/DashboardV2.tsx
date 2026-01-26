@@ -1,94 +1,28 @@
 /**
- * DashboardV2 - Simplified Home Screen
- * Centered button that animates to bottom, step-by-step setup flow
+ * DashboardV2 - Fixed Layout with Auto-Advancing Layers
+ * Research-backed themes and categories
  */
 
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { supabase } from '../../services/supabaseClient';
 import { useApp } from '../../context/AppContext';
-import { Menu, Coins, Plus, Check, Clock, Sparkles, Loader2, RefreshCw, ChevronDown } from 'lucide-react';
+import { Menu, Coins, Plus, Check, Clock, Sparkles, Loader2, RefreshCw, ChevronLeft, User } from 'lucide-react';
 import { ViewState, MethodologyType } from '../../types';
 import { MainButton, ButtonPosition, ButtonState } from '../MainButton';
 import { InsightsContextOverlay } from '../InsightsContextOverlay';
 import { generateSessionSummary } from '../../services/geminiService';
-import { fetchSessionHistory, SessionHistorySummary } from '../../services/userHistoryService';
+import { THEMES, CATEGORIES, ThemeType, CategoryType, ThemeConfig, filterInsightsByTheme, groupInsightsByCategory, fetchUserInsights, UserInsight, updateUserPreferences } from '../../services/insightService';
 import { cn } from '@/utils';
 
-// Setup step types
-type SetupStep = 'HOME' | 'THEME' | 'FOCUS' | 'DURATION' | 'SUMMARY';
-
-interface ThemeCategory {
-    id: string;
-    label: string;
-    emoji: string;
-    focusOptions: { label: string; value: string }[];
-}
-
-const THEME_CATEGORIES: ThemeCategory[] = [
-    {
-        id: 'calm', label: 'Calm', emoji: '🧘',
-        focusOptions: [
-            { label: 'Release racing thoughts', value: 'Quieting the mind and releasing racing thoughts' },
-            { label: 'Find inner peace', value: 'Connecting with deep inner peace and stillness' },
-            { label: 'Body relaxation', value: 'Progressive relaxation through the body' },
-        ]
-    },
-    {
-        id: 'energy', label: 'Energy', emoji: '⚡',
-        focusOptions: [
-            { label: 'Morning activation', value: 'Energizing start to the day' },
-            { label: 'Overcome fatigue', value: 'Breaking through mental and physical fatigue' },
-            { label: 'Boost motivation', value: 'Rekindling inner motivation and drive' },
-        ]
-    },
-    {
-        id: 'sleep', label: 'Sleep', emoji: '🌙',
-        focusOptions: [
-            { label: 'Fall asleep faster', value: 'Transitioning into deep restful sleep' },
-            { label: 'Quiet the mind', value: 'Releasing the day and quieting mental chatter' },
-            { label: 'Deep rest', value: 'Progressive body relaxation for sleep' },
-        ]
-    },
-    {
-        id: 'focus', label: 'Focus', emoji: '🎯',
-        focusOptions: [
-            { label: 'Clear mental fog', value: 'Cutting through mental fog for clarity' },
-            { label: 'Deep concentration', value: 'Cultivating single-pointed attention' },
-            { label: 'Creative flow', value: 'Entering a state of creative flow' },
-        ]
-    },
-    {
-        id: 'stress', label: 'Stress', emoji: '💨',
-        focusOptions: [
-            { label: 'Release tension', value: 'Letting go of held tension and stress' },
-            { label: 'Anxiety relief', value: 'Calming anxious thoughts and feelings' },
-            { label: 'Reset nervous system', value: 'Resetting the nervous system to calm' },
-        ]
-    },
-    {
-        id: 'growth', label: 'Growth', emoji: '🌱',
-        focusOptions: [
-            { label: 'Self-discovery', value: 'Exploring inner landscape and patterns' },
-            { label: 'Build confidence', value: 'Strengthening self-belief and confidence' },
-            { label: 'Set intentions', value: 'Clarifying and setting meaningful intentions' },
-        ]
-    },
-];
+// Steps in the flow
+type SetupStep = 'HOME' | 'THEME' | 'CATEGORY' | 'INSIGHTS' | 'DURATION' | 'VOICE' | 'SUMMARY';
 
 const DURATION_OPTIONS = [
-    { label: '5m', value: 5 },
-    { label: '10m', value: 10 },
-    { label: '15m', value: 15 },
-    { label: '20m', value: 20 },
+    { label: '5 min', value: 5 },
+    { label: '10 min', value: 10 },
+    { label: '15 min', value: 15 },
+    { label: '20 min', value: 20 },
 ];
-
-const METHODOLOGY_INFO: Record<string, { label: string }> = {
-    'NSDR': { label: 'NSDR' },
-    'SOMATIC_AGENCY': { label: 'Somatic' },
-    'IFS': { label: 'IFS' },
-    'GENERAL': { label: 'Mindful' },
-};
 
 export const DashboardV2: React.FC = () => {
     const { userEconomy, activeResolution, setView, isLoading, setPendingMeditationConfig, soundscapes, finalizeMeditationGeneration, user } = useApp();
@@ -98,10 +32,19 @@ export const DashboardV2: React.FC = () => {
     const [currentStep, setCurrentStep] = useState<SetupStep>('HOME');
 
     // Selection state
-    const [selectedTheme, setSelectedTheme] = useState<ThemeCategory | null>(null);
-    const [selectedFocuses, setSelectedFocuses] = useState<string[]>([]);
+    const [selectedTheme, setSelectedTheme] = useState<ThemeConfig | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
+    const [selectedInsights, setSelectedInsights] = useState<string[]>([]);
     const [customInput, setCustomInput] = useState('');
     const [selectedDuration, setSelectedDuration] = useState<number>(10);
+    const [selectedVoice, setSelectedVoice] = useState<'male' | 'female'>('female');
+
+    // Insights from DB
+    const [userInsights, setUserInsights] = useState<UserInsight[]>([]);
+    const [filteredInsights, setFilteredInsights] = useState<UserInsight[]>([]);
+    const [groupedInsights, setGroupedInsights] = useState<Record<CategoryType, UserInsight[]>>({
+        BODY: [], NARRATIVE: [], ACTION: [], CONTEXT: []
+    });
 
     // Summary state
     const [summary, setSummary] = useState<{
@@ -112,19 +55,24 @@ export const DashboardV2: React.FC = () => {
         preview: string;
     } | null>(null);
     const [isLoadingSummary, setIsLoadingSummary] = useState(false);
-    const [showRefinement, setShowRefinement] = useState(false);
-    const [refinementText, setRefinementText] = useState('');
 
-    // History
-    const [userHistory, setUserHistory] = useState<SessionHistorySummary | null>(null);
-
+    // Load user insights
     useEffect(() => {
         if (user?.supabaseId) {
-            fetchSessionHistory(user.supabaseId).then(h => {
-                if (h.totalSessions > 0) setUserHistory(h);
+            fetchUserInsights(user.supabaseId).then(insights => {
+                setUserInsights(insights);
             }).catch(console.error);
         }
     }, [user?.supabaseId]);
+
+    // Filter insights when theme changes
+    useEffect(() => {
+        if (selectedTheme && userInsights.length > 0) {
+            const filtered = filterInsightsByTheme(userInsights, selectedTheme.id);
+            setFilteredInsights(filtered);
+            setGroupedInsights(groupInsightsByCategory(filtered));
+        }
+    }, [selectedTheme, userInsights]);
 
     // Redirect if no resolution
     useEffect(() => {
@@ -137,55 +85,36 @@ export const DashboardV2: React.FC = () => {
         }
     }, [activeResolution, setView, userEconomy, isLoading]);
 
-    // Calculate progress (0-100)
+    // Progress calculation
     const progress = useMemo(() => {
         let p = 0;
-        if (selectedTheme) p += 25;
-        if (selectedFocuses.length > 0 || customInput) p += 25;
-        if (selectedDuration) p += 25;
-        if (summary) p += 25;
+        if (selectedTheme) p += 20;
+        if (selectedCategory) p += 20;
+        if (selectedInsights.length > 0 || customInput) p += 20;
+        if (selectedDuration) p += 20;
+        if (summary) p += 20;
         return p;
-    }, [selectedTheme, selectedFocuses, customInput, selectedDuration, summary]);
+    }, [selectedTheme, selectedCategory, selectedInsights, customInput, selectedDuration, summary]);
 
-    // Button position and state
-    const buttonPosition: ButtonPosition = currentStep === 'HOME' ? 'center' : 'bottom';
-    const buttonState: ButtonState = currentStep === 'HOME' ? 'idle' : 'setup';
-
-    // Handle button click
-    const handleButtonClick = () => {
-        switch (currentStep) {
-            case 'HOME':
-                setCurrentStep('THEME');
-                break;
-            case 'THEME':
-                if (selectedTheme) setCurrentStep('FOCUS');
-                break;
-            case 'FOCUS':
-                if (selectedFocuses.length > 0 || customInput.trim()) setCurrentStep('DURATION');
-                break;
-            case 'DURATION':
-                setCurrentStep('SUMMARY');
-                generateSummaryContent();
-                break;
-            case 'SUMMARY':
-                if (summary) handleStartSession();
-                break;
-        }
-    };
-
-    // Handle theme selection
-    const handleThemeSelect = (theme: ThemeCategory) => {
+    // Handle theme selection - auto advance
+    const handleThemeSelect = (theme: ThemeConfig) => {
         setSelectedTheme(theme);
-        setSelectedFocuses([]);
+        setSelectedCategory(null);
+        setSelectedInsights([]);
         setSummary(null);
-        // Auto-advance after short delay
-        setTimeout(() => setCurrentStep('FOCUS'), 200);
+        setCurrentStep('CATEGORY');
     };
 
-    // Toggle focus
-    const toggleFocus = (value: string) => {
-        setSelectedFocuses(prev =>
-            prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
+    // Handle category selection - auto advance
+    const handleCategorySelect = (category: CategoryType) => {
+        setSelectedCategory(category);
+        setCurrentStep('INSIGHTS');
+    };
+
+    // Toggle insight selection
+    const toggleInsight = (text: string) => {
+        setSelectedInsights(prev =>
+            prev.includes(text) ? prev.filter(i => i !== text) : [...prev, text]
         );
     };
 
@@ -193,7 +122,7 @@ export const DashboardV2: React.FC = () => {
     const generateSummaryContent = async () => {
         setIsLoadingSummary(true);
         try {
-            const combinedFocus = [...selectedFocuses, customInput.trim()].filter(Boolean).join('. ');
+            const combinedFocus = [...selectedInsights, customInput.trim()].filter(Boolean).join('. ');
             const soundscapeInfo = soundscapes.map(s => ({ id: s.id, name: s.name, mood: s.metadata?.mood }));
 
             const result = await generateSessionSummary(
@@ -209,7 +138,7 @@ export const DashboardV2: React.FC = () => {
             setSummary({
                 title: `${selectedTheme?.label || 'Mindful'} Session`,
                 methodology: 'NSDR',
-                focus: selectedFocuses.join('. '),
+                focus: selectedInsights.join('. '),
                 soundscapeId: soundscapes[0]?.id || 'default',
                 preview: `A ${selectedDuration}-minute session for ${selectedTheme?.label?.toLowerCase() || 'mindfulness'}.`
             });
@@ -218,32 +147,19 @@ export const DashboardV2: React.FC = () => {
         }
     };
 
-    // Refine
-    const handleRefine = async () => {
-        if (!refinementText.trim()) return;
-        setIsLoadingSummary(true);
-        try {
-            const soundscapeInfo = soundscapes.map(s => ({ id: s.id, name: s.name, mood: s.metadata?.mood }));
-            const result = await generateSessionSummary(
-                selectedTheme?.label || 'General',
-                selectedDuration,
-                selectedFocuses.join('. '),
-                refinementText,
-                soundscapeInfo
-            );
-            setSummary(result);
-            setRefinementText('');
-            setShowRefinement(false);
-        } catch (error) {
-            console.error('Refine failed:', error);
-        } finally {
-            setIsLoadingSummary(false);
-        }
-    };
-
     // Start session
     const handleStartSession = async () => {
         if (!summary) return;
+
+        // Save preferences
+        if (user?.supabaseId) {
+            updateUserPreferences(user.supabaseId, {
+                voice: selectedVoice,
+                lastTheme: selectedTheme?.id,
+                lastDuration: selectedDuration
+            });
+        }
+
         setPendingMeditationConfig({
             focus: summary.focus,
             methodology: summary.methodology,
@@ -255,38 +171,64 @@ export const DashboardV2: React.FC = () => {
         await finalizeMeditationGeneration();
     };
 
+    // Button handlers
+    const handleButtonClick = () => {
+        switch (currentStep) {
+            case 'HOME':
+                setCurrentStep('THEME');
+                break;
+            case 'THEME':
+                // Theme selection auto-advances
+                break;
+            case 'CATEGORY':
+                // Category selection auto-advances
+                break;
+            case 'INSIGHTS':
+                if (selectedInsights.length > 0 || customInput.trim()) {
+                    setCurrentStep('DURATION');
+                }
+                break;
+            case 'DURATION':
+                setCurrentStep('VOICE');
+                break;
+            case 'VOICE':
+                setCurrentStep('SUMMARY');
+                generateSummaryContent();
+                break;
+            case 'SUMMARY':
+                if (summary) handleStartSession();
+                break;
+        }
+    };
+
     // Go back
     const goBack = () => {
         switch (currentStep) {
             case 'THEME': setCurrentStep('HOME'); break;
-            case 'FOCUS': setCurrentStep('THEME'); break;
-            case 'DURATION': setCurrentStep('FOCUS'); break;
-            case 'SUMMARY': setCurrentStep('DURATION'); setSummary(null); break;
+            case 'CATEGORY': setCurrentStep('THEME'); setSelectedTheme(null); break;
+            case 'INSIGHTS': setCurrentStep('CATEGORY'); setSelectedCategory(null); break;
+            case 'DURATION': setCurrentStep('INSIGHTS'); break;
+            case 'VOICE': setCurrentStep('DURATION'); break;
+            case 'SUMMARY': setCurrentStep('VOICE'); setSummary(null); break;
         }
     };
 
-    // Button label/sublabel
+    // Button label
     const getButtonLabel = () => {
         if (currentStep === 'HOME') return 'START';
         if (currentStep === 'SUMMARY' && summary) return 'BEGIN';
+        if (currentStep === 'THEME' || currentStep === 'CATEGORY') return 'SELECT';
         return 'NEXT';
-    };
-
-    const getSubLabel = () => {
-        if (currentStep === 'HOME') return 'Tap to begin';
-        if (currentStep === 'THEME') return 'Select theme';
-        if (currentStep === 'FOCUS') return selectedFocuses.length > 0 ? 'Continue' : 'Select focus';
-        if (currentStep === 'DURATION') return 'Generate session';
-        if (currentStep === 'SUMMARY') return summary ? 'Start session' : 'Loading...';
-        return '';
     };
 
     const canProceed = () => {
         switch (currentStep) {
             case 'HOME': return true;
             case 'THEME': return !!selectedTheme;
-            case 'FOCUS': return selectedFocuses.length > 0 || customInput.trim().length > 0;
+            case 'CATEGORY': return !!selectedCategory;
+            case 'INSIGHTS': return selectedInsights.length > 0 || customInput.trim().length > 0;
             case 'DURATION': return true;
+            case 'VOICE': return true;
             case 'SUMMARY': return !!summary && !isLoadingSummary;
         }
     };
@@ -300,269 +242,293 @@ export const DashboardV2: React.FC = () => {
     }
 
     const isInSetup = currentStep !== 'HOME';
+    const stepNumber = ['THEME', 'CATEGORY', 'INSIGHTS', 'DURATION', 'VOICE', 'SUMMARY'].indexOf(currentStep) + 1;
 
     return (
         <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background-dark">
             {/* Background */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
-            {/* Header - minimal */}
-            <header className="relative z-10 flex items-center justify-between px-6 pt-6 shrink-0">
+            {/* Header */}
+            <header className="relative z-10 flex items-center justify-between px-6 pt-6 pb-2 shrink-0">
                 <button
                     onClick={() => isInSetup ? goBack() : setShowContextOverlay(true)}
                     className="w-11 h-11 flex items-center justify-center rounded-full bg-surface/50 border border-white/10 hover:border-white/20 transition-colors"
                 >
-                    {isInSetup ? (
-                        <ChevronDown className="w-5 h-5 text-white/60 rotate-90" />
-                    ) : (
-                        <Menu className="w-5 h-5 text-white/60" />
-                    )}
+                    {isInSetup ? <ChevronLeft className="w-5 h-5 text-white/60" /> : <Menu className="w-5 h-5 text-white/60" />}
                 </button>
 
-                {/* Tokens */}
+                {isInSetup && (
+                    <span className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">
+                        Step {stepNumber} of 6
+                    </span>
+                )}
+
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface/50 border border-white/10">
                         <Coins className="w-4 h-4 text-primary" />
                         <span className="text-xs font-bold text-white">{userEconomy.balance}</span>
                     </div>
-                    <button className="w-8 h-8 flex items-center justify-center rounded-full bg-surface/50 border border-white/10 hover:border-primary/50 transition-colors">
+                    <button className="w-8 h-8 flex items-center justify-center rounded-full bg-surface/50 border border-white/10">
                         <Plus className="w-4 h-4 text-white/60" />
                     </button>
                 </div>
             </header>
 
-            {/* Step indicator */}
-            {isInSetup && (
-                <div className="relative z-10 flex justify-center mt-2">
-                    <span className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">
-                        Step {['THEME', 'FOCUS', 'DURATION', 'SUMMARY'].indexOf(currentStep) + 1} of 4
-                    </span>
-                </div>
-            )}
+            {/* FIXED Content Area - key change for layout */}
+            <main className="flex-1 flex flex-col relative z-10 min-h-0">
+                {/* Scrollable content with max height */}
+                <div className="flex-1 overflow-y-auto px-6 py-4" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
+                    {/* Fade gradient at top */}
+                    <div className="sticky top-0 h-4 bg-gradient-to-b from-background-dark to-transparent pointer-events-none -mt-4 -mx-6 px-6" />
 
-            {/* Main Content Area */}
-            <main className="flex-1 flex flex-col relative z-10">
-                <AnimatePresence mode="wait">
-                    {/* HOME: Empty, just button */}
-                    {currentStep === 'HOME' && (
-                        <motion.div
-                            key="home"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="flex-1 flex items-center justify-center"
-                        >
-                            {/* Button will be positioned here via absolute */}
-                        </motion.div>
-                    )}
+                    <AnimatePresence mode="wait">
+                        {/* HOME */}
+                        {currentStep === 'HOME' && (
+                            <motion.div
+                                key="home"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="flex-1 flex items-center justify-center min-h-[300px]"
+                            >
+                                {activeResolution && (
+                                    <div className="text-center">
+                                        <div className="flex items-center gap-2 mb-3 justify-center opacity-60">
+                                            <span className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                                            <span className="text-[10px] font-bold tracking-[0.25em] text-primary uppercase">Current Directive</span>
+                                        </div>
+                                        <p className="text-lg text-white/80 max-w-xs mx-auto">{activeResolution.statement}</p>
+                                    </div>
+                                )}
+                            </motion.div>
+                        )}
 
-                    {/* THEME Selection */}
-                    {currentStep === 'THEME' && (
-                        <motion.div
-                            key="theme"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="flex-1 flex flex-col items-center justify-center px-6"
-                        >
-                            <h2 className="text-xl font-bold text-white mb-6">What do you need?</h2>
-                            <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
-                                {THEME_CATEGORIES.map(theme => (
+                        {/* THEME Selection */}
+                        {currentStep === 'THEME' && (
+                            <motion.div
+                                key="theme"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="space-y-4 max-w-sm mx-auto"
+                            >
+                                <h2 className="text-lg font-bold text-white text-center mb-4">What do you need?</h2>
+                                {THEMES.map(theme => (
                                     <button
                                         key={theme.id}
                                         onClick={() => handleThemeSelect(theme)}
                                         className={cn(
-                                            "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                                            "w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left",
                                             selectedTheme?.id === theme.id
                                                 ? 'bg-primary/20 border-primary'
                                                 : 'bg-surface/30 border-white/10 hover:border-white/20'
                                         )}
                                     >
-                                        <span className="text-2xl">{theme.emoji}</span>
-                                        <span className="text-xs font-medium text-white/80">{theme.label}</span>
+                                        <span className="text-3xl">{theme.emoji}</span>
+                                        <div>
+                                            <span className="text-sm font-medium text-white">{theme.uxLabel}</span>
+                                            <p className="text-xs text-white/40 mt-0.5">{theme.description}</p>
+                                        </div>
                                     </button>
                                 ))}
-                            </div>
-                        </motion.div>
-                    )}
+                            </motion.div>
+                        )}
 
-                    {/* FOCUS Selection */}
-                    {currentStep === 'FOCUS' && selectedTheme && (
-                        <motion.div
-                            key="focus"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="flex-1 overflow-y-auto px-6 py-4"
-                        >
-                            <div className="max-w-sm mx-auto space-y-4">
+                        {/* CATEGORY Selection */}
+                        {currentStep === 'CATEGORY' && (
+                            <motion.div
+                                key="category"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="space-y-4 max-w-sm mx-auto"
+                            >
                                 <div className="text-center mb-4">
-                                    <span className="text-3xl">{selectedTheme.emoji}</span>
-                                    <h2 className="text-lg font-bold text-white mt-2">{selectedTheme.label}</h2>
-                                    <p className="text-xs text-white/50">Select one or more</p>
+                                    <span className="text-2xl">{selectedTheme?.emoji}</span>
+                                    <h2 className="text-lg font-bold text-white mt-2">Where do you feel it?</h2>
                                 </div>
+                                {CATEGORIES.map(cat => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => handleCategorySelect(cat.id)}
+                                        className={cn(
+                                            "w-full flex flex-col p-4 rounded-2xl border-2 transition-all text-left",
+                                            selectedCategory === cat.id
+                                                ? 'bg-primary/20 border-primary'
+                                                : 'bg-surface/30 border-white/10 hover:border-white/20'
+                                        )}
+                                    >
+                                        <span className="text-sm font-medium text-white">{cat.group}</span>
+                                        <span className="text-xs text-white/40 mt-1">{cat.description}</span>
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
 
-                                {/* History themes */}
-                                {userHistory && userHistory.frequentThemes.length > 0 && (
+                        {/* INSIGHTS Selection */}
+                        {currentStep === 'INSIGHTS' && selectedCategory && (
+                            <motion.div
+                                key="insights"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="space-y-4 max-w-sm mx-auto"
+                            >
+                                <h2 className="text-lg font-bold text-white text-center">Select what resonates</h2>
+
+                                {/* Insights from DB */}
+                                {groupedInsights[selectedCategory].length > 0 ? (
                                     <div className="space-y-2">
-                                        <span className="text-[10px] font-bold tracking-[0.15em] text-white/30 uppercase">From history</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {userHistory.frequentThemes.slice(0, 3).map(t => (
-                                                <button
-                                                    key={t}
-                                                    onClick={() => toggleFocus(t)}
-                                                    className={cn(
-                                                        "px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5",
-                                                        selectedFocuses.includes(t)
-                                                            ? 'bg-primary/20 border-primary text-primary'
-                                                            : 'bg-surface/50 border-white/10 text-white/60'
-                                                    )}
-                                                >
-                                                    {selectedFocuses.includes(t) && <Check className="w-3 h-3" />}
-                                                    {t}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {groupedInsights[selectedCategory].slice(0, 5).map(insight => (
+                                            <button
+                                                key={insight.id}
+                                                onClick={() => toggleInsight(insight.text)}
+                                                className={cn(
+                                                    "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left",
+                                                    selectedInsights.includes(insight.text)
+                                                        ? 'bg-primary/15 border-primary'
+                                                        : 'bg-surface/30 border-white/10'
+                                                )}
+                                            >
+                                                <span className="text-sm text-white/80 line-clamp-2">{insight.text}</span>
+                                                {selectedInsights.includes(insight.text) && <Check className="w-4 h-4 text-primary shrink-0 ml-2" />}
+                                            </button>
+                                        ))}
                                     </div>
+                                ) : (
+                                    <p className="text-sm text-white/40 text-center py-4">No saved insights in this category yet.</p>
                                 )}
 
-                                {/* Focus options */}
-                                <div className="space-y-2">
-                                    {selectedTheme.focusOptions.map(f => (
-                                        <button
-                                            key={f.value}
-                                            onClick={() => toggleFocus(f.value)}
-                                            className={cn(
-                                                "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left",
-                                                selectedFocuses.includes(f.value)
-                                                    ? 'bg-primary/15 border-primary'
-                                                    : 'bg-surface/30 border-white/10'
-                                            )}
-                                        >
-                                            <span className="text-sm text-white/80">{f.label}</span>
-                                            {selectedFocuses.includes(f.value) && <Check className="w-4 h-4 text-primary" />}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* Custom */}
+                                {/* Custom input */}
                                 <textarea
                                     value={customInput}
                                     onChange={(e) => setCustomInput(e.target.value)}
-                                    placeholder="Or add your own..."
-                                    rows={2}
+                                    placeholder="Or describe in your own words..."
+                                    rows={3}
                                     className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/50 resize-none"
                                 />
-                            </div>
-                        </motion.div>
-                    )}
+                            </motion.div>
+                        )}
 
-                    {/* DURATION */}
-                    {currentStep === 'DURATION' && (
-                        <motion.div
-                            key="duration"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="flex-1 flex flex-col items-center justify-center px-6"
-                        >
-                            <Clock className="w-12 h-12 text-primary/60 mb-4" />
-                            <h2 className="text-xl font-bold text-white mb-6">How long?</h2>
-                            <div className="grid grid-cols-4 gap-3 w-full max-w-xs">
-                                {DURATION_OPTIONS.map(opt => (
+                        {/* DURATION */}
+                        {currentStep === 'DURATION' && (
+                            <motion.div
+                                key="duration"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="space-y-6 max-w-sm mx-auto text-center"
+                            >
+                                <Clock className="w-12 h-12 text-primary/60 mx-auto" />
+                                <h2 className="text-lg font-bold text-white">How long?</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {DURATION_OPTIONS.map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => setSelectedDuration(opt.value)}
+                                            className={cn(
+                                                "py-4 rounded-xl border-2 transition-all",
+                                                selectedDuration === opt.value
+                                                    ? 'bg-primary/20 border-primary text-white font-bold'
+                                                    : 'bg-surface/30 border-white/10 text-white/60'
+                                            )}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* VOICE Selection */}
+                        {currentStep === 'VOICE' && (
+                            <motion.div
+                                key="voice"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="space-y-6 max-w-sm mx-auto text-center"
+                            >
+                                <User className="w-12 h-12 text-primary/60 mx-auto" />
+                                <h2 className="text-lg font-bold text-white">Voice preference</h2>
+                                <div className="grid grid-cols-2 gap-4">
                                     <button
-                                        key={opt.value}
-                                        onClick={() => setSelectedDuration(opt.value)}
+                                        onClick={() => setSelectedVoice('female')}
                                         className={cn(
-                                            "py-4 rounded-xl border-2 text-center transition-all",
-                                            selectedDuration === opt.value
-                                                ? 'bg-primary/20 border-primary text-white font-bold'
-                                                : 'bg-surface/30 border-white/10 text-white/60'
+                                            "py-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                                            selectedVoice === 'female'
+                                                ? 'bg-primary/20 border-primary'
+                                                : 'bg-surface/30 border-white/10'
                                         )}
                                     >
-                                        {opt.label}
+                                        <span className="text-2xl">👩</span>
+                                        <span className="text-sm text-white">Female</span>
                                     </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* SUMMARY */}
-                    {currentStep === 'SUMMARY' && (
-                        <motion.div
-                            key="summary"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="flex-1 flex flex-col items-center justify-center px-6"
-                        >
-                            {isLoadingSummary && !summary ? (
-                                <div className="text-center">
-                                    <Loader2 className="w-10 h-10 text-primary/60 animate-spin mx-auto mb-3" />
-                                    <p className="text-sm text-white/50">Designing your session...</p>
+                                    <button
+                                        onClick={() => setSelectedVoice('male')}
+                                        className={cn(
+                                            "py-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
+                                            selectedVoice === 'male'
+                                                ? 'bg-primary/20 border-primary'
+                                                : 'bg-surface/30 border-white/10'
+                                        )}
+                                    >
+                                        <span className="text-2xl">👨</span>
+                                        <span className="text-sm text-white">Male</span>
+                                    </button>
                                 </div>
-                            ) : summary ? (
-                                <div className="w-full max-w-sm space-y-4">
-                                    <div className="text-center">
-                                        <Sparkles className="w-8 h-8 text-primary/60 mx-auto mb-2" />
-                                        <h3 className="text-xl font-bold text-white">{summary.title}</h3>
-                                        <p className="text-sm text-primary/80 mt-1">{summary.focus}</p>
-                                        <span className="inline-block mt-2 px-3 py-1 rounded-full bg-surface/50 text-xs text-white/60">
-                                            {METHODOLOGY_INFO[summary.methodology]?.label || summary.methodology}
-                                        </span>
-                                    </div>
+                            </motion.div>
+                        )}
 
-                                    <div className="bg-surface/30 rounded-xl p-4 border border-white/5">
-                                        <p className="text-[10px] font-bold tracking-[0.15em] text-white/40 uppercase mb-2">What to expect</p>
-                                        <p className="text-sm text-white/70 leading-relaxed">{summary.preview}</p>
+                        {/* SUMMARY */}
+                        {currentStep === 'SUMMARY' && (
+                            <motion.div
+                                key="summary"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="space-y-4 max-w-sm mx-auto"
+                            >
+                                {isLoadingSummary && !summary ? (
+                                    <div className="text-center py-12">
+                                        <Loader2 className="w-10 h-10 text-primary/60 animate-spin mx-auto mb-3" />
+                                        <p className="text-sm text-white/50">Designing your session...</p>
                                     </div>
-
-                                    {showRefinement ? (
-                                        <div className="space-y-2">
-                                            <textarea
-                                                value={refinementText}
-                                                onChange={(e) => setRefinementText(e.target.value)}
-                                                placeholder="e.g. 'more visual', 'add body focus'..."
-                                                rows={2}
-                                                className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none resize-none"
-                                                autoFocus
-                                            />
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setShowRefinement(false)} className="flex-1 py-2 rounded-lg bg-surface/50 text-white/60 text-sm">Cancel</button>
-                                                <button onClick={handleRefine} disabled={!refinementText.trim()} className="flex-1 py-2 rounded-lg bg-primary text-black font-bold text-sm disabled:opacity-50">Apply</button>
-                                            </div>
+                                ) : summary ? (
+                                    <>
+                                        <div className="text-center">
+                                            <Sparkles className="w-8 h-8 text-primary/60 mx-auto mb-2" />
+                                            <h3 className="text-xl font-bold text-white">{summary.title}</h3>
+                                            <p className="text-sm text-primary/80 mt-1">{summary.focus}</p>
                                         </div>
-                                    ) : (
-                                        <button onClick={() => setShowRefinement(true)} className="w-full flex items-center justify-center gap-2 py-2 text-sm text-primary/70">
-                                            <RefreshCw className="w-4 h-4" /> Refine
-                                        </button>
-                                    )}
-                                </div>
-                            ) : null}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                        <div className="bg-surface/30 rounded-xl p-4 border border-white/5">
+                                            <p className="text-sm text-white/70 leading-relaxed">{summary.preview}</p>
+                                        </div>
+                                    </>
+                                ) : null}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Fade gradient at bottom */}
+                    <div className="sticky bottom-0 h-4 bg-gradient-to-t from-background-dark to-transparent pointer-events-none -mb-4 -mx-6 px-6" />
+                </div>
             </main>
 
-            {/* Button Container */}
-            <div className={cn(
-                "relative z-20 flex justify-center transition-all duration-500",
-                currentStep === 'HOME'
-                    ? 'absolute inset-0 items-center'
-                    : 'pb-8'
-            )}>
+            {/* FIXED Button at bottom */}
+            <footer className="relative z-20 flex justify-center pb-8 pt-4 shrink-0">
                 <MainButton
-                    position={buttonPosition}
-                    state={buttonState}
+                    position={currentStep === 'HOME' ? 'center' : 'bottom'}
+                    state={currentStep === 'HOME' ? 'idle' : 'setup'}
                     progress={progress}
                     isLoading={isLoadingSummary}
                     label={getButtonLabel()}
-                    subLabel={getSubLabel()}
                     onClick={handleButtonClick}
                     disabled={!canProceed()}
                     size={currentStep === 'HOME' ? 'large' : 'normal'}
                 />
-            </div>
+            </footer>
 
             {/* Context Overlay */}
             <InsightsContextOverlay
