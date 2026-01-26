@@ -7,7 +7,6 @@ import { Home } from './components/Home';
 import { CardsView } from './components/CardsView';
 import { MeditationsView } from './components/MeditationsView';
 import { LoadingGeneration } from './components/LoadingGeneration';
-import { Player } from './components/Player';
 import { AdminDashboard } from './components/AdminDashboard';
 import { TriageView } from './components/TriageView';
 import { Reflection } from './components/Reflection';
@@ -19,7 +18,6 @@ import { DashboardV2 } from './components/v2/DashboardV2';
 import { ReflectionV2 } from './components/v2/ReflectionV2';
 import { SessionSummaryV2 } from './components/v2/SessionSummaryV2';
 import { NewResolutionV2 } from './components/v2/NewResolutionV2';
-import { FeedbackV2 } from './components/v2/FeedbackV2';
 import { OnboardingView } from './components/v2/OnboardingView';
 import { SessionPrep } from './components/v2/SessionPrep';
 import { UnifiedExperience } from './components/UnifiedExperience';
@@ -49,7 +47,7 @@ const Main: React.FC = () => {
       case ViewState.EVENING_REFLECTION: return <ReflectionV2 />;
       case ViewState.SESSION_SUMMARY: return <SessionSummaryV2 />;
       case ViewState.NEW_RESOLUTION: return <NewResolutionV2 />;
-      case ViewState.FEEDBACK: return <FeedbackV2 />;
+      case ViewState.FEEDBACK: return <UnifiedExperience />; // Feedback integrated into UnifiedExperience
       case ViewState.CONTEXT: return <ContextInterview />;
       case ViewState.SESSION_PREP: return <SessionPrep />;
       case ViewState.PLAYER: return <UnifiedExperience />; // NEW: Unified meditation + feedback
