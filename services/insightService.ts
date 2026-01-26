@@ -52,47 +52,47 @@ export const THEMES: ThemeConfig[] = [
     {
         id: 'SAFETY',
         label: 'Safety',
-        uxLabel: 'I need Safety',
+        uxLabel: 'Safety',
         emoji: '🛡️',
         keywords: ['grounding', 'safety', 'protect', 'exhale', 'slow', 'heavy', 'secure', 'calm', 'peace'],
         excludeKeywords: ['disconnect', 'numb', 'float', 'sleep'],
-        description: 'Ventral Vagal restoration. The biological prerequisite for agency.'
+        description: 'Find grounding and restore calm'
     },
     {
         id: 'SPARK',
         label: 'Spark',
-        uxLabel: 'I need a Spark',
+        uxLabel: 'Spark',
         emoji: '✨',
         keywords: ['micro-movement', 'one step', 'wiggle', 'gentle', 'momentum', 'start', 'begin', 'tiny'],
         excludeKeywords: ['grind', 'hustle', 'push', 'force', 'massive'],
-        description: 'For when you feel stuck. An exoskeleton, not a drill sergeant.'
+        description: 'Gentle momentum when feeling stuck'
     },
     {
         id: 'POWER',
         label: 'Power',
-        uxLabel: 'I need Power',
+        uxLabel: 'Power',
         emoji: '🔥',
         keywords: ['challenge', 'heat', 'push', 'boundary', 'conquer', 'intensity', 'drive', 'strength'],
         excludeKeywords: ['gentle', 'soft', 'surrender', 'allow'],
-        description: 'Channel high energy into overcoming. Sympathetic activation.'
+        description: 'Channel energy into action'
     },
     {
         id: 'CLARITY',
         label: 'Clarity',
-        uxLabel: 'I need Clarity',
+        uxLabel: 'Clarity',
         emoji: '🎯',
         keywords: ['sequence', 'structure', 'first step', 'linear', 'define', 'decide', 'focus', 'clear'],
         excludeKeywords: ['open', 'explore', 'brainstorm', 'imagine', 'possibilities'],
-        description: 'Reduce mental noise. Act as a predictive model to reduce surprise.'
+        description: 'Cut through noise and confusion'
     },
     {
         id: 'FLOW',
         label: 'Flow',
-        uxLabel: 'I need Flow',
+        uxLabel: 'Flow',
         emoji: '🌊',
         keywords: ['connect', 'align', 'allow', 'release', 'effortless', 'adapt', 'surrender', 'natural'],
         excludeKeywords: ['force', 'control', 'grip', 'rigid', 'try harder'],
-        description: 'Moving from forcing to aligning with the system. Wu wei.'
+        description: 'Move from forcing to aligning'
     }
 ];
 
