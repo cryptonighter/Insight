@@ -1,16 +1,22 @@
+/**
+ * DashboardV2 - Simplified Home Screen
+ * Centered button that animates to bottom, step-by-step setup flow
+ */
+
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { supabase } from '../../services/supabaseClient';
 import { useApp } from '../../context/AppContext';
-import { Settings, History, ChevronRight, Zap, Activity, ArrowLeft, Check, MessageSquare, Clock, RefreshCw, Loader2, Sparkles } from 'lucide-react';
+import { Menu, Coins, Plus, Check, Clock, Sparkles, Loader2, RefreshCw, ChevronDown } from 'lucide-react';
 import { ViewState, MethodologyType } from '../../types';
-import { ProgressRing } from '../ui/ProgressRing';
+import { MainButton, ButtonPosition, ButtonState } from '../MainButton';
+import { InsightsContextOverlay } from '../InsightsContextOverlay';
 import { generateSessionSummary } from '../../services/geminiService';
 import { fetchSessionHistory, SessionHistorySummary } from '../../services/userHistoryService';
 import { cn } from '@/utils';
 
 // Setup step types
-type SetupStep = 'HOME' | 'FOCUS' | 'DURATION' | 'SUMMARY';
+type SetupStep = 'HOME' | 'THEME' | 'FOCUS' | 'DURATION' | 'SUMMARY';
 
 interface ThemeCategory {
     id: string;
@@ -19,7 +25,6 @@ interface ThemeCategory {
     focusOptions: { label: string; value: string }[];
 }
 
-// Theme categories with relevant focus options
 const THEME_CATEGORIES: ThemeCategory[] = [
     {
         id: 'calm', label: 'Calm', emoji: '🧘',
@@ -78,22 +83,25 @@ const DURATION_OPTIONS = [
     { label: '20m', value: 20 },
 ];
 
-const METHODOLOGY_INFO: Record<string, { label: string; desc: string }> = {
-    'NSDR': { label: 'NSDR', desc: 'Deep Rest' },
-    'SOMATIC_AGENCY': { label: 'Somatic', desc: 'Body Release' },
-    'IFS': { label: 'IFS', desc: 'Parts Work' },
-    'GENERAL': { label: 'Mindful', desc: 'Awareness' },
+const METHODOLOGY_INFO: Record<string, { label: string }> = {
+    'NSDR': { label: 'NSDR' },
+    'SOMATIC_AGENCY': { label: 'Somatic' },
+    'IFS': { label: 'IFS' },
+    'GENERAL': { label: 'Mindful' },
 };
 
 export const DashboardV2: React.FC = () => {
-    const { userEconomy, activeResolution, startMorningSession, setView, todaysEntry, isLoading, setPendingMeditationConfig, soundscapes, finalizeMeditationGeneration, user } = useApp();
+    const { userEconomy, activeResolution, setView, isLoading, setPendingMeditationConfig, soundscapes, finalizeMeditationGeneration, user } = useApp();
 
-    // Setup flow state
+    // UI state
+    const [showContextOverlay, setShowContextOverlay] = useState(false);
     const [currentStep, setCurrentStep] = useState<SetupStep>('HOME');
+
+    // Selection state
     const [selectedTheme, setSelectedTheme] = useState<ThemeCategory | null>(null);
     const [selectedFocuses, setSelectedFocuses] = useState<string[]>([]);
     const [customInput, setCustomInput] = useState('');
-    const [selectedDuration, setSelectedDuration] = useState<number>(5);
+    const [selectedDuration, setSelectedDuration] = useState<number>(10);
 
     // Summary state
     const [summary, setSummary] = useState<{
@@ -107,10 +115,9 @@ export const DashboardV2: React.FC = () => {
     const [showRefinement, setShowRefinement] = useState(false);
     const [refinementText, setRefinementText] = useState('');
 
-    // History state
+    // History
     const [userHistory, setUserHistory] = useState<SessionHistorySummary | null>(null);
 
-    // Fetch history
     useEffect(() => {
         if (user?.supabaseId) {
             fetchSessionHistory(user.supabaseId).then(h => {
@@ -119,24 +126,7 @@ export const DashboardV2: React.FC = () => {
         }
     }, [user?.supabaseId]);
 
-    const daysProgress = useMemo(() => {
-        if (!activeResolution?.createdAt) return 0;
-        const now = Date.now();
-        const start = new Date(activeResolution.createdAt).getTime();
-        const diff = now - start;
-        return Math.floor(diff / (1000 * 60 * 60 * 24));
-    }, [activeResolution?.createdAt]);
-
-    // Calculate progress (0-100)
-    const progress = useMemo(() => {
-        let p = 0;
-        if (selectedTheme) p += 33;
-        if (selectedFocuses.length > 0 || customInput) p += 33;
-        if (summary) p += 34;
-        return p;
-    }, [selectedTheme, selectedFocuses, customInput, summary]);
-
-    // FIRST RUN: If no active resolution, force flow to creation
+    // Redirect if no resolution
     useEffect(() => {
         if (!isLoading && !activeResolution) {
             if (!userEconomy.lastDailyGrant) {
@@ -147,34 +137,61 @@ export const DashboardV2: React.FC = () => {
         }
     }, [activeResolution, setView, userEconomy, isLoading]);
 
-    // Handle theme selection - auto advance
+    // Calculate progress (0-100)
+    const progress = useMemo(() => {
+        let p = 0;
+        if (selectedTheme) p += 25;
+        if (selectedFocuses.length > 0 || customInput) p += 25;
+        if (selectedDuration) p += 25;
+        if (summary) p += 25;
+        return p;
+    }, [selectedTheme, selectedFocuses, customInput, selectedDuration, summary]);
+
+    // Button position and state
+    const buttonPosition: ButtonPosition = currentStep === 'HOME' ? 'center' : 'bottom';
+    const buttonState: ButtonState = currentStep === 'HOME' ? 'idle' : 'setup';
+
+    // Handle button click
+    const handleButtonClick = () => {
+        switch (currentStep) {
+            case 'HOME':
+                setCurrentStep('THEME');
+                break;
+            case 'THEME':
+                if (selectedTheme) setCurrentStep('FOCUS');
+                break;
+            case 'FOCUS':
+                if (selectedFocuses.length > 0 || customInput.trim()) setCurrentStep('DURATION');
+                break;
+            case 'DURATION':
+                setCurrentStep('SUMMARY');
+                generateSummaryContent();
+                break;
+            case 'SUMMARY':
+                if (summary) handleStartSession();
+                break;
+        }
+    };
+
+    // Handle theme selection
     const handleThemeSelect = (theme: ThemeCategory) => {
         setSelectedTheme(theme);
         setSelectedFocuses([]);
-        setCustomInput('');
         setSummary(null);
-        setCurrentStep('FOCUS');
+        // Auto-advance after short delay
+        setTimeout(() => setCurrentStep('FOCUS'), 200);
     };
 
-    // Toggle focus multi-select
+    // Toggle focus
     const toggleFocus = (value: string) => {
         setSelectedFocuses(prev =>
             prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
         );
     };
 
-    // Advance from FOCUS to DURATION
-    const handleFocusContinue = () => {
-        if (selectedFocuses.length > 0 || customInput.trim()) {
-            setCurrentStep('DURATION');
-        }
-    };
-
     // Generate summary
-    const handleDurationContinue = async () => {
-        setCurrentStep('SUMMARY');
+    const generateSummaryContent = async () => {
         setIsLoadingSummary(true);
-
         try {
             const combinedFocus = [...selectedFocuses, customInput.trim()].filter(Boolean).join('. ');
             const soundscapeInfo = soundscapes.map(s => ({ id: s.id, name: s.name, mood: s.metadata?.mood }));
@@ -186,10 +203,9 @@ export const DashboardV2: React.FC = () => {
                 undefined,
                 soundscapeInfo
             );
-
             setSummary(result);
         } catch (error) {
-            console.error('Summary generation failed:', error);
+            console.error('Summary failed:', error);
             setSummary({
                 title: `${selectedTheme?.label || 'Mindful'} Session`,
                 methodology: 'NSDR',
@@ -202,11 +218,10 @@ export const DashboardV2: React.FC = () => {
         }
     };
 
-    // Refine summary
+    // Refine
     const handleRefine = async () => {
         if (!refinementText.trim()) return;
         setIsLoadingSummary(true);
-
         try {
             const soundscapeInfo = soundscapes.map(s => ({ id: s.id, name: s.name, mood: s.metadata?.mood }));
             const result = await generateSessionSummary(
@@ -227,9 +242,8 @@ export const DashboardV2: React.FC = () => {
     };
 
     // Start session
-    const handleStart = async () => {
+    const handleStartSession = async () => {
         if (!summary) return;
-
         setPendingMeditationConfig({
             focus: summary.focus,
             methodology: summary.methodology,
@@ -237,7 +251,6 @@ export const DashboardV2: React.FC = () => {
             duration: selectedDuration,
             soundscapeId: summary.soundscapeId
         });
-
         setView(ViewState.LOADING);
         await finalizeMeditationGeneration();
     };
@@ -245,199 +258,202 @@ export const DashboardV2: React.FC = () => {
     // Go back
     const goBack = () => {
         switch (currentStep) {
-            case 'FOCUS':
-                setCurrentStep('HOME');
-                setSelectedTheme(null);
-                break;
-            case 'DURATION':
-                setCurrentStep('FOCUS');
-                break;
-            case 'SUMMARY':
-                setCurrentStep('DURATION');
-                setSummary(null);
-                break;
+            case 'THEME': setCurrentStep('HOME'); break;
+            case 'FOCUS': setCurrentStep('THEME'); break;
+            case 'DURATION': setCurrentStep('FOCUS'); break;
+            case 'SUMMARY': setCurrentStep('DURATION'); setSummary(null); break;
         }
     };
 
-    // Reset to home
-    const resetToHome = () => {
-        setCurrentStep('HOME');
-        setSelectedTheme(null);
-        setSelectedFocuses([]);
-        setCustomInput('');
-        setSummary(null);
+    // Button label/sublabel
+    const getButtonLabel = () => {
+        if (currentStep === 'HOME') return 'START';
+        if (currentStep === 'SUMMARY' && summary) return 'BEGIN';
+        return 'NEXT';
+    };
+
+    const getSubLabel = () => {
+        if (currentStep === 'HOME') return 'Tap to begin';
+        if (currentStep === 'THEME') return 'Select theme';
+        if (currentStep === 'FOCUS') return selectedFocuses.length > 0 ? 'Continue' : 'Select focus';
+        if (currentStep === 'DURATION') return 'Generate session';
+        if (currentStep === 'SUMMARY') return summary ? 'Start session' : 'Loading...';
+        return '';
+    };
+
+    const canProceed = () => {
+        switch (currentStep) {
+            case 'HOME': return true;
+            case 'THEME': return !!selectedTheme;
+            case 'FOCUS': return selectedFocuses.length > 0 || customInput.trim().length > 0;
+            case 'DURATION': return true;
+            case 'SUMMARY': return !!summary && !isLoadingSummary;
+        }
     };
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-background-dark text-primary">
-                <Activity className="animate-spin w-8 h-8" />
+            <div className="flex items-center justify-center h-screen bg-background-dark">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
         );
     }
 
-    const isInSetupFlow = currentStep !== 'HOME';
-    const canStartSession = summary && !isLoadingSummary;
+    const isInSetup = currentStep !== 'HOME';
 
     return (
-        <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-background-light dark:bg-background-dark transition-colors duration-300">
-            {/* Background Effects */}
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
-            <div className="absolute inset-0 bg-grid-pattern pointer-events-none opacity-30"></div>
+        <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background-dark">
+            {/* Background */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
-            <header className="relative z-10 flex items-center justify-between px-6 pt-12 pb-2 w-full shrink-0">
-                {isInSetupFlow ? (
-                    <button
-                        onClick={goBack}
-                        className="flex items-center justify-center w-10 h-10 rounded-full text-white/50 hover:text-white hover:bg-white/5 transition-colors"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => setView(ViewState.TRIAGE)}
-                        className="flex items-center justify-center w-10 h-10 rounded-full text-white/50 hover:text-white hover:bg-white/5 transition-colors"
-                    >
-                        <Settings className="w-6 h-6" />
-                    </button>
-                )}
-                <div className="flex flex-col items-center">
-                    <h2 className="text-[10px] font-bold tracking-[0.25em] text-white/40 uppercase">
-                        {isInSetupFlow ? `Step ${currentStep === 'FOCUS' ? 2 : currentStep === 'DURATION' ? 3 : 4} of 4` : 'Available Capital'}
-                    </h2>
-                    {!isInSetupFlow && (
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs font-bold text-primary tracking-widest">{userEconomy.balance} TOKENS</span>
-                            <div className="w-1 h-1 bg-primary rounded-full animate-pulse shadow-[0_0_8px_#4ade80]"></div>
-                        </div>
-                    )}
-                </div>
+            {/* Header - minimal */}
+            <header className="relative z-10 flex items-center justify-between px-6 pt-6 shrink-0">
                 <button
-                    onClick={() => setView(ViewState.ADMIN)}
-                    className="flex items-center justify-center w-10 h-10 rounded-full text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+                    onClick={() => isInSetup ? goBack() : setShowContextOverlay(true)}
+                    className="w-11 h-11 flex items-center justify-center rounded-full bg-surface/50 border border-white/10 hover:border-white/20 transition-colors"
                 >
-                    <History className="w-6 h-6" />
+                    {isInSetup ? (
+                        <ChevronDown className="w-5 h-5 text-white/60 rotate-90" />
+                    ) : (
+                        <Menu className="w-5 h-5 text-white/60" />
+                    )}
                 </button>
+
+                {/* Tokens */}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface/50 border border-white/10">
+                        <Coins className="w-4 h-4 text-primary" />
+                        <span className="text-xs font-bold text-white">{userEconomy.balance}</span>
+                    </div>
+                    <button className="w-8 h-8 flex items-center justify-center rounded-full bg-surface/50 border border-white/10 hover:border-primary/50 transition-colors">
+                        <Plus className="w-4 h-4 text-white/60" />
+                    </button>
+                </div>
             </header>
 
-            <main className="flex-1 flex flex-col items-center justify-center relative z-10 px-6 w-full max-w-md mx-auto">
+            {/* Step indicator */}
+            {isInSetup && (
+                <div className="relative z-10 flex justify-center mt-2">
+                    <span className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">
+                        Step {['THEME', 'FOCUS', 'DURATION', 'SUMMARY'].indexOf(currentStep) + 1} of 4
+                    </span>
+                </div>
+            )}
+
+            {/* Main Content Area */}
+            <main className="flex-1 flex flex-col relative z-10">
                 <AnimatePresence mode="wait">
-                    {/* HOME: Show resolution + theme selection */}
+                    {/* HOME: Empty, just button */}
                     {currentStep === 'HOME' && (
                         <motion.div
                             key="home"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, x: -30 }}
-                            className="flex flex-col items-center text-center w-full"
+                            exit={{ opacity: 0 }}
+                            className="flex-1 flex items-center justify-center"
                         >
-                            {activeResolution && (
-                                <div className="mb-8 animate-in fade-in">
-                                    <div className="flex items-center gap-2 mb-3 opacity-60 justify-center">
-                                        <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
-                                        <span className="text-[10px] font-bold tracking-[0.25em] text-primary uppercase">Current Directive</span>
-                                        <span className="w-1 h-1 rounded-full bg-primary animate-pulse"></span>
-                                    </div>
-                                    <h1 className="text-xl md:text-2xl font-bold text-white/90 tracking-tight leading-normal max-w-xs text-glow-sm">
-                                        {activeResolution.statement}
-                                    </h1>
-                                </div>
-                            )}
+                            {/* Button will be positioned here via absolute */}
+                        </motion.div>
+                    )}
 
-                            {/* Theme Selection */}
-                            <div className="w-full max-w-sm">
-                                <label className="block text-[10px] font-bold tracking-[0.2em] text-white/40 uppercase mb-3 text-center">
-                                    What do you need today?
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {THEME_CATEGORIES.map(theme => (
-                                        <button
-                                            key={theme.id}
-                                            onClick={() => handleThemeSelect(theme)}
-                                            className={cn(
-                                                "flex flex-col items-center gap-1 px-3 py-3 rounded-xl border transition-all",
-                                                selectedTheme?.id === theme.id
-                                                    ? 'bg-primary/15 border-primary text-white'
-                                                    : 'bg-surface/30 border-white/10 text-white/70 hover:border-white/30'
-                                            )}
-                                        >
-                                            <span className="text-xl">{theme.emoji}</span>
-                                            <span className="text-xs font-medium">{theme.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
+                    {/* THEME Selection */}
+                    {currentStep === 'THEME' && (
+                        <motion.div
+                            key="theme"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex-1 flex flex-col items-center justify-center px-6"
+                        >
+                            <h2 className="text-xl font-bold text-white mb-6">What do you need?</h2>
+                            <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
+                                {THEME_CATEGORIES.map(theme => (
+                                    <button
+                                        key={theme.id}
+                                        onClick={() => handleThemeSelect(theme)}
+                                        className={cn(
+                                            "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                                            selectedTheme?.id === theme.id
+                                                ? 'bg-primary/20 border-primary'
+                                                : 'bg-surface/30 border-white/10 hover:border-white/20'
+                                        )}
+                                    >
+                                        <span className="text-2xl">{theme.emoji}</span>
+                                        <span className="text-xs font-medium text-white/80">{theme.label}</span>
+                                    </button>
+                                ))}
                             </div>
                         </motion.div>
                     )}
 
-                    {/* FOCUS: Multi-select focus options */}
+                    {/* FOCUS Selection */}
                     {currentStep === 'FOCUS' && selectedTheme && (
                         <motion.div
                             key="focus"
-                            initial={{ opacity: 0, x: 30 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -30 }}
-                            className="w-full max-w-sm space-y-4"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex-1 overflow-y-auto px-6 py-4"
                         >
-                            <div className="text-center">
-                                <span className="text-3xl">{selectedTheme.emoji}</span>
-                                <h2 className="text-xl font-bold text-white mt-2">{selectedTheme.label}</h2>
-                                <p className="text-sm text-white/50 mt-1">Select one or more</p>
-                            </div>
-
-                            {/* History themes */}
-                            {userHistory && userHistory.frequentThemes.length > 0 && (
-                                <div className="space-y-2">
-                                    <span className="text-[10px] font-bold tracking-[0.15em] text-white/30 uppercase">From your history</span>
-                                    <div className="flex flex-wrap gap-2">
-                                        {userHistory.frequentThemes.slice(0, 3).map(t => (
-                                            <button
-                                                key={t}
-                                                onClick={() => toggleFocus(t)}
-                                                className={cn(
-                                                    "px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5 transition-all",
-                                                    selectedFocuses.includes(t)
-                                                        ? 'bg-primary/20 border-primary text-primary'
-                                                        : 'bg-surface/50 border-white/10 text-white/60 hover:border-white/20'
-                                                )}
-                                            >
-                                                {selectedFocuses.includes(t) && <Check className="w-3 h-3" />}
-                                                {t}
-                                            </button>
-                                        ))}
-                                    </div>
+                            <div className="max-w-sm mx-auto space-y-4">
+                                <div className="text-center mb-4">
+                                    <span className="text-3xl">{selectedTheme.emoji}</span>
+                                    <h2 className="text-lg font-bold text-white mt-2">{selectedTheme.label}</h2>
+                                    <p className="text-xs text-white/50">Select one or more</p>
                                 </div>
-                            )}
 
-                            {/* Theme-specific options */}
-                            <div className="space-y-2">
-                                {selectedTheme.focusOptions.map(f => (
-                                    <button
-                                        key={f.value}
-                                        onClick={() => toggleFocus(f.value)}
-                                        className={cn(
-                                            "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left",
-                                            selectedFocuses.includes(f.value)
-                                                ? 'bg-primary/15 border-primary'
-                                                : 'bg-surface/30 border-white/10 hover:border-white/20'
-                                        )}
-                                    >
-                                        <span className={cn("text-sm", selectedFocuses.includes(f.value) ? 'text-white' : 'text-white/70')}>
-                                            {f.label}
-                                        </span>
-                                        {selectedFocuses.includes(f.value) && <Check className="w-4 h-4 text-primary" />}
-                                    </button>
-                                ))}
+                                {/* History themes */}
+                                {userHistory && userHistory.frequentThemes.length > 0 && (
+                                    <div className="space-y-2">
+                                        <span className="text-[10px] font-bold tracking-[0.15em] text-white/30 uppercase">From history</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {userHistory.frequentThemes.slice(0, 3).map(t => (
+                                                <button
+                                                    key={t}
+                                                    onClick={() => toggleFocus(t)}
+                                                    className={cn(
+                                                        "px-3 py-2 rounded-lg text-xs border flex items-center gap-1.5",
+                                                        selectedFocuses.includes(t)
+                                                            ? 'bg-primary/20 border-primary text-primary'
+                                                            : 'bg-surface/50 border-white/10 text-white/60'
+                                                    )}
+                                                >
+                                                    {selectedFocuses.includes(t) && <Check className="w-3 h-3" />}
+                                                    {t}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Focus options */}
+                                <div className="space-y-2">
+                                    {selectedTheme.focusOptions.map(f => (
+                                        <button
+                                            key={f.value}
+                                            onClick={() => toggleFocus(f.value)}
+                                            className={cn(
+                                                "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left",
+                                                selectedFocuses.includes(f.value)
+                                                    ? 'bg-primary/15 border-primary'
+                                                    : 'bg-surface/30 border-white/10'
+                                            )}
+                                        >
+                                            <span className="text-sm text-white/80">{f.label}</span>
+                                            {selectedFocuses.includes(f.value) && <Check className="w-4 h-4 text-primary" />}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Custom */}
+                                <textarea
+                                    value={customInput}
+                                    onChange={(e) => setCustomInput(e.target.value)}
+                                    placeholder="Or add your own..."
+                                    rows={2}
+                                    className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/50 resize-none"
+                                />
                             </div>
-
-                            {/* Custom input */}
-                            <textarea
-                                value={customInput}
-                                onChange={(e) => setCustomInput(e.target.value)}
-                                placeholder="Or add your own..."
-                                rows={2}
-                                className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:border-primary/50 focus:outline-none resize-none"
-                            />
                         </motion.div>
                     )}
 
@@ -445,16 +461,14 @@ export const DashboardV2: React.FC = () => {
                     {currentStep === 'DURATION' && (
                         <motion.div
                             key="duration"
-                            initial={{ opacity: 0, x: 30 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -30 }}
-                            className="w-full max-w-sm space-y-6"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex-1 flex flex-col items-center justify-center px-6"
                         >
-                            <div className="text-center">
-                                <Clock className="w-10 h-10 text-primary/60 mx-auto mb-2" />
-                                <h2 className="text-xl font-bold text-white">How long?</h2>
-                            </div>
-                            <div className="grid grid-cols-4 gap-2">
+                            <Clock className="w-12 h-12 text-primary/60 mb-4" />
+                            <h2 className="text-xl font-bold text-white mb-6">How long?</h2>
+                            <div className="grid grid-cols-4 gap-3 w-full max-w-xs">
                                 {DURATION_OPTIONS.map(opt => (
                                     <button
                                         key={opt.value}
@@ -463,7 +477,7 @@ export const DashboardV2: React.FC = () => {
                                             "py-4 rounded-xl border-2 text-center transition-all",
                                             selectedDuration === opt.value
                                                 ? 'bg-primary/20 border-primary text-white font-bold'
-                                                : 'bg-surface/30 border-white/10 text-white/60 hover:border-white/20'
+                                                : 'bg-surface/30 border-white/10 text-white/60'
                                         )}
                                     >
                                         {opt.label}
@@ -477,18 +491,18 @@ export const DashboardV2: React.FC = () => {
                     {currentStep === 'SUMMARY' && (
                         <motion.div
                             key="summary"
-                            initial={{ opacity: 0, x: 30 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -30 }}
-                            className="w-full max-w-sm space-y-4"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex-1 flex flex-col items-center justify-center px-6"
                         >
                             {isLoadingSummary && !summary ? (
-                                <div className="flex flex-col items-center py-12">
-                                    <Loader2 className="w-10 h-10 text-primary/60 animate-spin mb-3" />
+                                <div className="text-center">
+                                    <Loader2 className="w-10 h-10 text-primary/60 animate-spin mx-auto mb-3" />
                                     <p className="text-sm text-white/50">Designing your session...</p>
                                 </div>
                             ) : summary ? (
-                                <>
+                                <div className="w-full max-w-sm space-y-4">
                                     <div className="text-center">
                                         <Sparkles className="w-8 h-8 text-primary/60 mx-auto mb-2" />
                                         <h3 className="text-xl font-bold text-white">{summary.title}</h3>
@@ -510,113 +524,51 @@ export const DashboardV2: React.FC = () => {
                                                 onChange={(e) => setRefinementText(e.target.value)}
                                                 placeholder="e.g. 'more visual', 'add body focus'..."
                                                 rows={2}
-                                                className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:border-primary/50 focus:outline-none resize-none"
+                                                className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none resize-none"
                                                 autoFocus
                                             />
                                             <div className="flex gap-2">
                                                 <button onClick={() => setShowRefinement(false)} className="flex-1 py-2 rounded-lg bg-surface/50 text-white/60 text-sm">Cancel</button>
-                                                <button onClick={handleRefine} disabled={!refinementText.trim() || isLoadingSummary} className="flex-1 py-2 rounded-lg bg-primary text-black font-bold text-sm disabled:opacity-50">
-                                                    {isLoadingSummary ? 'Refining...' : 'Apply'}
-                                                </button>
+                                                <button onClick={handleRefine} disabled={!refinementText.trim()} className="flex-1 py-2 rounded-lg bg-primary text-black font-bold text-sm disabled:opacity-50">Apply</button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <button onClick={() => setShowRefinement(true)} className="w-full flex items-center justify-center gap-2 py-2 text-sm text-primary/70 hover:text-primary">
+                                        <button onClick={() => setShowRefinement(true)} className="w-full flex items-center justify-center gap-2 py-2 text-sm text-primary/70">
                                             <RefreshCw className="w-4 h-4" /> Refine
                                         </button>
                                     )}
-                                </>
+                                </div>
                             ) : null}
                         </motion.div>
                     )}
                 </AnimatePresence>
             </main>
 
-            {/* Footer with START button - same position, just add progress ring */}
-            <footer className="relative z-10 w-full px-6 pb-8 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent shrink-0">
-                <div className="w-full max-w-md mx-auto flex flex-col items-center gap-4">
-                    {/* Progress Ring around START button */}
-                    <ProgressRing progress={progress} size={280} strokeWidth={4}>
-                        <motion.button
-                            onClick={() => {
-                                if (todaysEntry?.morningGenerated && !todaysEntry?.eveningCompleted) {
-                                    setView(ViewState.EVENING_REFLECTION);
-                                } else if (currentStep === 'HOME') {
-                                    // No action - user must select theme first
-                                } else if (currentStep === 'FOCUS') {
-                                    handleFocusContinue();
-                                } else if (currentStep === 'DURATION') {
-                                    handleDurationContinue();
-                                } else if (currentStep === 'SUMMARY' && canStartSession) {
-                                    handleStart();
-                                }
-                            }}
-                            animate={{ scale: [1, 1.02, 1] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                            className={cn(
-                                "relative group w-64 h-64 rounded-full transition-all duration-500 overflow-hidden flex flex-col items-center justify-center bg-surface border shadow-[0_0_20px_rgba(74,222,128,0.1)] hover:shadow-[0_0_40px_rgba(74,222,128,0.2)] cursor-pointer",
-                                canStartSession ? 'border-primary/60 hover:border-primary' : 'border-primary/30 hover:border-primary/60'
-                            )}
-                        >
-                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <div className="absolute inset-0 rounded-full border border-white/5 scale-95 pointer-events-none"></div>
+            {/* Button Container */}
+            <div className={cn(
+                "relative z-20 flex justify-center transition-all duration-500",
+                currentStep === 'HOME'
+                    ? 'absolute inset-0 items-center'
+                    : 'pb-8'
+            )}>
+                <MainButton
+                    position={buttonPosition}
+                    state={buttonState}
+                    progress={progress}
+                    isLoading={isLoadingSummary}
+                    label={getButtonLabel()}
+                    subLabel={getSubLabel()}
+                    onClick={handleButtonClick}
+                    disabled={!canProceed()}
+                    size={currentStep === 'HOME' ? 'large' : 'normal'}
+                />
+            </div>
 
-                            <div className="flex flex-col items-center justify-center z-10">
-                                {isLoadingSummary ? (
-                                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                                ) : (
-                                    <>
-                                        <span className={cn(
-                                            "text-5xl font-bold tracking-tight transition-colors duration-300 leading-none",
-                                            canStartSession ? 'text-primary' : 'text-white group-hover:text-primary'
-                                        )}>
-                                            {currentStep === 'HOME' ? 'START' : currentStep === 'SUMMARY' && canStartSession ? 'BEGIN' : 'NEXT'}
-                                        </span>
-                                        <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/50 group-hover:text-white/80 transition-colors mt-3 max-w-[140px] text-center leading-relaxed">
-                                            {currentStep === 'HOME'
-                                                ? (todaysEntry?.morningGenerated ? "Evening\nReflection" : "Select theme\nabove")
-                                                : currentStep === 'FOCUS'
-                                                    ? "Continue"
-                                                    : currentStep === 'DURATION'
-                                                        ? "Generate"
-                                                        : "Session"
-                                            }
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        </motion.button>
-                    </ProgressRing>
-
-                    <div className="flex items-center justify-center gap-4 mt-2">
-                        <div className="flex items-center gap-2 opacity-60">
-                            <Zap className="w-4 h-4 text-primary" />
-                            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-white">
-                                {todaysEntry?.morningGenerated ? "Earn: 1 Token" : "Cost: 1 Token"}
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={async () => {
-                                    const code = prompt("Enter Admin Access Code:");
-                                    if (code === "insight") {
-                                        if (userEconomy.userId) {
-                                            await supabase.from('user_economy').update({ balance: userEconomy.balance + 100 }).eq('user_id', userEconomy.userId);
-                                            window.location.reload();
-                                        }
-                                    } else if (code) {
-                                        alert("Invalid Access Code");
-                                    }
-                                }}
-                                className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-xs text-white hover:bg-primary hover:text-black transition-colors"
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            {/* Context Overlay */}
+            <InsightsContextOverlay
+                isOpen={showContextOverlay}
+                onClose={() => setShowContextOverlay(false)}
+            />
         </div>
     );
 };

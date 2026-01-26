@@ -3,11 +3,29 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reality Selection Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  
+  <!-- iOS Safari: Force dark color scheme to prevent white flash -->
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <!-- Prevent iOS text size adjustments -->
+  <meta name="format-detection" content="telephone=no" />
+  
+  <title>Insight</title>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
+  
+  <!-- Inline critical CSS for instant dark background -->
+  <style>
+    html, body, #root {
+      background-color: #0a0a0a !important;
+      color-scheme: dark;
+    }
+  </style>
 </head>
 
 <body>
