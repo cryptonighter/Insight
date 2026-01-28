@@ -158,6 +158,32 @@ export const UnifiedExperience: React.FC = () => {
         };
     }, []);
 
+    // Track if playback has started to prevent double-initialization
+    const playbackStartedRef = useRef(false);
+
+    // Watch for audioQueue segments and auto-start when in PLAYING state
+    useEffect(() => {
+        const audioQueue = currentMeditation?.audioQueue;
+
+        // If in PLAYING state and segments are available but playback hasn't started
+        if (experienceState === 'PLAYING' &&
+            audioQueue &&
+            audioQueue.length > 0 &&
+            !playbackStartedRef.current) {
+
+            console.log('🔊 Segments available, starting playback with', audioQueue.length, 'segments');
+            playbackStartedRef.current = true;
+            startRealPlayback();
+        }
+    }, [experienceState, currentMeditation?.audioQueue?.length]);
+
+    // Reset playback started ref when meditation changes or state resets
+    useEffect(() => {
+        if (experienceState === 'POSTURE_INFO') {
+            playbackStartedRef.current = false;
+        }
+    }, [experienceState, currentMeditation?.id]);
+
     // Sync volume controls with AudioService
     useEffect(() => {
         AudioService.setVolume('voice', voiceVolume);
