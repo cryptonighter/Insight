@@ -62,41 +62,17 @@ serve(async (req: Request) => {
 
         // Reduced batch counts for better voice consistency (fewer TTS calls = more consistent voice)
         const getStructureInstructions = (mins: number) => {
-            if (mins <= 5) {
-                return `
-                STRUCTURE (5 Minutes):
-                - Create EXACTLY 2 BATCHES:
-                  1. Opening (1.5 mins): Intro & settling.
-                  2. Main/Closing (3.5 mins): Technique & outro.
-                `;
-            } else if (mins <= 10) {
-                // Increased to 5 batches for FASTER streaming start (smaller chunks = faster TTS)
-                return `
-                STRUCTURE (10 Minutes):
-                - Create EXACTLY 5 BATCHES:
-                  1. Opening (approx 1.5 mins): Immediate settling.
-                  2. Deepening (approx 2 mins): Body scan / breath.
-                  3. Core Technique Part 1 (approx 2.5 mins): First phase of protocol.
-                  4. Core Technique Part 2 (approx 2.5 mins): Deepening phase.
-                  5. Closing (approx 1.5 mins): Integration & return.
-                - Ensure smooth transitions between batches.
-                `;
-            } else {
-                // Increased to 8 batches for FASTER streaming
-                return `
-                STRUCTURE (20+ Minutes):
-                - Create EXACTLY 8 BATCHES:
-                  1. Opening (2 mins)
-                  2. Deepening 1 (3 mins)
-                  3. Deepening 2 (3 mins)
-                  4. Core Work 1 (3 mins)
-                  5. Core Work 2 (3 mins)
-                  6. Core Work 3 (3 mins)
-                  7. Integration (2 mins)
-                  8. Closing (1 min)
-                - Maintain one continuous flow.
-                `;
-            }
+            // HYPER-GRANULAR CHUNKING: ~1 minute per batch for ultra-low latency & consistent voice
+            const batches = Math.max(2, Math.round(mins)); // 10 mins = 10 batches. 
+
+            return `
+            STRUCTURE (${mins} Minutes):
+            - Create EXACTLY ${batches} EQUAL BATCHES (approx 1 minute each).
+            - Batch 1: Opening & Settling (Must be short, ~40-50 words for fast start).
+            - Batches 2-${batches - 1}: Main content logic flowing smoothly.
+            - Final Batch: Closing & Grounding.
+            - CRITICAL: Maintain continuity. Each batch must flow into the next like a single sentence.
+            `;
         };
 
         const structureInstructions = getStructureInstructions(durationMinutes);
@@ -219,8 +195,10 @@ serve(async (req: Request) => {
             return JSON.parse(cleanContent);
         };
 
-        const PRIMARY_MODEL = "gemini-2.0-flash-exp"; // User requested cutting edge
+        const PRIMARY_MODEL = "gemini-2.0-flash-exp";
         const FALLBACK_MODEL = "gemini-1.5-pro";
+
+
 
         let parsed;
         try {
