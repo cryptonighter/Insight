@@ -60,7 +60,7 @@ interface AppState {
 
   // Generation Actions
   startMeditationGeneration: (focus: string, feeling: string, duration: number, methodology?: MethodologyType, variables?: Record<string, any>) => void;
-  finalizeMeditationGeneration: (config: MeditationConfig) => Promise<void>;
+  finalizeMeditationGeneration: (config?: MeditationConfig) => Promise<void>;
   setView: (view: ViewState) => void;
   playMeditation: (id: string) => void;
   rateMeditation: (id: string, feedback: any) => Promise<void>;

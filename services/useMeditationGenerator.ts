@@ -83,7 +83,17 @@ export const useMeditationGenerator = (
         };
     }, []);
 
-    const finalizeMeditationGeneration = async (config: MeditationConfig) => {
+    const finalizeMeditationGeneration = async (configArg?: MeditationConfig) => {
+        // Use provided config or fall back to pendingMeditationConfig
+        const config = configArg || pendingMeditationConfig as MeditationConfig;
+
+        // Defensive: Ensure config is valid
+        if (!config || !config.soundscapeId) {
+            console.error('❌ finalizeMeditationGeneration called with invalid config:', config);
+            console.error('   pendingMeditationConfig was:', pendingMeditationConfig);
+            throw new Error('Invalid meditation config: missing required fields (soundscapeId)');
+        }
+
         // Prevent double submissions or cancel previous
         if (pipelineRef.current) {
             console.log("🛑 Stopping previous pipeline...");
