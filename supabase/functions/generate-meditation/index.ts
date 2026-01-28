@@ -65,28 +65,36 @@ serve(async (req: Request) => {
             if (mins <= 5) {
                 return `
                 STRUCTURE (5 Minutes):
-                - Create 1 SINGLE batch containing the entire session.
-                - Flow: Short intro -> Quick technique -> Brief outro.
+                - Create EXACTLY 2 BATCHES:
+                  1. Opening (1.5 mins): Intro & settling.
+                  2. Main/Closing (3.5 mins): Technique & outro.
                 `;
             } else if (mins <= 10) {
-                // Reduced from 4 to 3 batches for better voice consistency
+                // Increased to 5 batches for FASTER streaming start (smaller chunks = faster TTS)
                 return `
                 STRUCTURE (10 Minutes):
-                - Create EXACTLY 3 BATCHES:
-                  1. Opening (approx 2 mins): Immediate settling, framing, and context.
-                  2. Main Session (approx 6.5 mins): The core protocol/technique (ONE CONTINUOUS BLOCK).
-                  3. Closing (approx 1.5 mins): Grounding back, gentle return to alertness.
+                - Create EXACTLY 5 BATCHES:
+                  1. Opening (approx 1.5 mins): Immediate settling.
+                  2. Deepening (approx 2 mins): Body scan / breath.
+                  3. Core Technique Part 1 (approx 2.5 mins): First phase of protocol.
+                  4. Core Technique Part 2 (approx 2.5 mins): Deepening phase.
+                  5. Closing (approx 1.5 mins): Integration & return.
                 - Ensure smooth transitions between batches.
                 `;
             } else {
-                // Reduced from 5 to 3 batches for better voice consistency
+                // Increased to 8 batches for FASTER streaming
                 return `
                 STRUCTURE (20+ Minutes):
-                - Create EXACTLY 3 BATCHES:
-                  1. Opening (approx 3 mins): Deep settling, breath awareness, body scan.
-                  2. Main Session (approx 12 mins): Core technique - combine multiple phases into one continuous flow.
-                  3. Closing (approx 5 mins): Long integration, grounding, gentle return to alertness.
-                - Maintain one continuous voice throughout each batch.
+                - Create EXACTLY 8 BATCHES:
+                  1. Opening (2 mins)
+                  2. Deepening 1 (3 mins)
+                  3. Deepening 2 (3 mins)
+                  4. Core Work 1 (3 mins)
+                  5. Core Work 2 (3 mins)
+                  6. Core Work 3 (3 mins)
+                  7. Integration (2 mins)
+                  8. Closing (1 min)
+                - Maintain one continuous flow.
                 `;
             }
         };
@@ -211,7 +219,7 @@ serve(async (req: Request) => {
             return JSON.parse(cleanContent);
         };
 
-        const PRIMARY_MODEL = "gemini-2.0-flash";
+        const PRIMARY_MODEL = "gemini-2.0-flash-exp"; // User requested cutting edge
         const FALLBACK_MODEL = "gemini-1.5-pro";
 
         let parsed;
