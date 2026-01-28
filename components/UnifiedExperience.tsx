@@ -160,27 +160,53 @@ export const UnifiedExperience: React.FC = () => {
 
     // Track if playback has started to prevent double-initialization
     const playbackStartedRef = useRef(false);
+    // Track how many segments we've sent to AudioService
+    const lastAppendedCountRef = useRef(0);
 
     // Watch for audioQueue segments and auto-start when in PLAYING state
     useEffect(() => {
         const audioQueue = currentMeditation?.audioQueue;
+        const queueLength = audioQueue?.length || 0;
 
         // If in PLAYING state and segments are available but playback hasn't started
         if (experienceState === 'PLAYING' &&
             audioQueue &&
-            audioQueue.length > 0 &&
+            queueLength > 0 &&
             !playbackStartedRef.current) {
 
-            console.log('🔊 Segments available, starting playback with', audioQueue.length, 'segments');
+            console.log('🔊 Segments available, starting playback with', queueLength, 'segments');
             playbackStartedRef.current = true;
+            lastAppendedCountRef.current = queueLength;
+
+            // Enable streaming mode if generation is still in progress
+            if (currentMeditation?.isGenerating) {
+                AudioService.setStreaming(true);
+            }
+
             startRealPlayback();
         }
+        // If playback started and new segments arrived, append them
+        else if (playbackStartedRef.current && queueLength > lastAppendedCountRef.current) {
+            const newSegments = audioQueue!.slice(lastAppendedCountRef.current);
+            console.log(`🔊 Appending ${newSegments.length} new segments to queue`);
+            lastAppendedCountRef.current = queueLength;
+            AudioService.appendToQueue(newSegments);
+        }
     }, [experienceState, currentMeditation?.audioQueue?.length]);
+
+    // Watch for generation completion and disable streaming mode
+    useEffect(() => {
+        if (currentMeditation && !currentMeditation.isGenerating && playbackStartedRef.current) {
+            console.log('🔊 Generation complete, disabling streaming mode');
+            AudioService.setStreaming(false);
+        }
+    }, [currentMeditation?.isGenerating]);
 
     // Reset playback started ref when meditation changes or state resets
     useEffect(() => {
         if (experienceState === 'POSTURE_INFO') {
             playbackStartedRef.current = false;
+            lastAppendedCountRef.current = 0;
         }
     }, [experienceState, currentMeditation?.id]);
 

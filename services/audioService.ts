@@ -60,6 +60,9 @@ class AudioServiceClass {
         binaural: 0.3
     };
 
+    // Streaming mode: if true, don't complete when queue ends - more segments coming
+    private isStreaming: boolean = false;
+
     /**
      * Initialize the AudioContext and gain nodes
      * Call this on user interaction to unlock audio on iOS
@@ -359,9 +362,16 @@ class AudioServiceClass {
     }
 
     /**
-     * Handle queue completion
+     * Handle queue completion - may wait for more segments if streaming
      */
     private handleQueueComplete(): void {
+        // If streaming, more segments may be coming - don't complete yet
+        if (this.isStreaming) {
+            console.log('🔊 AudioService: Waiting for more segments (streaming mode)...');
+            // Keep isPlaying true so we can resume when segments arrive
+            return;
+        }
+
         this.isPlaying = false;
         this.stopProgressTracking();
 
@@ -369,6 +379,53 @@ class AudioServiceClass {
 
         if (this.onComplete) {
             this.onComplete();
+        }
+    }
+
+    /**
+     * Enable/disable streaming mode
+     * When streaming, playback waits for more segments instead of completing
+     */
+    setStreaming(streaming: boolean): void {
+        const wasStreaming = this.isStreaming;
+        this.isStreaming = streaming;
+
+        console.log(`🔊 AudioService: Streaming mode ${streaming ? 'enabled' : 'disabled'}`);
+
+        // If just finished streaming and we were waiting, complete now
+        if (wasStreaming && !streaming && this.isPlaying && !this.currentSource) {
+            this.handleQueueComplete();
+        }
+    }
+
+    /**
+     * Append new segments to the queue while playing
+     */
+    async appendToQueue(newSegments: PlayableSegment[]): Promise<void> {
+        if (newSegments.length === 0) return;
+
+        const startIndex = this.segments.length;
+        this.segments.push(...newSegments);
+
+        // Calculate durations for new segments
+        for (const segment of newSegments) {
+            try {
+                const buffer = await this.fetchAndDecodeSegment(segment);
+                this.segmentDurations.push(buffer.duration);
+                this.totalDuration += buffer.duration;
+            } catch (e) {
+                const estimated = segment.duration || 10;
+                this.segmentDurations.push(estimated);
+                this.totalDuration += estimated;
+            }
+        }
+
+        console.log(`🔊 AudioService: Appended ${newSegments.length} segments, total now ${this.segments.length}`);
+
+        // If playback was waiting (isPlaying but no current source), resume
+        if (this.isPlaying && !this.currentSource && !this.isPaused) {
+            console.log('🔊 AudioService: Resuming playback with new segments');
+            await this.playSegment(startIndex);
         }
     }
 

@@ -254,7 +254,7 @@ export const transcribeAudio = async (audioBase64: string): Promise<string> => {
   const prompt = "Transcribe the spoken audio into text. Return ONLY the transcription.";
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash", // Direct Google call
+      model: "gemini-2.0-flash", // Direct Google call for transcription
       contents: [{
         parts: [
           { inlineData: { mimeType: "audio/webm", data: audioBase64 } },

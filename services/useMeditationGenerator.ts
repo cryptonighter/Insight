@@ -247,7 +247,7 @@ export const useMeditationGenerator = (
                     id: 'greeting',
                     text: greetingResult.text,
                     audioUrl: greetingUrl,
-                    duration: greetingResult.audioData.length / 48000, // Estimate
+                    duration: greetingResult.audioData.length / (24000 * 2), // 24kHz, 16-bit mono
                     instructions: [] // Greeting has no special sonic instructions
                 };
 
@@ -311,7 +311,7 @@ export const useMeditationGenerator = (
                         id: `batch-${i}`,
                         text: batch.text,
                         audioUrl: url,
-                        duration: len / 48000,
+                        duration: len / (24000 * 2), // 24kHz, 16-bit mono
                         instructions: sonicTimeline.segmentInstructions[i + 1] || [] // +1 for greeting offset
                     };
 
