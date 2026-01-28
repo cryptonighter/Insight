@@ -15,8 +15,14 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
             const { data: eco } = await supabase.from('user_economy').select('*').eq('user_id', userId).single();
             if (eco) setUserEconomy({ userId, balance: eco.balance, lastDailyGrant: eco.last_daily_grant });
 
-            // 2. Fetch Active Resolution
-            const { data: res } = await supabase.from('resolutions').select('*').eq('user_id', userId).eq('status', 'active').single();
+            // 2. Fetch Active Resolution (handle potential duplicates by taking newest)
+            const { data: res } = await supabase.from('resolutions')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('status', 'active')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
             if (res) {
                 setActiveResolution({
                     id: res.id,
