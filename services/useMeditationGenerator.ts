@@ -101,7 +101,7 @@ export const useMeditationGenerator = (
             pipelineRef.current = null;
         }
 
-        const tempId = Date.now().toString();
+        const tempId = crypto.randomUUID();
         try {
             // 1. Base Context
             const contextTexts = [

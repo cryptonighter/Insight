@@ -398,8 +398,11 @@ class AudioServiceClass {
 
         console.log(`🔊 AudioService: Streaming mode ${streaming ? 'enabled' : 'disabled'}`);
 
-        // If just finished streaming and we were waiting, complete now
-        if (wasStreaming && !streaming && this.isPlaying && !this.currentSource) {
+        // If just finished streaming and we were waiting, check if we should complete
+        // Only complete if we don't have unplayed segments in the queue
+        const hasUnplayedSegments = this.currentSegmentIndex < this.segments.length - 1;
+
+        if (wasStreaming && !streaming && this.isPlaying && !this.currentSource && !hasUnplayedSegments) {
             this.handleQueueComplete();
         }
     }

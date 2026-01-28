@@ -153,14 +153,18 @@ serve(async (req: Request) => {
     4. **Direct Experience**: Use present tense. "Noticing the breath..." instead of "Now I want you to notice your breath."
     5. **Micro-Pacing**: Insert "[Silence]" or "..." OFTEN to control the speed. 
 
-    JSON FORMAT:
+    JSON FORMAT (STRICT):
     {
       "title": "Title of Session",
       "batches": [
-        { "text": "Spoken text..." }
+        { "text": "Batch 1 text..." },
+        { "text": "Batch 2 text..." },
+        { "text": "Batch 3 text..." }
       ],
       "lines": ["Summary line 1", "Summary line 2"]
     }
+    
+    IMPORTANT: You must return the EXACT number of batches requested in the STRUCTURE section.
     
     BREATHING AND PACING:
     - You MUST include audible breathing cues: "[Perform a deep, audible breath]" (Do not use "Audible Inhale/Exhale").
@@ -207,8 +211,8 @@ serve(async (req: Request) => {
             return JSON.parse(cleanContent);
         };
 
-        const PRIMARY_MODEL = "gemini-2.5-flash";
-        const FALLBACK_MODEL = "gemini-1.5-flash";
+        const PRIMARY_MODEL = "gemini-2.0-flash";
+        const FALLBACK_MODEL = "gemini-1.5-pro";
 
         let parsed;
         try {
