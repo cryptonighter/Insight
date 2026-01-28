@@ -375,8 +375,7 @@ export const UnifiedExperience: React.FC = () => {
         switch (experienceState) {
             case 'POSTURE_INFO':
                 setExperienceState('PLAYING');
-                // Start real audio playback
-                startRealPlayback();
+                // useEffect watches experienceState and audioQueue, will start playback automatically
                 break;
             case 'PLAYING':
                 setExperienceState('PAUSED');

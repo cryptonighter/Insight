@@ -62,6 +62,8 @@ class AudioServiceClass {
 
     // Streaming mode: if true, don't complete when queue ends - more segments coming
     private isStreaming: boolean = false;
+    // Waiting for segments: true when queue ran out but streaming mode is on
+    private waitingForSegments: boolean = false;
 
     /**
      * Initialize the AudioContext and gain nodes
@@ -210,6 +212,9 @@ class AudioServiceClass {
 
             // Handle segment completion
             this.currentSource.onended = () => {
+                // Mark as finished so appendToQueue can detect "waiting for segments" state
+                this.currentSource = null;
+
                 if (this.isPlaying && !this.isPaused) {
                     this.playSegment(this.currentSegmentIndex + 1);
                 }
@@ -368,6 +373,7 @@ class AudioServiceClass {
         // If streaming, more segments may be coming - don't complete yet
         if (this.isStreaming) {
             console.log('🔊 AudioService: Waiting for more segments (streaming mode)...');
+            this.waitingForSegments = true;
             // Keep isPlaying true so we can resume when segments arrive
             return;
         }
@@ -422,9 +428,10 @@ class AudioServiceClass {
 
         console.log(`🔊 AudioService: Appended ${newSegments.length} segments, total now ${this.segments.length}`);
 
-        // If playback was waiting (isPlaying but no current source), resume
-        if (this.isPlaying && !this.currentSource && !this.isPaused) {
+        // If playback was waiting for more segments, resume from the newly added segment
+        if (this.waitingForSegments) {
             console.log('🔊 AudioService: Resuming playback with new segments');
+            this.waitingForSegments = false;
             await this.playSegment(startIndex);
         }
     }
