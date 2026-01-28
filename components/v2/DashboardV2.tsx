@@ -11,11 +11,11 @@ import { ViewState, MethodologyType } from '../../types';
 import { MainButton, ButtonPosition, ButtonState } from '../MainButton';
 import { InsightsContextOverlay } from '../InsightsContextOverlay';
 import { generateSessionSummary } from '../../services/geminiService';
-import { THEMES, CATEGORIES, ThemeType, CategoryType, ThemeConfig, filterInsightsByTheme, groupInsightsByCategory, fetchUserInsights, UserInsight, updateUserPreferences } from '../../services/insightService';
+import { THEMES, ThemeConfig, filterInsightsByTheme, fetchUserInsights, UserInsight, updateUserPreferences } from '../../services/insightService';
 import { cn } from '@/utils';
 
 // Steps in the flow
-type SetupStep = 'HOME' | 'THEME' | 'CATEGORY' | 'INSIGHTS' | 'DURATION' | 'VOICE' | 'SUMMARY';
+type SetupStep = 'HOME' | 'THEME' | 'INSIGHTS' | 'DURATION' | 'VOICE' | 'SUMMARY';
 
 const DURATION_OPTIONS = [
     { label: '5 min', value: 5 },
@@ -33,7 +33,6 @@ export const DashboardV2: React.FC = () => {
 
     // Selection state
     const [selectedTheme, setSelectedTheme] = useState<ThemeConfig | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(null);
     const [selectedInsights, setSelectedInsights] = useState<string[]>([]);
     const [customInput, setCustomInput] = useState('');
     const [selectedDuration, setSelectedDuration] = useState<number>(10);
@@ -42,9 +41,6 @@ export const DashboardV2: React.FC = () => {
     // Insights from DB
     const [userInsights, setUserInsights] = useState<UserInsight[]>([]);
     const [filteredInsights, setFilteredInsights] = useState<UserInsight[]>([]);
-    const [groupedInsights, setGroupedInsights] = useState<Record<CategoryType, UserInsight[]>>({
-        BODY: [], NARRATIVE: [], ACTION: [], CONTEXT: []
-    });
 
     // Summary state
     const [summary, setSummary] = useState<{
@@ -70,7 +66,6 @@ export const DashboardV2: React.FC = () => {
         if (selectedTheme && userInsights.length > 0) {
             const filtered = filterInsightsByTheme(userInsights, selectedTheme.id);
             setFilteredInsights(filtered);
-            setGroupedInsights(groupInsightsByCategory(filtered));
         }
     }, [selectedTheme, userInsights]);
 
@@ -85,31 +80,27 @@ export const DashboardV2: React.FC = () => {
         }
     }, [activeResolution, setView, userEconomy, isLoading]);
 
-    // Progress calculation
+    // Progress calculation (5 steps: theme, insights, duration, voice, summary)
     const progress = useMemo(() => {
         let p = 0;
         if (selectedTheme) p += 20;
-        if (selectedCategory) p += 20;
         if (selectedInsights.length > 0 || customInput) p += 20;
         if (selectedDuration) p += 20;
+        // Voice always has a default
+        p += 20;
         if (summary) p += 20;
         return p;
-    }, [selectedTheme, selectedCategory, selectedInsights, customInput, selectedDuration, summary]);
+    }, [selectedTheme, selectedInsights, customInput, selectedDuration, summary]);
 
-    // Handle theme selection - auto advance
+    // Handle theme selection - auto advance to INSIGHTS
     const handleThemeSelect = (theme: ThemeConfig) => {
         setSelectedTheme(theme);
-        setSelectedCategory(null);
         setSelectedInsights([]);
         setSummary(null);
-        setCurrentStep('CATEGORY');
-    };
-
-    // Handle category selection - auto advance
-    const handleCategorySelect = (category: CategoryType) => {
-        setSelectedCategory(category);
         setCurrentStep('INSIGHTS');
     };
+
+
 
     // Toggle insight selection
     const toggleInsight = (text: string) => {
@@ -180,9 +171,7 @@ export const DashboardV2: React.FC = () => {
             case 'THEME':
                 // Theme selection auto-advances
                 break;
-            case 'CATEGORY':
-                // Category selection auto-advances
-                break;
+            // CATEGORY step removed - simpler flow
             case 'INSIGHTS':
                 if (selectedInsights.length > 0 || customInput.trim()) {
                     setCurrentStep('DURATION');
@@ -205,8 +194,7 @@ export const DashboardV2: React.FC = () => {
     const goBack = () => {
         switch (currentStep) {
             case 'THEME': setCurrentStep('HOME'); break;
-            case 'CATEGORY': setCurrentStep('THEME'); setSelectedTheme(null); break;
-            case 'INSIGHTS': setCurrentStep('CATEGORY'); setSelectedCategory(null); break;
+            case 'INSIGHTS': setCurrentStep('THEME'); setSelectedTheme(null); break;
             case 'DURATION': setCurrentStep('INSIGHTS'); break;
             case 'VOICE': setCurrentStep('DURATION'); break;
             case 'SUMMARY': setCurrentStep('VOICE'); setSummary(null); break;
@@ -217,7 +205,7 @@ export const DashboardV2: React.FC = () => {
     const getButtonLabel = () => {
         if (currentStep === 'HOME') return 'START';
         if (currentStep === 'SUMMARY' && summary) return 'BEGIN';
-        if (currentStep === 'THEME' || currentStep === 'CATEGORY') return 'SELECT';
+        if (currentStep === 'THEME') return 'SELECT';
         return 'NEXT';
     };
 
@@ -225,7 +213,6 @@ export const DashboardV2: React.FC = () => {
         switch (currentStep) {
             case 'HOME': return true;
             case 'THEME': return !!selectedTheme;
-            case 'CATEGORY': return !!selectedCategory;
             case 'INSIGHTS': return selectedInsights.length > 0 || customInput.trim().length > 0;
             case 'DURATION': return true;
             case 'VOICE': return true;
@@ -242,7 +229,7 @@ export const DashboardV2: React.FC = () => {
     }
 
     const isInSetup = currentStep !== 'HOME';
-    const stepNumber = ['THEME', 'CATEGORY', 'INSIGHTS', 'DURATION', 'VOICE', 'SUMMARY'].indexOf(currentStep) + 1;
+    const stepNumber = ['THEME', 'INSIGHTS', 'DURATION', 'VOICE', 'SUMMARY'].indexOf(currentStep) + 1;
 
     return (
         <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background-dark">
@@ -260,7 +247,7 @@ export const DashboardV2: React.FC = () => {
 
                 {isInSetup && (
                     <span className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">
-                        Step {stepNumber} of 6
+                        Step {stepNumber} of 5
                     </span>
                 )}
 
@@ -335,39 +322,8 @@ export const DashboardV2: React.FC = () => {
                             </motion.div>
                         )}
 
-                        {/* CATEGORY Selection */}
-                        {currentStep === 'CATEGORY' && (
-                            <motion.div
-                                key="category"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="space-y-4 max-w-sm mx-auto"
-                            >
-                                <div className="text-center mb-4">
-                                    <span className="text-2xl">{selectedTheme?.emoji}</span>
-                                    <h2 className="text-lg font-bold text-white mt-2">Where do you feel it?</h2>
-                                </div>
-                                {CATEGORIES.map(cat => (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() => handleCategorySelect(cat.id)}
-                                        className={cn(
-                                            "w-full flex flex-col p-4 rounded-2xl border-2 transition-all text-left",
-                                            selectedCategory === cat.id
-                                                ? 'bg-primary/20 border-primary'
-                                                : 'bg-surface/30 border-white/10 hover:border-white/20'
-                                        )}
-                                    >
-                                        <span className="text-sm font-medium text-white">{cat.group}</span>
-                                        <span className="text-xs text-white/40 mt-1">{cat.description}</span>
-                                    </button>
-                                ))}
-                            </motion.div>
-                        )}
-
-                        {/* INSIGHTS Selection */}
-                        {currentStep === 'INSIGHTS' && selectedCategory && (
+                        {/* INSIGHTS Selection - now shows all theme-relevant insights */}
+                        {currentStep === 'INSIGHTS' && (
                             <motion.div
                                 key="insights"
                                 initial={{ opacity: 0, y: 20 }}
@@ -375,12 +331,16 @@ export const DashboardV2: React.FC = () => {
                                 exit={{ opacity: 0, y: -20 }}
                                 className="space-y-4 max-w-sm mx-auto"
                             >
-                                <h2 className="text-lg font-bold text-white text-center">Select what resonates</h2>
+                                <div className="text-center mb-2">
+                                    <span className="text-2xl">{selectedTheme?.emoji}</span>
+                                    <h2 className="text-lg font-bold text-white mt-2">What feels relevant?</h2>
+                                    <p className="text-xs text-white/40 mt-1">Select from your history or describe below</p>
+                                </div>
 
                                 {/* Insights from DB */}
-                                {groupedInsights[selectedCategory].length > 0 ? (
+                                {filteredInsights.length > 0 ? (
                                     <div className="space-y-2">
-                                        {groupedInsights[selectedCategory].slice(0, 5).map(insight => (
+                                        {filteredInsights.slice(0, 6).map(insight => (
                                             <button
                                                 key={insight.id}
                                                 onClick={() => toggleInsight(insight.text)}
@@ -396,15 +356,13 @@ export const DashboardV2: React.FC = () => {
                                             </button>
                                         ))}
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-white/40 text-center py-4">No saved insights in this category yet.</p>
-                                )}
+                                ) : null}
 
-                                {/* Custom input */}
+                                {/* Custom input - agency-focused prompt */}
                                 <textarea
                                     value={customInput}
                                     onChange={(e) => setCustomInput(e.target.value)}
-                                    placeholder="Or describe in your own words..."
+                                    placeholder="What would feel like progress today?"
                                     rows={3}
                                     className="w-full bg-surface/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-primary/50 resize-none"
                                 />
@@ -497,13 +455,10 @@ export const DashboardV2: React.FC = () => {
                                     </div>
                                 ) : summary ? (
                                     <>
-                                        <div className="text-center">
-                                            <Sparkles className="w-8 h-8 text-primary/60 mx-auto mb-2" />
-                                            <h3 className="text-xl font-bold text-white">{summary.title}</h3>
-                                            <p className="text-sm text-primary/80 mt-1">{summary.focus}</p>
-                                        </div>
-                                        <div className="bg-surface/30 rounded-xl p-4 border border-white/5">
-                                            <p className="text-sm text-white/70 leading-relaxed">{summary.preview}</p>
+                                        <div className="text-center space-y-3">
+                                            <Sparkles className="w-10 h-10 text-primary/60 mx-auto" />
+                                            <h3 className="text-2xl font-bold text-white">{summary.title}</h3>
+                                            <p className="text-sm text-white/60">{summary.focus}</p>
                                         </div>
                                     </>
                                 ) : null}

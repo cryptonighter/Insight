@@ -13,6 +13,7 @@ import { VolumeControls } from './VolumeControls';
 import { Headphones, AlertTriangle, Mic, Keyboard, Check, Loader2, X, Sparkles } from 'lucide-react';
 import { transcribeAudio } from '../services/geminiService';
 import { saveSessionFeedback, saveInsight } from '../services/insightService';
+import { AudioService } from '../services/audioService';
 import { cn } from '@/utils';
 
 type ExperienceState = 'POSTURE_INFO' | 'PLAYING' | 'PAUSED' | 'FEEDBACK' | 'INSIGHT_REVIEW' | 'COMPLETE';
@@ -140,31 +141,69 @@ export const UnifiedExperience: React.FC = () => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
-    // Progress
+    // Progress - now driven by real audio playback
     const [playbackProgress, setPlaybackProgress] = useState(0);
-    const [playbackDuration] = useState(pendingMeditationConfig?.duration || 10);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [totalDuration, setTotalDuration] = useState(0);
+    const [currentSegmentText, setCurrentSegmentText] = useState('');
 
     // Get methodology posture info
     const methodology = pendingMeditationConfig?.methodology || 'GENERAL';
     const posture = POSTURE_INFO[methodology] || POSTURE_INFO.GENERAL;
 
-    // Simulate playback progress
+    // Initialize AudioService on mount and cleanup on unmount
     useEffect(() => {
-        if (experienceState === 'PLAYING') {
-            const interval = setInterval(() => {
-                setPlaybackProgress(prev => {
-                    if (prev >= 100) {
-                        // Lower soundscape volume for feedback (soft soundscape during feedback)
-                        setSoundscapeVolume(0.2);
-                        setExperienceState('FEEDBACK');
-                        return 100;
-                    }
-                    return prev + (100 / (playbackDuration * 60));
-                });
-            }, 1000);
-            return () => clearInterval(interval);
+        return () => {
+            AudioService.stop();
+        };
+    }, []);
+
+    // Sync volume controls with AudioService
+    useEffect(() => {
+        AudioService.setVolume('voice', voiceVolume);
+    }, [voiceVolume]);
+
+    useEffect(() => {
+        AudioService.setVolume('soundscape', soundscapeVolume);
+    }, [soundscapeVolume]);
+
+    useEffect(() => {
+        AudioService.setVolume('binaural', binauralVolume);
+    }, [binauralVolume]);
+
+    // Start real audio playback when entering PLAYING state
+    const startRealPlayback = async () => {
+        if (!currentMeditation?.audioQueue || currentMeditation.audioQueue.length === 0) {
+            console.warn('🔊 No audio segments available to play');
+            return;
         }
-    }, [experienceState, playbackDuration]);
+
+        try {
+            // Initialize AudioService (unlocks audio on iOS)
+            await AudioService.init();
+
+            // Start queue playback
+            await AudioService.playQueue(currentMeditation.audioQueue, {
+                onProgress: (state) => {
+                    setPlaybackProgress(state.progress);
+                    setCurrentTime(state.currentTime);
+                    setTotalDuration(state.totalDuration);
+                },
+                onSegmentChange: (index, segment) => {
+                    setCurrentSegmentText(segment.text || '');
+                    console.log(`🔊 Now playing segment ${index + 1}: ${segment.text?.substring(0, 50)}...`);
+                },
+                onComplete: () => {
+                    console.log('✅ Meditation playback complete');
+                    setSoundscapeVolume(0.2);
+                    setPlaybackProgress(100);
+                    setExperienceState('FEEDBACK');
+                }
+            });
+        } catch (error) {
+            console.error('🔊 Failed to start playback:', error);
+        }
+    };
 
     // Start recording
     const startRecording = async () => {
@@ -280,16 +319,20 @@ export const UnifiedExperience: React.FC = () => {
     };
 
     // Handle button click
-    const handleButtonClick = () => {
+    const handleButtonClick = async () => {
         switch (experienceState) {
             case 'POSTURE_INFO':
                 setExperienceState('PLAYING');
+                // Start real audio playback
+                startRealPlayback();
                 break;
             case 'PLAYING':
                 setExperienceState('PAUSED');
+                AudioService.pause();
                 break;
             case 'PAUSED':
                 setExperienceState('PLAYING');
+                AudioService.resume();
                 break;
             case 'FEEDBACK':
                 if (isRecording) {
@@ -356,8 +399,7 @@ export const UnifiedExperience: React.FC = () => {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    const currentSeconds = (playbackProgress / 100) * playbackDuration * 60;
-    const totalSeconds = playbackDuration * 60;
+    // Time display now uses real values from AudioService
     const keptInsightsCount = extractedInsights.filter(i => !i.removed).length;
 
     return (
@@ -406,8 +448,8 @@ export const UnifiedExperience: React.FC = () => {
                             {/* Progress bar */}
                             <div className="space-y-2">
                                 <div className="flex justify-between text-xs text-white/40">
-                                    <span>{formatTime(currentSeconds)}</span>
-                                    <span>{formatTime(totalSeconds)}</span>
+                                    <span>{formatTime(currentTime)}</span>
+                                    <span>{formatTime(totalDuration)}</span>
                                 </div>
                                 <div className="h-1 bg-surface rounded-full overflow-hidden">
                                     <div

@@ -8,7 +8,6 @@ import {
 import { PREBUILT_PATTERNS, MOCK_INSIGHTS } from '../constants';
 import { analyzeInsightsForPatterns, chatWithInsight, runDirectorOrchestration, generateMeditationScript } from '../services/geminiService';
 import { growthContext } from '../services/growthContext';
-import { processBatchWithSilenceSplitting } from '../services/audioEngine';
 import { storageService } from '../services/storageService';
 import { supabase, isMockClient } from '../services/supabaseClient';
 import { useResolutionEngine } from '../services/useResolutionEngine';

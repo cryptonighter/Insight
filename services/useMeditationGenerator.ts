@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution, PlayableSegment, MethodologyType } from '../types';
-import { generateMeditationScript, generateAudioChunk } from './geminiService';
+import { generateMeditationScript, generateAudioChunk, wrapPcmToWav, decodeBase64 } from './geminiService';
 import { MeditationPipeline } from './MeditationPipeline';
 import { supabase } from './supabaseClient';
 import { storageService } from './storageService';
@@ -20,19 +20,19 @@ const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
     return new Blob(buffers, { type: 'audio/wav' });
 };
 
-// Helper to create audio blob from base64, respecting mimeType
+/**
+ * Creates an audio Blob from base64 data, respecting the mimeType.
+ * Uses centralized wrapPcmToWav for raw PCM data.
+ */
 const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
-    const binary = atob(audioBase64);
-    const len = binary.length;
-
-    // Convert string to byte array
-    const bytes = new Uint8Array(len);
-    for (let k = 0; k < len; k++) bytes[k] = binary.charCodeAt(k);
+    const bytes = decodeBase64(audioBase64);
+    const len = bytes.length;
 
     console.log('🔊 createAudioBlob - mimeType:', mimeType, 'length:', len);
 
     // Check for audio file signatures to detect actual format
-    const hasWavHeader = len > 12 && binary.slice(0, 4) === 'RIFF' && binary.slice(8, 12) === 'WAVE';
+    const binaryCheck = String.fromCharCode(...bytes.slice(0, 12));
+    const hasWavHeader = len > 12 && binaryCheck.slice(0, 4) === 'RIFF' && binaryCheck.slice(8, 12) === 'WAVE';
     const hasMp3Header = len > 3 && (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) || // Frame sync
         (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33); // ID3 tag
 
@@ -41,50 +41,24 @@ const createAudioBlob = (audioBase64: string, mimeType?: string): Blob => {
     // If already has WAV or MP3 header, return as-is
     if (hasWavHeader) {
         console.log('🔊 Audio already has WAV header, passing through');
-        return new Blob([bytes], { type: 'audio/wav' });
+        return new Blob([bytes.slice().buffer], { type: 'audio/wav' });
     }
     if (hasMp3Header) {
         console.log('🔊 Audio already has MP3 header, passing through');
-        return new Blob([bytes], { type: 'audio/mp3' });
+        return new Blob([bytes.slice().buffer], { type: 'audio/mp3' });
     }
 
     // If mimeType indicates pre-encoded audio, pass through
     if (mimeType && (mimeType.includes('mp3') || mimeType.includes('mpeg') || mimeType.includes('wav'))) {
         console.log('🔊 MimeType indicates encoded audio:', mimeType);
-        return new Blob([bytes], { type: mimeType });
+        return new Blob([bytes.slice().buffer], { type: mimeType });
     }
 
-    // Raw PCM data (L16 or no mimeType) - needs WAV header
-    // Gemini TTS returns little-endian 16-bit PCM at 24kHz - no byte swap needed
-    console.log('🔊 Raw PCM detected, wrapping with WAV header (little-endian, 24kHz)');
-    const buffer = new ArrayBuffer(44 + len);
-    const view = new DataView(buffer);
-
-    const writeString = (view: DataView, offset: number, string: string) => {
-        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-    };
-
-    // WAV Header for 24kHz 16-bit mono little-endian PCM
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + len, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);  // PCM format
-    view.setUint16(22, 1, true);  // Mono
-    view.setUint32(24, 24000, true);  // Sample rate
-    view.setUint32(28, 24000 * 2, true);  // Byte rate
-    view.setUint16(32, 2, true);  // Block align
-    view.setUint16(34, 16, true);  // Bits per sample
-    writeString(view, 36, 'data');
-    view.setUint32(40, len, true);
-
-    // Copy PCM data directly (already little-endian from Gemini)
-    const pcmBytes = new Uint8Array(buffer, 44);
-    for (let k = 0; k < len; k++) pcmBytes[k] = bytes[k];
-
-    return new Blob([buffer], { type: 'audio/wav' });
+    // Raw PCM data (L16 or no mimeType) - use centralized wrapPcmToWav
+    console.log('🔊 Raw PCM detected, wrapping with WAV header (24kHz)');
+    return wrapPcmToWav(bytes, 24000, 1);
 };
+
 
 export const useMeditationGenerator = (
     soundscapes: Soundscape[],

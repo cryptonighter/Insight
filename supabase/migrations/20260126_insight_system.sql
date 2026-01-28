@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS user_insights (
     
     -- Source tracking
     source_type TEXT NOT NULL CHECK (source_type IN ('REFLECTION', 'INTENTION', 'MANUAL')),
-    source_session_id UUID REFERENCES meditation_history(id) ON DELETE SET NULL,
+    source_session_id UUID, -- Optional: link to session (no FK constraint)
     
     -- State
     is_active BOOLEAN DEFAULT true, -- Soft delete via toggle
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS user_insights (
 -- ============================================
 CREATE TABLE IF NOT EXISTS session_feedback (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    meditation_id UUID REFERENCES meditation_history(id) ON DELETE CASCADE,
+    meditation_id UUID, -- Session ID (no FK constraint)
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     
     -- Three Questions (raw text)

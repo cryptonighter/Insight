@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from "./supabaseClient";
 import {
-  Pattern, Insight, ChatMessage, VoiceId, SoundscapeMetadata, SonicInstruction, MethodologyType
+  Pattern, Insight, ChatMessage, VoiceId, SoundscapeMetadata, SonicInstruction, MethodologyType, PlayableSegment
 } from "../types";
 import { CLINICAL_PROTOCOLS } from "./protocols";
 
@@ -615,4 +615,114 @@ export function bufferToWav(buffer: AudioBuffer): Blob {
     pos++;
   }
   return new Blob([bufferArr], { type: 'audio/wav' });
+}
+
+/**
+ * Wraps raw PCM data with a WAV header for browser playback.
+ * Use this for Gemini TTS output which returns raw 24kHz 16-bit mono little-endian PCM.
+ * 
+ * @param pcmData - Raw PCM bytes
+ * @param sampleRate - Sample rate (default 24000 for Gemini TTS)
+ * @param numChannels - Number of channels (default 1 for mono)
+ * @returns Blob with WAV format
+ */
+export function wrapPcmToWav(
+  pcmData: Uint8Array,
+  sampleRate: number = 24000,
+  numChannels: number = 1
+): Blob {
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmData.length;
+
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // RIFF chunk descriptor
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(view, 8, 'WAVE');
+
+  // fmt sub-chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // Subchunk1Size
+  view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data sub-chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  // Copy PCM data (already little-endian from Gemini)
+  const headerBytes = new Uint8Array(buffer);
+  headerBytes.set(pcmData, 44);
+
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function writeString(view: DataView, offset: number, string: string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+
+/**
+ * Processes a batch of audio data (base64) and returns PlayableSegments.
+ * Wraps raw PCM with WAV header if needed, then creates blob URLs for playback.
+ * 
+ * @param audioBase64 - Base64 encoded audio data from TTS API
+ * @param batchIndex - Index of this batch for ID generation
+ * @param instructions - Optional sonic instructions for this segment
+ * @param mimeType - Optional MIME type hint
+ */
+export async function processBatchWithSilenceSplitting(
+  audioBase64: string,
+  batchIndex: number,
+  instructions?: SonicInstruction[],
+  mimeType?: string
+): Promise<PlayableSegment[]> {
+  // Decode base64 to bytes
+  const bytes = decodeBase64(audioBase64);
+
+  // Check if already has WAV header
+  const binaryCheck = String.fromCharCode(...bytes.slice(0, 12));
+  const hasWavHeader = bytes.length > 12 &&
+    binaryCheck.slice(0, 4) === 'RIFF' &&
+    binaryCheck.slice(8, 12) === 'WAVE';
+
+  let audioBlob: Blob;
+
+  if (hasWavHeader) {
+    // Already WAV, use as-is
+    audioBlob = new Blob([bytes.slice().buffer], { type: 'audio/wav' });
+  } else if (mimeType && (mimeType.includes('mp3') || mimeType.includes('mpeg'))) {
+    // MP3 format
+    audioBlob = new Blob([bytes.slice().buffer], { type: 'audio/mp3' });
+  } else {
+    // Raw PCM, wrap with WAV header (24kHz mono)
+    audioBlob = wrapPcmToWav(bytes, 24000, 1);
+  }
+
+  // Create blob URL for playback
+  const audioUrl = URL.createObjectURL(audioBlob);
+
+  // Estimate duration from PCM data size (24kHz, 16-bit, mono = 48000 bytes per second)
+  const estimatedDuration = bytes.length / 48000;
+
+  // Return as a single segment (silence splitting is disabled for simplicity)
+  const segment: PlayableSegment = {
+    id: `segment-${batchIndex}-0`,
+    audioUrl,
+    text: '',  // Text will be set by the caller
+    duration: estimatedDuration,
+    instructions
+  };
+
+  return [segment];
 }

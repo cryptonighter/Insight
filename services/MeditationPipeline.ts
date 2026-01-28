@@ -1,6 +1,5 @@
 
-import { generateAudioChunk } from './geminiService';
-import { processBatchWithSilenceSplitting } from './audioEngine';
+import { generateAudioChunk, processBatchWithSilenceSplitting } from './geminiService';
 import { VoiceId, PlayableSegment, SonicInstruction } from '../types';
 
 interface Batch {

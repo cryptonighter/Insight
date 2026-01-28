@@ -103,31 +103,31 @@ export const THEMES: ThemeConfig[] = [
 export const CATEGORIES: CategoryConfig[] = [
     {
         id: 'BODY',
-        group: 'The Body',
+        group: 'In my body',
         label: 'Somatic',
         insightTypes: ['pulse', 'temperature', 'gut feeling', 'tension', 'breath', 'sensation'],
-        description: 'Interoception. Agency starts with feeling the body.'
+        description: 'Tension, restlessness, heaviness, energy'
     },
     {
         id: 'NARRATIVE',
-        group: 'The Narrative',
+        group: 'In my thoughts',
         label: 'Cognitive',
         insightTypes: ['self-talk', 'beliefs', 'stories', 'time horizon', 'judgment'],
-        description: 'Stories and scripts. The beliefs that drive behavior.'
+        description: 'Stories I tell myself, beliefs, mental loops'
     },
     {
         id: 'ACTION',
-        group: 'The Action',
+        group: 'In my actions',
         label: 'Behavioral',
         insightTypes: ['procrastination', 'hesitation', 'impulse', 'forcing', 'flowing', 'burnout'],
-        description: 'Friction and flow. The metabolic cost of action.'
+        description: 'What I\'m doing or avoiding doing'
     },
     {
         id: 'CONTEXT',
-        group: 'The Context',
+        group: 'In my situation',
         label: 'Systemic',
         insightTypes: ['environment', 'relationships', 'triggers', 'locus of control'],
-        description: 'External factors. Agency is shaped by environment.'
+        description: 'People, places, or circumstances around me'
     }
 ];
 

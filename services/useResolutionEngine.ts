@@ -55,8 +55,23 @@ export const useResolutionEngine = (user: UserContext, setView: (view: ViewState
         if (user.supabaseId) {
             syncResolutionData(user.supabaseId);
         } else {
-            // If no user, we are not loading data, but we are also not "loading" per se, we are just waiting for auth
-            // But let's keep it true or handle it? If no auth, we shouldn't be in dashboard.
+            // Dev mode: if skip_auth is set, provide mock data
+            const skipAuth = localStorage.getItem('reality_user_skip_auth');
+            if (skipAuth) {
+                // Mock data for development testing
+                setUserEconomy({ userId: 'dev-mock', balance: 10, lastDailyGrant: new Date().toISOString() });
+                setActiveResolution({
+                    id: 'dev-mock-resolution',
+                    statement: 'Build something meaningful today',
+                    rootMotivation: 'Growth and creativity',
+                    status: 'active',
+                    createdAt: new Date().toISOString()
+                });
+                setIsLoading(false);
+            } else {
+                // No auth, not in dev mode - just stop loading
+                setIsLoading(false);
+            }
         }
     }, [user.supabaseId, syncResolutionData]);
 
