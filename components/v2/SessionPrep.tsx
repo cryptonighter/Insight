@@ -328,16 +328,24 @@ export const SessionPrep: React.FC = () => {
     const handleStart = async () => {
         if (!summary) return;
 
-        setPendingMeditationConfig({
+        // Build config object
+        const config = {
             focus: summary.focus,
+            feeling: 'Focused',
             methodology: summary.methodology,
-            intensity: 'MODERATE',
+            intensity: 'MODERATE' as const,
             duration: selectedDuration,
-            soundscapeId: summary.soundscapeId
-        });
+            voice: 'Kore' as const,
+            speed: 1.0,
+            soundscapeId: summary.soundscapeId,
+            background: 'deep-space' as const
+        };
 
+        setPendingMeditationConfig(config);
         setView(ViewState.LOADING);
-        await finalizeMeditationGeneration();
+
+        // Pass config directly - don't rely on async state update
+        await finalizeMeditationGeneration(config);
     };
 
     // Can proceed to next step?
