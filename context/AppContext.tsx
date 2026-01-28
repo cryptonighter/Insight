@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import {
   UserContext, Insight, Pattern, Meditation, ViewState, ChatMessage,
   SoundscapeType, MeditationConfig, VoiceId, Soundscape, FeedbackData,
@@ -42,6 +42,7 @@ interface AppState {
   activeMeditationId: string | null;
   pendingMeditationConfig: Partial<MeditationConfig> | null;
   setPendingMeditationConfig: React.Dispatch<React.SetStateAction<Partial<MeditationConfig> | null>>;
+  currentMeditation: Meditation | undefined;
 
   // Clinical Registry State
   parts: Part[];
@@ -127,6 +128,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Triage State
   const [triage, setTriage] = useState<TriageState>({ valence: 0, arousal: 0, clinicalVariables: {} });
+
+  // Compute currentMeditation from meditations and activeMeditationId
+  const currentMeditation = useMemo(() =>
+    meditations.find(m => m.id === activeMeditationId),
+    [meditations, activeMeditationId]
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -409,6 +416,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       activeMeditationId,
       pendingMeditationConfig,
       setPendingMeditationConfig,
+      currentMeditation,
       isLoading,
 
       // Clinical Registry State
