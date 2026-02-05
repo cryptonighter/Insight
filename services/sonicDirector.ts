@@ -134,6 +134,7 @@ export function generateSonicTimeline(input: SonicDirectorInput): SonicTimeline 
     const segmentInstructions: SonicInstruction[][] = [];
 
     let previousResonanceFreq: number | null = null;
+    let previousResonanceVol: number | null = null;  // Track volume separately from frequency
     let previousAtmosphereVol: number | null = null;
 
     for (let i = 0; i < segmentCount; i++) {
@@ -180,8 +181,8 @@ export function generateSonicTimeline(input: SonicDirectorInput): SonicTimeline 
 
             // Volume adjustment if changed
             const targetResVol = phase.resonanceVolume * entrainmentVolMult;
-            if (previousResonanceFreq === null ||
-                (i > 0 && Math.abs(targetResVol - (previousResonanceFreq ?? 0)) > 0.01)) {
+            if (previousResonanceVol === null ||
+                (i > 0 && Math.abs(targetResVol - previousResonanceVol) > 0.01)) {
                 instructions.push({
                     action: 'FADE_VOL',
                     layer: 'resonance',
@@ -189,6 +190,7 @@ export function generateSonicTimeline(input: SonicDirectorInput): SonicTimeline 
                     duration: segmentDurationSec * 0.5
                 });
             }
+            previousResonanceVol = targetResVol;  // Track current volume for next iteration
         }
 
         // ---- ATMOSPHERE LAYER ----

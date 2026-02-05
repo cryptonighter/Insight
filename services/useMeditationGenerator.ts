@@ -7,17 +7,71 @@ import { supabase } from './supabaseClient';
 import { storageService } from './storageService';
 import { generateSonicTimeline, SonicTimeline } from './sonicDirector';
 
-// Helper to stitch audio blobs
+// Helper to stitch audio blobs into a single valid WAV file
 const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
-    const buffers = [];
+    const pcmChunks: Uint8Array[] = [];
+    let sampleRate = 24000;  // Default
+    let numChannels = 1;     // Default mono
+
     for (const seg of segments) {
         try {
             const resp = await fetch(seg.audioUrl);
-            const blob = await resp.blob();
-            buffers.push(blob);
+            const arrayBuffer = await resp.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+
+            // Check if it's a WAV file
+            const header = String.fromCharCode(...bytes.slice(0, 4));
+            if (header === 'RIFF' && bytes.length > 44) {
+                // Extract sample rate and channels from header
+                const view = new DataView(arrayBuffer);
+                sampleRate = view.getUint32(24, true);
+                numChannels = view.getUint16(22, true);
+                // Extract PCM data (skip 44-byte header)
+                pcmChunks.push(bytes.slice(44));
+            } else {
+                // Assume raw PCM
+                pcmChunks.push(bytes);
+            }
         } catch (e) { console.error("Segment fetch failed", e); }
     }
-    return new Blob(buffers, { type: 'audio/wav' });
+
+    // Calculate total PCM length
+    const totalPcmLength = pcmChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+
+    // Create combined buffer with WAV header
+    const wavBuffer = new ArrayBuffer(44 + totalPcmLength);
+    const view = new DataView(wavBuffer);
+    const output = new Uint8Array(wavBuffer);
+
+    // Write WAV header
+    const setUint32 = (pos: number, val: number) => view.setUint32(pos, val, true);
+    const setUint16 = (pos: number, val: number) => view.setUint16(pos, val, true);
+
+    // "RIFF" chunk
+    output.set([0x52, 0x49, 0x46, 0x46], 0);        // "RIFF"
+    setUint32(4, 36 + totalPcmLength);              // file size - 8
+    output.set([0x57, 0x41, 0x56, 0x45], 8);        // "WAVE"
+    // "fmt " subchunk
+    output.set([0x66, 0x6d, 0x74, 0x20], 12);       // "fmt "
+    setUint32(16, 16);                              // subchunk1 size
+    setUint16(20, 1);                               // audio format (PCM)
+    setUint16(22, numChannels);                     // num channels
+    setUint32(24, sampleRate);                      // sample rate
+    setUint32(28, sampleRate * numChannels * 2);   // byte rate
+    setUint16(32, numChannels * 2);                 // block align
+    setUint16(34, 16);                              // bits per sample
+    // "data" subchunk
+    output.set([0x64, 0x61, 0x74, 0x61], 36);       // "data"
+    setUint32(40, totalPcmLength);                  // data size
+
+    // Write PCM data
+    let offset = 44;
+    for (const chunk of pcmChunks) {
+        output.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    return new Blob([wavBuffer], { type: 'audio/wav' });
 };
 
 /**
@@ -247,7 +301,9 @@ export const useMeditationGenerator = (
                     id: 'greeting',
                     text: greetingResult.text,
                     audioUrl: greetingUrl,
-                    duration: greetingResult.audioData.length / (24000 * 2), // 24kHz, 16-bit mono
+                    // Decode base64 to get actual byte count for duration calculation
+                    // 24kHz, 16-bit mono = 48000 bytes per second
+                    duration: decodeBase64(greetingResult.audioData).length / 48000,
                     instructions: [] // Greeting has no special sonic instructions
                 };
 
@@ -305,13 +361,15 @@ export const useMeditationGenerator = (
                     // Use createAudioBlob which handles mimeType correctly
                     const blob = createAudioBlob(audioData, mimeType);
                     const url = URL.createObjectURL(blob);
-                    const len = audioData.length; // For duration estimate
+                    // Decode base64 to get actual byte count for duration calculation
+                    // 24kHz, 16-bit mono = 48000 bytes per second
+                    const actualBytes = decodeBase64(audioData);
 
                     const newSegment: PlayableSegment = {
                         id: `batch-${i}`,
                         text: batch.text,
                         audioUrl: url,
-                        duration: len / (24000 * 2), // 24kHz, 16-bit mono
+                        duration: actualBytes.length / 48000,
                         instructions: sonicTimeline.segmentInstructions[i + 1] || [] // +1 for greeting offset
                     };
 

@@ -53,6 +53,9 @@ class AudioServiceClass {
     private onComplete: (() => void) | null = null;
     private progressInterval: number | null = null;
 
+    // Buffer cache to avoid re-fetching and re-decoding segments
+    private bufferCache: Map<string, AudioBuffer> = new Map();
+
     // Volume levels (0-1)
     private volumes: Record<AudioLayer, number> = {
         voice: 0.8,
@@ -165,14 +168,25 @@ class AudioServiceClass {
     }
 
     /**
-     * Fetch and decode a segment's audio data
+     * Fetch and decode a segment's audio data, with caching
      */
     private async fetchAndDecodeSegment(segment: PlayableSegment): Promise<AudioBuffer> {
         if (!this.audioContext) throw new Error('AudioContext not initialized');
 
+        // Check cache first
+        const cached = this.bufferCache.get(segment.id);
+        if (cached) {
+            return cached;
+        }
+
+        // Fetch and decode
         const response = await fetch(segment.audioUrl);
         const arrayBuffer = await response.arrayBuffer();
-        return await this.audioContext.decodeAudioData(arrayBuffer);
+        const buffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+        // Cache for future use
+        this.bufferCache.set(segment.id, buffer);
+        return buffer;
     }
 
     /**
@@ -362,6 +376,7 @@ class AudioServiceClass {
         this.segments = [];
         this.currentSegmentIndex = 0;
         this.pausedAt = 0;
+        this.bufferCache.clear();  // Clear audio buffer cache
 
         console.log('🔊 AudioService: Stopped');
     }
@@ -399,10 +414,11 @@ class AudioServiceClass {
         console.log(`🔊 AudioService: Streaming mode ${streaming ? 'enabled' : 'disabled'}`);
 
         // If just finished streaming and we were waiting, check if we should complete
-        // Only complete if we don't have unplayed segments in the queue
-        const hasUnplayedSegments = this.currentSegmentIndex < this.segments.length - 1;
+        // Check if current segment hasn't finished playing (still has segments to play)
+        // Note: <= ensures we correctly handle single-segment queues
+        const hasMoreToPlay = this.currentSegmentIndex <= this.segments.length - 1 && this.currentSource !== null;
 
-        if (wasStreaming && !streaming && this.isPlaying && !this.currentSource && !hasUnplayedSegments) {
+        if (wasStreaming && !streaming && this.isPlaying && !hasMoreToPlay) {
             this.handleQueueComplete();
         }
     }

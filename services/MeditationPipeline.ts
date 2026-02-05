@@ -60,14 +60,18 @@ export class MeditationPipeline {
                     mimeType
                 );
 
+                // 3. Assign text to segments (processBatchWithSilenceSplitting returns empty text)
+                segments.forEach(seg => { seg.text = batch.text; });
+
                 if (this.isCancelled) break;
 
-                // 3. Emit
+                // 4. Emit
                 console.log(`✅ Batch ${i} Ready:`, segments.length, "segments");
                 this.onSegmentReady(segments);
 
-                // Small delay to prevent rate limit smashing
-                await new Promise(r => setTimeout(r, 5000));
+                // Reduced delay to improve generation speed (1s instead of 5s)
+                // Will back off if rate limited
+                await new Promise(r => setTimeout(r, 1000));
 
             } catch (error) {
                 console.error(`❌ Batch ${i} Failed:`, error);

@@ -596,23 +596,27 @@ export function bufferToWav(buffer: AudioBuffer): Blob {
   const length = buffer.length * numOfChan * 2 + 44;
   const bufferArr = new ArrayBuffer(length);
   const view = new DataView(bufferArr);
-  const channels = [];
+  const channels: Float32Array[] = [];
   let i; let sample; let offset = 0; let pos = 0;
-  function setUint16(data: any) { view.setUint16(pos, data, true); pos += 2; }
-  function setUint32(data: any) { view.setUint32(pos, data, true); pos += 4; }
+  function setUint16(data: number) { view.setUint16(pos, data, true); pos += 2; }
+  function setUint32(data: number) { view.setUint32(pos, data, true); pos += 4; }
+  // Write WAV header
   setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
   setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
   setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * 2 * numOfChan);
   setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164);
   setUint32(length - pos - 4);
+  // Get channel data
   for (i = 0; i < buffer.numberOfChannels; i++) channels.push(buffer.getChannelData(i));
-  while (pos < buffer.length) {
+  // Write sample data - use separate index variable for samples
+  let sampleIdx = 0;
+  while (sampleIdx < buffer.length) {
     for (i = 0; i < numOfChan; i++) {
-      sample = Math.max(-1, Math.min(1, channels[i][pos]));
+      sample = Math.max(-1, Math.min(1, channels[i][sampleIdx]));
       sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
       view.setInt16(44 + offset, sample, true); offset += 2;
     }
-    pos++;
+    sampleIdx++;
   }
   return new Blob([bufferArr], { type: 'audio/wav' });
 }
@@ -712,8 +716,18 @@ export async function processBatchWithSilenceSplitting(
   // Create blob URL for playback
   const audioUrl = URL.createObjectURL(audioBlob);
 
-  // Estimate duration from PCM data size (24kHz, 16-bit, mono = 48000 bytes per second)
-  const estimatedDuration = bytes.length / 48000;
+  // Estimate duration from audio data size
+  // Raw PCM: 24kHz, 16-bit, mono = 48000 bytes per second
+  // WAV: same but subtract 44-byte header
+  // MP3: can't reliably estimate from size, use 0 and let AudioService calculate it
+  let estimatedDuration: number;
+  if (hasWavHeader) {
+    estimatedDuration = (bytes.length - 44) / 48000;
+  } else if (mimeType && (mimeType.includes('mp3') || mimeType.includes('mpeg'))) {
+    estimatedDuration = 0; // AudioService will calculate actual duration when decoding
+  } else {
+    estimatedDuration = bytes.length / 48000;
+  }
 
   // Return as a single segment (silence splitting is disabled for simplicity)
   const segment: PlayableSegment = {
