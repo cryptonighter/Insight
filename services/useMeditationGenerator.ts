@@ -323,7 +323,33 @@ export const useMeditationGenerator = (
             }
 
             // Now wait for full script
-            const { title, lines, batches } = await scriptPromise;
+            let { title, lines, batches } = await scriptPromise;
+
+            // ===== BATCH SPLITTING FALLBACK =====
+            // If AI returned too few batches, split them manually for better streaming
+            const expectedBatches = Math.max(2, Math.round(config.duration));
+            if (batches.length < expectedBatches && batches.length > 0) {
+                console.log(`⚠️ AI returned ${batches.length} batches, expected ${expectedBatches}. Auto-splitting...`);
+                const allText = batches.map(b => b.text).join(' ');
+                const targetChunkSize = 500; // ~30 seconds of speech
+                const splitBatches: { text: string }[] = [];
+
+                // Split into chunks of roughly 500 chars at sentence boundaries
+                let remaining = allText;
+                while (remaining.length > 0) {
+                    if (remaining.length <= targetChunkSize) {
+                        splitBatches.push({ text: remaining.trim() });
+                        break;
+                    }
+                    // Find a good split point (sentence end) around the target size
+                    let splitPoint = remaining.slice(0, targetChunkSize + 100).lastIndexOf('. ');
+                    if (splitPoint < 200) splitPoint = targetChunkSize; // Fallback if no sentence found
+                    splitBatches.push({ text: remaining.slice(0, splitPoint + 1).trim() });
+                    remaining = remaining.slice(splitPoint + 1).trim();
+                }
+                batches = splitBatches;
+                console.log(`✅ Split into ${batches.length} batches`);
+            }
 
             // Update title/transcript
             setMeditations(current => current.map(m => {

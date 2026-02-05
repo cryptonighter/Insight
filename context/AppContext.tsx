@@ -236,7 +236,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         focus: sessionFocus,
         feeling: "Determined",
         duration: 5,
-        voice: 'Kore',
+        voice: 'Charon', // More grounded voice
         speed: 1.0,
         soundscapeId: defaultSoundscapeId,
         background: 'deep-space',
@@ -293,7 +293,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       focus,
       feeling,
       duration,
-      voice: 'Kore',
+      voice: 'Charon', // More grounded voice
       speed: 1.0,
       soundscapeId: defaultSoundscapeId,
       background: 'deep-space',

@@ -463,7 +463,7 @@ ${text}
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort("Request timed out after 60s"), 60000); // 60 second timeout (reduced from 10 min)
+      const timeoutId = setTimeout(() => controller.abort("Request timed out after 30s"), 30000); // 30 second timeout for faster retry
       console.log(`🎤 TTS Connecting to API...`);
 
       const response = await fetch(url, {
