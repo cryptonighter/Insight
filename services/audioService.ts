@@ -43,6 +43,10 @@ class AudioServiceClass {
     private isPlaying: boolean = false;
     private isPaused: boolean = false;
 
+    // Soundscape state
+    private soundscapeSource: AudioBufferSourceNode | null = null;
+    private soundscapeBuffer: AudioBuffer | null = null;
+
     // Duration tracking
     private segmentDurations: number[] = [];
     private totalDuration: number = 0;
@@ -499,6 +503,7 @@ class AudioServiceClass {
         this.voiceGain = null;
         this.soundscapeGain = null;
         this.binauralGain = null;
+        this.stopSoundscape();
 
         console.log('🔊 AudioService: Cleaned up');
     }
@@ -515,6 +520,60 @@ class AudioServiceClass {
      */
     get paused(): boolean {
         return this.isPaused;
+    }
+
+    /**
+     * Load and play a soundscape audio file in a loop
+     */
+    async loadSoundscape(audioUrl: string): Promise<void> {
+        if (!this.audioContext || !this.soundscapeGain) {
+            console.warn('🔊 AudioService: Cannot load soundscape - not initialized');
+            return;
+        }
+
+        try {
+            console.log('🎵 Loading soundscape from:', audioUrl);
+
+            // Stop any existing soundscape
+            this.stopSoundscape();
+
+            // Fetch and decode the audio
+            const response = await fetch(audioUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch soundscape: ${response.status}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            this.soundscapeBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+            // Create source and connect to gain
+            this.soundscapeSource = this.audioContext.createBufferSource();
+            this.soundscapeSource.buffer = this.soundscapeBuffer;
+            this.soundscapeSource.loop = true; // Loop the soundscape
+            this.soundscapeSource.connect(this.soundscapeGain);
+
+            // Start playback
+            this.soundscapeSource.start(0);
+            console.log('🎵 Soundscape playing:', this.soundscapeBuffer.duration.toFixed(1), 'seconds (looped)');
+
+        } catch (error) {
+            console.error('🎵 Failed to load soundscape:', error);
+        }
+    }
+
+    /**
+     * Stop the soundscape
+     */
+    stopSoundscape(): void {
+        if (this.soundscapeSource) {
+            try {
+                this.soundscapeSource.stop();
+                this.soundscapeSource.disconnect();
+            } catch (e) {
+                // Ignore errors if already stopped
+            }
+            this.soundscapeSource = null;
+        }
     }
 }
 

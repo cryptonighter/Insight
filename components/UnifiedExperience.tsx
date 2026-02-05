@@ -114,7 +114,8 @@ export const UnifiedExperience: React.FC = () => {
         pendingMeditationConfig,
         currentMeditation,
         setView,
-        user
+        user,
+        soundscapes // For soundscape audio lookup
     } = useApp();
 
     // State
@@ -155,6 +156,7 @@ export const UnifiedExperience: React.FC = () => {
     useEffect(() => {
         return () => {
             AudioService.stop();
+            AudioService.stopSoundscape();
         };
     }, []);
 
@@ -233,6 +235,18 @@ export const UnifiedExperience: React.FC = () => {
         try {
             // Initialize AudioService (unlocks audio on iOS)
             await AudioService.init();
+
+            // Load soundscape if configured
+            const soundscapeId = pendingMeditationConfig?.soundscapeId;
+            if (soundscapeId) {
+                const soundscape = soundscapes.find(s => s.id === soundscapeId);
+                if (soundscape?.audioUrl) {
+                    console.log('🎵 Loading soundscape:', soundscape.name);
+                    AudioService.loadSoundscape(soundscape.audioUrl);
+                } else {
+                    console.warn('🎵 No soundscape audio URL found for:', soundscapeId);
+                }
+            }
 
             // Start queue playback
             await AudioService.playQueue(currentMeditation.audioQueue, {
