@@ -456,14 +456,15 @@ ${text}
           responseModalities: ['AUDIO'],
           speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: voice || 'Kore' }
+              prebuiltVoiceConfig: { voiceName: voice || 'Charon' } // Charon is more grounded than Kore
             }
           }
         }
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort("Request timed out after 600s"), 600000); // 10 min timeout
+      const timeoutId = setTimeout(() => controller.abort("Request timed out after 60s"), 60000); // 60 second timeout (reduced from 10 min)
+      console.log(`🎤 TTS Connecting to API...`);
 
       const response = await fetch(url, {
         method: 'POST',
