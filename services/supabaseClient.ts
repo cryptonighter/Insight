@@ -7,7 +7,16 @@ let supabaseInstance;
 let isMock = false;
 
 if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            persistSession: true, // Persist session to localStorage (critical for passkey)
+            detectSessionInUrl: true, // Handle auth callbacks
+            autoRefreshToken: true, // Auto-refresh expired tokens
+            storageKey: 'insight-auth', // Custom storage key to avoid conflicts
+            flowType: 'pkce' // Secure auth flow (required for passkeys)
+        }
+    });
+    console.log('🔐 Supabase: Auth persistence enabled with PKCE flow');
 } else {
     console.warn('Supabase credentials missing or invalid. Using mock client.');
     // Mock client to prevent crash
@@ -21,9 +30,17 @@ if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
         }),
         auth: {
             getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+            getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+            onAuthStateChange: (callback: any) => {
+                // Return mock subscription
+                return { data: { subscription: { unsubscribe: () => { } } } };
+            },
             signInWithPassword: () => Promise.resolve({ data: {}, error: null }),
             signUp: () => Promise.resolve({ data: { user: { id: 'mock-user' } }, error: null }),
             signOut: () => Promise.resolve({})
+        },
+        functions: {
+            invoke: () => Promise.resolve({ data: null, error: null })
         }
     } as any;
     isMock = true;
