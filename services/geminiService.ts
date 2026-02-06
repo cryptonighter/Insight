@@ -19,11 +19,12 @@ if (!googleApiKey || googleApiKey === "") {
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 
 // Constants for models
-// Constants for models
 const TEXT_MODEL = "gemini-2.5-flash-preview-09-2025"; // Keeping 2.5 as stable base for Logic, but User asked for 3.
 // UPDATED: Using Gemini 3 Flash Preview as requested
 const BRAIN_MODEL = "gemini-3-flash-preview";
-const AUDIO_MODEL = "gemini-2.5-flash-preview-tts";
+// TTS models: Lite is faster/lower latency, regular has better quality
+const AUDIO_MODEL_LITE = "gemini-2.5-flash-lite-preview-tts"; // Faster, lower latency
+const AUDIO_MODEL = "gemini-2.5-flash-preview-tts"; // Higher quality fallback
 
 // Voice Profiles Strategy
 const VOICE_PROFILES: Record<string, string> = {
@@ -446,9 +447,11 @@ ${text}
     try {
       if (retries > 0) await delay(1000 * Math.pow(2, retries));
 
-      console.log(`🎤 TTS Attempt ${retries + 1}/${MAX_RETRIES} - Model: ${AUDIO_MODEL} (REST)`);
+      // Use Lite model for first 3 attempts (faster), then fall back to regular (higher quality)
+      const currentModel = retries < 3 ? AUDIO_MODEL_LITE : AUDIO_MODEL;
+      console.log(`🎤 TTS Attempt ${retries + 1}/${MAX_RETRIES} - Model: ${currentModel} (REST)`);
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${AUDIO_MODEL}:generateContent?key=${googleApiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${googleApiKey}`;
 
       const payload = {
         contents: [{ parts: [{ text: directorPrompt }] }],
