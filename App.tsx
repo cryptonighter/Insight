@@ -22,6 +22,7 @@ import { OnboardingView } from './components/v2/OnboardingView';
 import { SessionPrep } from './components/v2/SessionPrep';
 import { UnifiedExperience } from './components/UnifiedExperience';
 import { VoiceSelector } from './components/VoiceSelector';
+import { ConversationalReflection } from './components/v2/ConversationalReflection';
 import { supabase } from './services/supabaseClient';
 
 const Main: React.FC = () => {
@@ -44,8 +45,8 @@ const Main: React.FC = () => {
       case ViewState.DASHBOARD: return <DashboardV2 />;
       case ViewState.HOME: return <DashboardV2 />;
       case ViewState.ONBOARDING: return <OnboardingView />; // The Matrix V2 Design
-      case ViewState.REFLECTION: return <ReflectionV2 />;
-      case ViewState.EVENING_REFLECTION: return <ReflectionV2 />;
+      case ViewState.REFLECTION: return <ConversationalReflection />; // NEW: Turbo TTS conversational
+      case ViewState.EVENING_REFLECTION: return <ConversationalReflection />; // Both now use conversational
       case ViewState.SESSION_SUMMARY: return <SessionSummaryV2 />;
       case ViewState.NEW_RESOLUTION: return <NewResolutionV2 />;
       case ViewState.FEEDBACK: return <UnifiedExperience />; // Feedback integrated into UnifiedExperience
