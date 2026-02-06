@@ -2,16 +2,9 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, Check, Volume2, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { ViewState } from '../types';
 
-// Voice configuration
+// Voice configuration - removed Marcus (38a0b764) as default since user said it's bad
 const VOICES = [
-    {
-        id: '38a0b764',
-        name: 'Marcus',
-        description: 'Warm, grounded male voice',
-        greeting: "Welcome... I'm here to guide you through your practice today. Together, we'll create space for stillness and insight."
-    },
     {
         id: 'ac7df359',
         name: 'James',
@@ -29,6 +22,12 @@ const VOICES = [
         name: 'Sarah',
         description: 'Gentle, soothing female voice',
         greeting: "Hi there... Welcome to your time of reflection. Let's explore the landscape of your inner experience together."
+    },
+    {
+        id: '38a0b764',
+        name: 'Marcus',
+        description: 'Warm, grounded male voice',
+        greeting: "Welcome... I'm here to guide you through your practice today. Together, we'll create space for stillness and insight."
     }
 ];
 
@@ -36,7 +35,7 @@ const RESEMBLE_API_KEY = import.meta.env.VITE_RESEMBLE_API_KEY || '';
 const RESEMBLE_STREAM_URL = 'https://f.cluster.resemble.ai/stream';
 
 export const VoiceSelector: React.FC = () => {
-    const { setView, user, updateUserPreferences } = useApp();
+    const { user } = useApp();
     const [selectedVoice, setSelectedVoice] = useState(user.preferences?.voiceId || VOICES[0].id);
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
     const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
@@ -96,18 +95,17 @@ export const VoiceSelector: React.FC = () => {
 
     const handleSelectVoice = async (voiceId: string) => {
         setSelectedVoice(voiceId);
-        // Save to user preferences
-        if (updateUserPreferences) {
-            await updateUserPreferences({ voiceId });
-        }
+        // Save to localStorage for now (simpler than Supabase)
+        localStorage.setItem('insight_voice_id', voiceId);
     };
 
-    const handleSave = () => {
-        setView(ViewState.DASHBOARD);
+    const handleBack = () => {
+        // Use history.back() to return to where user came from (preserves setup flow)
+        window.history.back();
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white p-6">
+        <div className="min-h-screen bg-background-dark text-white p-6">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -116,49 +114,47 @@ export const VoiceSelector: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
                     <button
-                        onClick={() => setView(ViewState.DASHBOARD)}
-                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        onClick={handleBack}
+                        className="p-2 rounded-full bg-surface/50 border border-white/10 hover:border-white/20 transition-colors"
                     >
-                        <ArrowLeft size={20} />
+                        <ArrowLeft size={20} className="text-white/60" />
                     </button>
                     <div>
                         <h1 className="text-2xl font-light">Choose Your Guide</h1>
-                        <p className="text-white/60 text-sm">Select a voice for your meditation sessions</p>
+                        <p className="text-white/40 text-sm">Select a voice for your meditation sessions</p>
                     </div>
                 </div>
 
                 {/* Voice Cards */}
-                <div className="space-y-4 mb-8">
+                <div className="space-y-3 mb-8">
                     {VOICES.map((voice) => (
                         <motion.div
                             key={voice.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
                             className={`
-                relative p-5 rounded-2xl cursor-pointer transition-all
-                ${selectedVoice === voice.id
-                                    ? 'bg-indigo-600/30 border-2 border-indigo-400'
-                                    : 'bg-white/5 border-2 border-transparent hover:bg-white/10'}
-              `}
+                                relative p-4 rounded-2xl cursor-pointer transition-all
+                                ${selectedVoice === voice.id
+                                    ? 'bg-primary/20 border-2 border-primary'
+                                    : 'bg-surface/50 border-2 border-white/10 hover:border-white/20'}
+                            `}
                             onClick={() => handleSelectVoice(voice.id)}
                         >
                             <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`
-                      w-10 h-10 rounded-full flex items-center justify-center
-                      ${selectedVoice === voice.id ? 'bg-indigo-500' : 'bg-white/10'}
-                    `}>
-                                            <Volume2 size={18} />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-medium">{voice.name}</h3>
-                                            <p className="text-sm text-white/50">{voice.description}</p>
-                                        </div>
+                                <div className="flex items-center gap-3">
+                                    <div className={`
+                                        w-10 h-10 rounded-full flex items-center justify-center
+                                        ${selectedVoice === voice.id ? 'bg-primary' : 'bg-white/10'}
+                                    `}>
+                                        <Volume2 size={18} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-white">{voice.name}</h3>
+                                        <p className="text-sm text-white/40">{voice.description}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     {/* Play Preview Button */}
                                     <button
                                         onClick={(e) => {
@@ -167,19 +163,19 @@ export const VoiceSelector: React.FC = () => {
                                         }}
                                         disabled={loadingVoice === voice.id}
                                         className={`
-                      p-3 rounded-full transition-all
-                      ${playingVoice === voice.id
-                                                ? 'bg-indigo-500 text-white'
+                                            p-2.5 rounded-full transition-all
+                                            ${playingVoice === voice.id
+                                                ? 'bg-primary text-white'
                                                 : 'bg-white/10 hover:bg-white/20'}
-                      ${loadingVoice === voice.id ? 'animate-pulse' : ''}
-                    `}
+                                            ${loadingVoice === voice.id ? 'animate-pulse' : ''}
+                                        `}
                                     >
                                         {loadingVoice === voice.id ? (
                                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         ) : playingVoice === voice.id ? (
-                                            <Pause size={20} />
+                                            <Pause size={18} />
                                         ) : (
-                                            <Play size={20} />
+                                            <Play size={18} />
                                         )}
                                     </button>
 
@@ -188,9 +184,9 @@ export const VoiceSelector: React.FC = () => {
                                         <motion.div
                                             initial={{ scale: 0 }}
                                             animate={{ scale: 1 }}
-                                            className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center"
+                                            className="w-7 h-7 rounded-full bg-primary flex items-center justify-center"
                                         >
-                                            <Check size={16} />
+                                            <Check size={14} />
                                         </motion.div>
                                     )}
                                 </div>
@@ -199,15 +195,15 @@ export const VoiceSelector: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Save Button */}
+                {/* Done Button */}
                 <button
-                    onClick={handleSave}
-                    className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 transition-colors font-medium"
+                    onClick={handleBack}
+                    className="w-full py-4 rounded-2xl bg-primary hover:bg-primary/80 transition-colors font-medium"
                 >
-                    Save Selection
+                    Done
                 </button>
 
-                <p className="text-center text-white/40 text-xs mt-4">
+                <p className="text-center text-white/30 text-xs mt-4">
                     Your guide will narrate all meditation sessions
                 </p>
             </motion.div>

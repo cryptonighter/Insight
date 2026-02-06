@@ -440,8 +440,10 @@ export const generateMeditationScript = async (
 // Preprocess text for meditation pacing - adds natural pauses
 const preprocessMeditationText = (text: string): string => {
   return text
+    // FIRST: Remove stage directions like [Silence], [Breath], [Pause for 5 seconds]
+    .replace(/\[([^\]]+)\]/g, '... ')
     // Convert single periods to ellipsis for longer pauses
-    .replace(/\.\s+/g, '... ')
+    .replace(/\.(?:\s+)/g, '... ')
     // Add pauses after commas
     .replace(/,\s+/g, ', ... ')
     // Ensure breathing cues have pauses
@@ -449,7 +451,10 @@ const preprocessMeditationText = (text: string): string => {
     // Add pause before "and" for rhythm
     .replace(/\s+and\s+/gi, ' ... and ')
     // Normalize multiple ellipsis
-    .replace(/\.{4,}/g, '...');
+    .replace(/\.{4,}/g, '...')
+    // Clean up multiple spaces
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 };
 
 // Resemble AI TTS - Much faster than Gemini (~100ms vs 30s+)
