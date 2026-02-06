@@ -32,6 +32,14 @@ const RESEMBLE_VOICE_UUID = import.meta.env.VITE_RESEMBLE_VOICE_UUID || "";
 const RESEMBLE_STREAM_URL = "https://f.cluster.resemble.ai/stream";
 const USE_RESEMBLE = !!RESEMBLE_API_KEY && !!RESEMBLE_VOICE_UUID;
 
+console.log("🎙️ RESEMBLE CONFIG DEBUG:", {
+  hasApiKey: !!RESEMBLE_API_KEY,
+  hasVoiceUuid: !!RESEMBLE_VOICE_UUID,
+  USE_RESEMBLE,
+  keyPreview: RESEMBLE_API_KEY ? RESEMBLE_API_KEY.substring(0, 8) + '...' : 'MISSING',
+  voiceUuid: RESEMBLE_VOICE_UUID || 'MISSING'
+});
+
 if (USE_RESEMBLE) {
   console.log("🎙️ Resemble AI TTS enabled (faster streaming)");
 } else {
