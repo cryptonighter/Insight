@@ -21,6 +21,7 @@ import { NewResolutionV2 } from './components/v2/NewResolutionV2';
 import { OnboardingView } from './components/v2/OnboardingView';
 import { SessionPrep } from './components/v2/SessionPrep';
 import { UnifiedExperience } from './components/UnifiedExperience';
+import { VoiceSelector } from './components/VoiceSelector';
 import { supabase } from './services/supabaseClient';
 
 const Main: React.FC = () => {
@@ -57,6 +58,7 @@ const Main: React.FC = () => {
       case ViewState.MEDITATIONS: return <MeditationsView />;
       case ViewState.ADMIN: return <AdminDashboard />;
       case ViewState.TRIAGE: return <TriageView />;
+      case ViewState.SETTINGS: return <VoiceSelector />;
 
       default: return <DashboardV2 />;
     }

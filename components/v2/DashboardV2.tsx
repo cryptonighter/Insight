@@ -6,7 +6,7 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
-import { Menu, Coins, Plus, Check, Clock, Sparkles, Loader2, RefreshCw, ChevronLeft, User } from 'lucide-react';
+import { Menu, Coins, Plus, Check, Clock, Sparkles, Loader2, RefreshCw, ChevronLeft, User, Settings } from 'lucide-react';
 import { ViewState, MethodologyType } from '../../types';
 import { MainButton, ButtonPosition, ButtonState } from '../MainButton';
 import { InsightsContextOverlay } from '../InsightsContextOverlay';
@@ -261,6 +261,13 @@ export const DashboardV2: React.FC = () => {
                 )}
 
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setView(ViewState.SETTINGS)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface/50 border border-white/10 hover:border-white/20 transition-colors"
+                        title="Settings"
+                    >
+                        <Settings className="w-4 h-4 text-white/60" />
+                    </button>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface/50 border border-white/10">
                         <Coins className="w-4 h-4 text-primary" />
                         <span className="text-xs font-bold text-white">{userEconomy.balance}</span>

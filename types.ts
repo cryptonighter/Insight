@@ -211,7 +211,8 @@ export enum ViewState {
   FEEDBACK = 'FEEDBACK',
   TRIAGE = 'TRIAGE',
   CONTEXT = 'CONTEXT',
-  SESSION_PREP = 'SESSION_PREP'
+  SESSION_PREP = 'SESSION_PREP',
+  SETTINGS = 'SETTINGS'
 }
 
 export interface SessionSummaryData {
