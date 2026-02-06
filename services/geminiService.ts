@@ -437,22 +437,20 @@ export const generateMeditationScript = async (
   }
 };
 
-// Preprocess text for meditation pacing - adds natural pauses
+// Preprocess text for meditation pacing - sentence-by-sentence with natural pauses
 const preprocessMeditationText = (text: string): string => {
   return text
     // FIRST: Remove stage directions like [Silence], [Breath], [Pause for 5 seconds]
-    .replace(/\[([^\]]+)\]/g, '... ')
-    // Convert single periods to ellipsis for longer pauses
-    .replace(/\.(?:\s+)/g, '... ')
-    // Add pauses after commas
-    .replace(/,\s+/g, ', ... ')
-    // Ensure breathing cues have pauses
-    .replace(/(breath[e]?\s*(in|out)?)/gi, '... $1 ...')
-    // Add pause before "and" for rhythm
-    .replace(/\s+and\s+/gi, ' ... and ')
-    // Normalize multiple ellipsis
+    .replace(/\[([^\]]+)\]/g, '')
+    // Add a small pause after each sentence (period, !, ?)
+    // Resemble handles "..." as a short pause
+    .replace(/([.!?])\s+/g, '$1 ... ')
+    // Small pause after colons
+    .replace(/:\s+/g, ': ... ')
+    // Normalize multiple ellipsis (don't stack)
     .replace(/\.{4,}/g, '...')
-    // Clean up multiple spaces
+    .replace(/(\.\.\.\s*){2,}/g, '... ')
+    // Clean up whitespace
     .replace(/\s{2,}/g, ' ')
     .trim();
 };
