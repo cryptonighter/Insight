@@ -14,8 +14,8 @@ import { generateSessionSummary } from '../../services/geminiService';
 import { THEMES, ThemeConfig, filterInsightsByTheme, fetchUserInsights, UserInsight, updateUserPreferences } from '../../services/insightService';
 import { cn } from '@/utils';
 
-// Steps in the flow
-type SetupStep = 'HOME' | 'THEME' | 'INSIGHTS' | 'DURATION' | 'VOICE' | 'SUMMARY';
+// Steps in the flow (VOICE step removed - uses saved preference from Settings)
+type SetupStep = 'HOME' | 'THEME' | 'INSIGHTS' | 'DURATION' | 'SUMMARY';
 
 const DURATION_OPTIONS = [
     { label: '5 min', value: 5 },
@@ -24,19 +24,30 @@ const DURATION_OPTIONS = [
     { label: '20 min', value: 20 },
 ];
 
+// Session storage key for persisting step across view changes
+const STEP_STORAGE_KEY = 'insight_setup_step';
+
 export const DashboardV2: React.FC = () => {
     const { userEconomy, activeResolution, setView, isLoading, setPendingMeditationConfig, soundscapes, finalizeMeditationGeneration, user } = useApp();
 
-    // UI state
+    // UI state - persist currentStep across view changes (e.g., Settings)
     const [showContextOverlay, setShowContextOverlay] = useState(false);
-    const [currentStep, setCurrentStep] = useState<SetupStep>('HOME');
+    const [currentStep, setCurrentStep] = useState<SetupStep>(() => {
+        const saved = sessionStorage.getItem(STEP_STORAGE_KEY);
+        return (saved as SetupStep) || 'HOME';
+    });
 
-    // Selection state
+    // Persist step changes
+    useEffect(() => {
+        sessionStorage.setItem(STEP_STORAGE_KEY, currentStep);
+    }, [currentStep]);
+
+    // Selection state (voice comes from localStorage via Settings)
     const [selectedTheme, setSelectedTheme] = useState<ThemeConfig | null>(null);
     const [selectedInsights, setSelectedInsights] = useState<string[]>([]);
     const [customInput, setCustomInput] = useState('');
     const [selectedDuration, setSelectedDuration] = useState<number>(10);
-    const [selectedVoice, setSelectedVoice] = useState<'male' | 'female'>('female');
+    const savedVoiceId = localStorage.getItem('insight_voice_id') || 'ac7df359';
 
     // Insights from DB
     const [userInsights, setUserInsights] = useState<UserInsight[]>([]);
@@ -142,14 +153,22 @@ export const DashboardV2: React.FC = () => {
     const handleStartSession = async () => {
         if (!summary) return;
 
-        // Save preferences
+        // Save preferences (voice is now UUID from Settings, cast as male/female for legacy compat)
         if (user?.supabaseId) {
             updateUserPreferences(user.supabaseId, {
-                voice: selectedVoice,
+                voice: savedVoiceId as 'male' | 'female', // Legacy type, actual UUID stored in localStorage
                 lastTheme: selectedTheme?.id,
                 lastDuration: selectedDuration
             });
         }
+
+        // Map voice UUID to VoiceId type
+        const voiceMapping: Record<string, 'Kore' | 'Charon' | 'Puck' | 'Aoede'> = {
+            'ac7df359': 'Kore',   // James
+            '018dc07a': 'Charon', // Thomas
+            '7213a9ea': 'Aoede',  // Sarah
+            '38a0b764': 'Puck',   // Marcus
+        };
 
         // Build config object
         const config = {
@@ -158,7 +177,7 @@ export const DashboardV2: React.FC = () => {
             methodology: summary.methodology,
             intensity: 'MODERATE' as const,
             duration: selectedDuration,
-            voice: selectedVoice === 'female' ? 'Kore' as const : 'Charon' as const,
+            voice: voiceMapping[savedVoiceId] || 'Kore' as const,
             speed: 1.0,
             soundscapeId: summary.soundscapeId,
             background: 'deep-space' as const
@@ -187,9 +206,6 @@ export const DashboardV2: React.FC = () => {
                 }
                 break;
             case 'DURATION':
-                setCurrentStep('VOICE');
-                break;
-            case 'VOICE':
                 setCurrentStep('SUMMARY');
                 generateSummaryContent();
                 break;
@@ -205,8 +221,7 @@ export const DashboardV2: React.FC = () => {
             case 'THEME': setCurrentStep('HOME'); break;
             case 'INSIGHTS': setCurrentStep('THEME'); setSelectedTheme(null); break;
             case 'DURATION': setCurrentStep('INSIGHTS'); break;
-            case 'VOICE': setCurrentStep('DURATION'); break;
-            case 'SUMMARY': setCurrentStep('VOICE'); setSummary(null); break;
+            case 'SUMMARY': setCurrentStep('DURATION'); setSummary(null); break;
         }
     };
 
@@ -224,7 +239,6 @@ export const DashboardV2: React.FC = () => {
             case 'THEME': return !!selectedTheme;
             case 'INSIGHTS': return selectedInsights.length > 0 || customInput.trim().length > 0;
             case 'DURATION': return true;
-            case 'VOICE': return true;
             case 'SUMMARY': return !!summary && !isLoadingSummary;
         }
     };
@@ -411,46 +425,6 @@ export const DashboardV2: React.FC = () => {
                                             {opt.label}
                                         </button>
                                     ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* VOICE Selection */}
-                        {currentStep === 'VOICE' && (
-                            <motion.div
-                                key="voice"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="space-y-6 max-w-sm mx-auto text-center"
-                            >
-                                <User className="w-12 h-12 text-primary/60 mx-auto" />
-                                <h2 className="text-lg font-bold text-white">Voice preference</h2>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <button
-                                        onClick={() => setSelectedVoice('female')}
-                                        className={cn(
-                                            "py-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
-                                            selectedVoice === 'female'
-                                                ? 'bg-primary/20 border-primary'
-                                                : 'bg-surface/30 border-white/10'
-                                        )}
-                                    >
-                                        <span className="text-2xl">👩</span>
-                                        <span className="text-sm text-white">Female</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setSelectedVoice('male')}
-                                        className={cn(
-                                            "py-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-2",
-                                            selectedVoice === 'male'
-                                                ? 'bg-primary/20 border-primary'
-                                                : 'bg-surface/30 border-white/10'
-                                        )}
-                                    >
-                                        <span className="text-2xl">👨</span>
-                                        <span className="text-sm text-white">Male</span>
-                                    </button>
                                 </div>
                             </motion.div>
                         )}
