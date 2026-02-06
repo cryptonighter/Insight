@@ -26,6 +26,18 @@ const BRAIN_MODEL = "gemini-3-flash-preview";
 const AUDIO_MODEL_LITE = "gemini-2.5-flash-lite-preview-tts"; // Faster, lower latency
 const AUDIO_MODEL = "gemini-2.5-flash-preview-tts"; // Higher quality fallback
 
+// Resemble AI TTS (Primary - much faster than Gemini)
+const RESEMBLE_API_KEY = import.meta.env.VITE_RESEMBLE_API_KEY || "";
+const RESEMBLE_VOICE_UUID = import.meta.env.VITE_RESEMBLE_VOICE_UUID || "";
+const RESEMBLE_STREAM_URL = "https://f.cluster.resemble.ai/stream";
+const USE_RESEMBLE = !!RESEMBLE_API_KEY && !!RESEMBLE_VOICE_UUID;
+
+if (USE_RESEMBLE) {
+  console.log("🎙️ Resemble AI TTS enabled (faster streaming)");
+} else {
+  console.log("🎙️ Using Gemini TTS (Resemble not configured)");
+}
+
 // Voice Profiles Strategy
 const VOICE_PROFILES: Record<string, string> = {
   'Kore': `
@@ -417,11 +429,80 @@ export const generateMeditationScript = async (
   }
 };
 
+// Resemble AI TTS - Much faster than Gemini (~100ms vs 30s+)
+const generateAudioChunkResemble = async (
+  text: string
+): Promise<{ audioData: string; mimeType: string }> => {
+  console.log(`🎙️ Resemble TTS: Generating audio for ${text.length} chars`);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort("Resemble timeout after 15s"), 15000);
+
+  try {
+    const response = await fetch(RESEMBLE_STREAM_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEMBLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        voice_uuid: RESEMBLE_VOICE_UUID,
+        data: text,
+        model: 'chatterbox-turbo', // Fast turbo model
+        sample_rate: 44100,
+        precision: 'PCM_16',
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`🎙️ Resemble API Error: ${response.status} - ${errorText}`);
+      throw new Error(`Resemble API Error ${response.status}: ${errorText}`);
+    }
+
+    // Response is streaming PCM WAV - collect all chunks
+    const arrayBuffer = await response.arrayBuffer();
+    console.log(`🎙️ Resemble: Received ${arrayBuffer.byteLength} bytes`);
+
+    // Convert to base64 for consistent handling with Gemini
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64Audio = btoa(binary);
+
+    return {
+      audioData: base64Audio,
+      mimeType: 'audio/wav'
+    };
+  } catch (e: any) {
+    clearTimeout(timeoutId);
+    console.error(`🎙️ Resemble TTS Failed:`, e.message);
+    throw e;
+  }
+};
+
 export const generateAudioChunk = async (
   text: string,
   voice: VoiceId,
   context?: { chunkIndex: number; totalChunks: number; previousChunkEnd?: string }
 ): Promise<{ audioData: string; mimeType: string }> => {
+
+  // Try Resemble AI first (much faster ~100ms vs 30s+)
+  if (USE_RESEMBLE) {
+    try {
+      return await generateAudioChunkResemble(text);
+    } catch (e) {
+      console.warn(`🎙️ Resemble failed, falling back to Gemini TTS`);
+      // Fall through to Gemini
+    }
+  }
+
+  // Gemini TTS fallback
   let retries = 0;
   const MAX_RETRIES = 3;
 
