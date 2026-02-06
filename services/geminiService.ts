@@ -437,11 +437,28 @@ export const generateMeditationScript = async (
   }
 };
 
+// Preprocess text for meditation pacing - adds natural pauses
+const preprocessMeditationText = (text: string): string => {
+  return text
+    // Convert single periods to ellipsis for longer pauses
+    .replace(/\.\s+/g, '... ')
+    // Add pauses after commas
+    .replace(/,\s+/g, ', ... ')
+    // Ensure breathing cues have pauses
+    .replace(/(breath[e]?\s*(in|out)?)/gi, '... $1 ...')
+    // Add pause before "and" for rhythm
+    .replace(/\s+and\s+/gi, ' ... and ')
+    // Normalize multiple ellipsis
+    .replace(/\.{4,}/g, '...');
+};
+
 // Resemble AI TTS - Much faster than Gemini (~100ms vs 30s+)
 const generateAudioChunkResemble = async (
   text: string
 ): Promise<{ audioData: string; mimeType: string }> => {
-  console.log(`🎙️ Resemble TTS: Generating audio for ${text.length} chars`);
+  // Preprocess for meditation pacing
+  const processedText = preprocessMeditationText(text);
+  console.log(`🎙️ Resemble TTS: Generating audio for ${processedText.length} chars`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort("Resemble timeout after 15s"), 15000);
@@ -455,7 +472,7 @@ const generateAudioChunkResemble = async (
       },
       body: JSON.stringify({
         voice_uuid: RESEMBLE_VOICE_UUID,
-        data: text,
+        data: processedText,
         model: 'chatterbox-turbo', // Fast turbo model
         sample_rate: 44100,
         precision: 'PCM_16',
