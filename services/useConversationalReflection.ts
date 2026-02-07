@@ -157,10 +157,13 @@ TONE: Warm, present, genuinely curious - like a wise friend, not a therapist or 
         }
     };
 
-    // Speak response using Resemble TTS
+    // Speak response using Resemble TTS (turbo mode)
     const speak = async (text: string): Promise<void> => {
         setIsSpeaking(true);
         setCurrentMessage(text);
+
+        // Get user's selected voice from localStorage (set via Settings)
+        const savedVoiceUuid = localStorage.getItem('insight_voice_id') || RESEMBLE_VOICE_UUID;
 
         try {
             const response = await fetch(RESEMBLE_STREAM_URL, {
@@ -170,7 +173,7 @@ TONE: Warm, present, genuinely curious - like a wise friend, not a therapist or 
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    voice_uuid: RESEMBLE_VOICE_UUID,
+                    voice_uuid: savedVoiceUuid,
                     data: text,
                     model: 'chatterbox-turbo',
                     sample_rate: 44100,
