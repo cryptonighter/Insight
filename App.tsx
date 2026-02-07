@@ -23,6 +23,7 @@ import { SessionPrep } from './components/v2/SessionPrep';
 import { UnifiedExperience } from './components/UnifiedExperience';
 import { VoiceSelector } from './components/VoiceSelector';
 import { ConversationalReflection } from './components/v2/ConversationalReflection';
+import { ConversationalCheckIn } from './components/v2/ConversationalCheckIn';
 import { supabase } from './services/supabaseClient';
 
 const Main: React.FC = () => {
@@ -42,8 +43,9 @@ const Main: React.FC = () => {
       case ViewState.LOADING: return <LoadingGeneration />;
 
       // V2 Routes
+      case ViewState.CHECK_IN: return <ConversationalCheckIn />; // NEW: Voice-first experience selection
       case ViewState.DASHBOARD: return <DashboardV2 />;
-      case ViewState.HOME: return <DashboardV2 />;
+      case ViewState.HOME: return <ConversationalCheckIn />; // Default to check-in
       case ViewState.ONBOARDING: return <OnboardingView />; // The Matrix V2 Design
       case ViewState.REFLECTION: return <ConversationalReflection />; // NEW: Turbo TTS conversational
       case ViewState.EVENING_REFLECTION: return <ConversationalReflection />; // Both now use conversational
@@ -61,7 +63,7 @@ const Main: React.FC = () => {
       case ViewState.TRIAGE: return <TriageView />;
       case ViewState.SETTINGS: return <VoiceSelector />;
 
-      default: return <DashboardV2 />;
+      default: return <ConversationalCheckIn />; // Default to check-in
     }
   };
 

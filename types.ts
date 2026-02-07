@@ -197,6 +197,7 @@ export interface GenerationRequest {
 
 export enum ViewState {
   ONBOARDING = 'ONBOARDING',
+  CHECK_IN = 'CHECK_IN', // NEW: Conversational experience selection
   DASHBOARD = 'DASHBOARD',
   HOME = 'HOME',
   LOADING = 'LOADING',
