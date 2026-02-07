@@ -9,7 +9,7 @@ import { supabase } from './supabaseClient';
 // TYPES
 // ============================================
 
-export type ThemeType = 'SAFETY' | 'SPARK' | 'POWER' | 'CLARITY' | 'FLOW';
+export type ThemeType = 'SAFETY' | 'SPARK' | 'POWER' | 'FLOW';
 export type CategoryType = 'BODY' | 'NARRATIVE' | 'ACTION' | 'CONTEXT';
 export type SourceType = 'REFLECTION' | 'INTENTION' | 'MANUAL';
 
@@ -51,48 +51,39 @@ export interface CategoryConfig {
 export const THEMES: ThemeConfig[] = [
     {
         id: 'SAFETY',
-        label: 'Safety',
-        uxLabel: 'Safety',
-        emoji: '🛡️',
-        keywords: ['grounding', 'safety', 'protect', 'exhale', 'slow', 'heavy', 'secure', 'calm', 'peace'],
+        label: 'Overwhelmed',
+        uxLabel: "I'm overwhelmed",
+        emoji: '😫',
+        keywords: ['grounding', 'safety', 'protect', 'exhale', 'slow', 'heavy', 'secure', 'calm', 'peace', 'anxious', 'stressed', 'scattered'],
         excludeKeywords: ['disconnect', 'numb', 'float', 'sleep'],
         description: 'Find grounding and restore calm'
     },
     {
         id: 'SPARK',
-        label: 'Spark',
-        uxLabel: 'Spark',
-        emoji: '✨',
-        keywords: ['micro-movement', 'one step', 'wiggle', 'gentle', 'momentum', 'start', 'begin', 'tiny'],
+        label: 'Stuck',
+        uxLabel: "I'm stuck",
+        emoji: '😶',
+        keywords: ['micro-movement', 'one step', 'wiggle', 'gentle', 'momentum', 'start', 'begin', 'tiny', 'procrastination', 'numb', 'frozen'],
         excludeKeywords: ['grind', 'hustle', 'push', 'force', 'massive'],
-        description: 'Gentle momentum when feeling stuck'
+        description: 'Gentle momentum when feeling frozen'
     },
     {
         id: 'POWER',
-        label: 'Power',
-        uxLabel: 'Power',
-        emoji: '🔥',
-        keywords: ['challenge', 'heat', 'push', 'boundary', 'conquer', 'intensity', 'drive', 'strength'],
+        label: 'Push',
+        uxLabel: 'I need to push',
+        emoji: '⚡',
+        keywords: ['challenge', 'heat', 'push', 'boundary', 'conquer', 'intensity', 'drive', 'strength', 'momentum', 'energy'],
         excludeKeywords: ['gentle', 'soft', 'surrender', 'allow'],
         description: 'Channel energy into action'
     },
     {
-        id: 'CLARITY',
-        label: 'Clarity',
-        uxLabel: 'Clarity',
-        emoji: '🎯',
-        keywords: ['sequence', 'structure', 'first step', 'linear', 'define', 'decide', 'focus', 'clear'],
-        excludeKeywords: ['open', 'explore', 'brainstorm', 'imagine', 'possibilities'],
-        description: 'Cut through noise and confusion'
-    },
-    {
         id: 'FLOW',
-        label: 'Flow',
-        uxLabel: 'Flow',
-        emoji: '🌊',
-        keywords: ['connect', 'align', 'allow', 'release', 'effortless', 'adapt', 'surrender', 'natural'],
+        label: 'Forcing',
+        uxLabel: "I'm forcing it",
+        emoji: '🌀',
+        keywords: ['connect', 'align', 'allow', 'release', 'effortless', 'adapt', 'surrender', 'natural', 'burnout', 'trying too hard'],
         excludeKeywords: ['force', 'control', 'grip', 'rigid', 'try harder'],
-        description: 'Move from forcing to aligning'
+        description: 'Let go and find natural alignment'
     }
 ];
 
