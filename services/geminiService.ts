@@ -457,11 +457,15 @@ const preprocessMeditationText = (text: string): string => {
 
 // Resemble AI TTS - Much faster than Gemini (~100ms vs 30s+)
 const generateAudioChunkResemble = async (
-  text: string
+  text: string,
+  voiceUuid?: string
 ): Promise<{ audioData: string; mimeType: string }> => {
+  // Use passed voiceUuid or fall back to env default
+  const finalVoiceUuid = voiceUuid || RESEMBLE_VOICE_UUID;
+
   // Preprocess for meditation pacing
   const processedText = preprocessMeditationText(text);
-  console.log(`🎙️ Resemble TTS: Generating audio for ${processedText.length} chars`);
+  console.log(`🎙️ Resemble TTS: Generating audio for ${processedText.length} chars with voice ${finalVoiceUuid}`);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort("Resemble timeout after 15s"), 15000);
@@ -474,7 +478,7 @@ const generateAudioChunkResemble = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        voice_uuid: RESEMBLE_VOICE_UUID,
+        voice_uuid: finalVoiceUuid,
         data: processedText,
         model: 'chatterbox-turbo', // Fast turbo model
         sample_rate: 44100,
@@ -520,10 +524,15 @@ export const generateAudioChunk = async (
   context?: { chunkIndex: number; totalChunks: number; previousChunkEnd?: string }
 ): Promise<{ audioData: string; mimeType: string }> => {
 
+  // Get user's selected voice from localStorage (set via Settings page)
+  const savedVoiceUuid = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('insight_voice_id')
+    : null;
+
   // Try Resemble AI first (much faster ~100ms vs 30s+)
   if (USE_RESEMBLE) {
     try {
-      return await generateAudioChunkResemble(text);
+      return await generateAudioChunkResemble(text, savedVoiceUuid || undefined);
     } catch (e) {
       console.warn(`🎙️ Resemble failed, falling back to Gemini TTS`);
       // Fall through to Gemini
