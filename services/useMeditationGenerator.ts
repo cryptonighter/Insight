@@ -2,10 +2,29 @@
 import { useState, useRef, useEffect } from 'react';
 import { Meditation, MeditationConfig, Soundscape, ViewState, Resolution, PlayableSegment, MethodologyType } from '../types';
 import { generateMeditationScript, generateAudioChunk, wrapPcmToWav, decodeBase64 } from './geminiService';
-import { MeditationPipeline } from './MeditationPipeline';
 import { supabase } from './supabaseClient';
 import { storageService } from './storageService';
 import { generateSonicTimeline, SonicTimeline } from './sonicDirector';
+
+// Generation phase tracking for UX feedback
+export type GenerationPhase =
+    | 'idle'
+    | 'greeting'
+    | 'script'
+    | 'tts'  // includes batch index info via generationProgress
+    | 'complete'
+    | 'error';
+
+export interface GenerationState {
+    phase: GenerationPhase;
+    error: string | null;
+    /** Current batch being processed (1-indexed) */
+    currentBatch: number;
+    /** Total batches to process */
+    totalBatches: number;
+}
+
+const GENERATION_TIMEOUT_MS = 120_000; // 2 minutes global timeout
 
 // Helper to stitch audio blobs into a single valid WAV file
 const stitchAudio = async (segments: PlayableSegment[]): Promise<Blob> => {
@@ -124,16 +143,23 @@ export const useMeditationGenerator = (
     const [activeMeditationId, setActiveMeditationId] = useState<string | null>(null);
     const [pendingMeditationConfig, setPendingMeditationConfig] = useState<Partial<MeditationConfig> | null>(null);
 
-    // Ref to hold the pipeline so we can stop it if unmounted
-    const pipelineRef = useRef<MeditationPipeline | null>(null);
+    // Generation state tracking for UX
+    const [generationState, setGenerationState] = useState<GenerationState>({
+        phase: 'idle',
+        error: null,
+        currentBatch: 0,
+        totalBatches: 0
+    });
+
+    // Ref for cancellation
+    const cancelledRef = useRef(false);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            if (pipelineRef.current) {
-                console.log("🧹 Unmounting: Stopping Pipeline");
-                pipelineRef.current.stop();
-            }
+            cancelledRef.current = true;
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
     }, []);
 
@@ -144,16 +170,23 @@ export const useMeditationGenerator = (
         // Defensive: Ensure config is valid
         if (!config || !config.soundscapeId) {
             console.error('❌ finalizeMeditationGeneration called with invalid config:', config);
-            console.error('   pendingMeditationConfig was:', pendingMeditationConfig);
+            setGenerationState({ phase: 'error', error: 'Invalid session configuration. Please go back and try again.', currentBatch: 0, totalBatches: 0 });
             throw new Error('Invalid meditation config: missing required fields (soundscapeId)');
         }
 
-        // Prevent double submissions or cancel previous
-        if (pipelineRef.current) {
-            console.log("🛑 Stopping previous pipeline...");
-            pipelineRef.current.stop();
-            pipelineRef.current = null;
-        }
+        // Reset state
+        cancelledRef.current = false;
+        setGenerationState({ phase: 'greeting', error: null, currentBatch: 0, totalBatches: 0 });
+
+        // Global timeout to prevent infinite hangs
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+            if (generationState.phase !== 'complete' && generationState.phase !== 'error') {
+                console.error('⏰ Generation timed out after 2 minutes');
+                cancelledRef.current = true;
+                setGenerationState(prev => ({ ...prev, phase: 'error', error: 'Generation timed out. Please try again.' }));
+            }
+        }, GENERATION_TIMEOUT_MS);
 
         const tempId = crypto.randomUUID();
         try {
@@ -293,7 +326,7 @@ export const useMeditationGenerator = (
             // Only create greeting segment if we have valid audio
             if (greetingResult && greetingResult.audioData) {
                 // Create greeting audio blob with correct mimeType
-                const greetingBlob = await createAudioBlob(greetingResult.audioData, greetingResult.mimeType);
+                const greetingBlob = createAudioBlob(greetingResult.audioData, greetingResult.mimeType);
                 const greetingUrl = URL.createObjectURL(greetingBlob);
 
                 // Push greeting to queue IMMEDIATELY - user can start listening
@@ -301,9 +334,9 @@ export const useMeditationGenerator = (
                     id: 'greeting',
                     text: greetingResult.text,
                     audioUrl: greetingUrl,
-                    // Decode base64 to get actual byte count for duration calculation
-                    // 24kHz, 16-bit mono = 48000 bytes per second
-                    duration: decodeBase64(greetingResult.audioData).length / 48000,
+                    // Duration 0 = let AudioService calculate real duration from decoded audio
+                    // This handles different sample rates (24kHz Gemini vs 44.1kHz Resemble)
+                    duration: 0,
                     instructions: [] // Greeting has no special sonic instructions
                 };
 
@@ -323,6 +356,7 @@ export const useMeditationGenerator = (
             }
 
             // Now wait for full script
+            setGenerationState(prev => ({ ...prev, phase: 'script' }));
             let { title, lines, batches } = await scriptPromise;
 
             // ===== BATCH SPLITTING FALLBACK =====
@@ -367,9 +401,11 @@ export const useMeditationGenerator = (
 
             // --- REMAINING BATCH GENERATION (STREAMING) ---
             console.log(`🎤 Processing ${batches.length} remaining batches (streaming)...`);
+            setGenerationState(prev => ({ ...prev, phase: 'tts', currentBatch: 1, totalBatches: batches.length }));
 
             // Process sequentially to maintain order and avoid rate limits
             for (let i = 0; i < batches.length; i++) {
+                if (cancelledRef.current) break;
                 const batch = batches[i];
                 console.log(`🎤 Generating Batch ${i + 1}/${batches.length} (${batch.text.length} chars)...`);
 
@@ -387,15 +423,14 @@ export const useMeditationGenerator = (
                     // Use createAudioBlob which handles mimeType correctly
                     const blob = createAudioBlob(audioData, mimeType);
                     const url = URL.createObjectURL(blob);
-                    // Decode base64 to get actual byte count for duration calculation
-                    // 24kHz, 16-bit mono = 48000 bytes per second
-                    const actualBytes = decodeBase64(audioData);
 
                     const newSegment: PlayableSegment = {
                         id: `batch-${i}`,
                         text: batch.text,
                         audioUrl: url,
-                        duration: actualBytes.length / 48000,
+                        // Duration 0 = let AudioService calculate real duration from decoded audio
+                        // This handles different sample rates (24kHz Gemini vs 44.1kHz Resemble)
+                        duration: 0,
                         instructions: sonicTimeline.segmentInstructions[i + 1] || [] // +1 for greeting offset
                     };
 
@@ -412,6 +447,7 @@ export const useMeditationGenerator = (
                     }));
 
                     console.log(`✅ Batch ${i + 1} streamed to queue`);
+                    setGenerationState(prev => ({ ...prev, currentBatch: i + 2 })); // +2 because 1-indexed and moves to next
 
                 } catch (batchErr) {
                     console.error(`❌ Batch ${i} failed:`, batchErr);
@@ -420,6 +456,8 @@ export const useMeditationGenerator = (
             }
 
             // Mark generation complete
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            setGenerationState({ phase: 'complete', error: null, currentBatch: batches.length, totalBatches: batches.length });
             setMeditations(current => current.map(m => {
                 if (m.id === tempId) {
                     return { ...m, isGenerating: false };
@@ -509,11 +547,19 @@ export const useMeditationGenerator = (
                 }
             }
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("Failed to generate meditation", e);
-            alert("Generation failed.");
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            const errorMessage = e?.message?.includes('429')
+                ? 'Rate limited by the AI service. Please wait a moment and try again.'
+                : e?.message?.includes('timeout') || e?.message?.includes('abort')
+                    ? 'Generation timed out. Please try again.'
+                    : e?.message?.includes('API Error')
+                        ? 'AI service error. Please check your connection and try again.'
+                        : 'Generation failed. Please try again.';
+            setGenerationState({ phase: 'error', error: errorMessage, currentBatch: 0, totalBatches: 0 });
             setMeditations(prev => prev.filter(m => m.id !== tempId));
-            setView(ViewState.DASHBOARD);
+            // Don't navigate away - let the user see the error and retry from LoadingGeneration
         }
     };
 
@@ -529,7 +575,8 @@ export const useMeditationGenerator = (
         setPendingMeditationConfig, // EXPORTED
         finalizeMeditationGeneration,
         playMeditation,
-        setMeditations
+        setMeditations,
+        generationState // NEW: exposed for LoadingGeneration UX
     };
 };
 

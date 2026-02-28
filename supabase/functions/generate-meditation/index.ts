@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CLINICAL_PROTOCOLS } from "../_shared/protocols.ts";
 import { MethodologyType } from "../_shared/types.ts";
 
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 // Corrected TTS pacing: ~145 words/min spoken, with pauses ~85% effective
 const EFFECTIVE_WORDS_PER_MINUTE = 123; // 145 * 0.85
@@ -195,8 +195,8 @@ serve(async (req: Request) => {
             return JSON.parse(cleanContent);
         };
 
-        const PRIMARY_MODEL = "gemini-2.0-flash-exp";
-        const FALLBACK_MODEL = "gemini-1.5-pro";
+        const PRIMARY_MODEL = "gemini-2.5-flash";
+        const FALLBACK_MODEL = "gemini-2.0-flash";
 
 
 

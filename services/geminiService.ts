@@ -46,6 +46,15 @@ if (USE_RESEMBLE) {
   console.log("🎙️ Using Gemini TTS (Resemble not configured)");
 }
 
+// Map VoiceId names to Resemble UUIDs from env
+const RESEMBLE_VOICE_MAP: Record<string, string> = {
+  'Kore': import.meta.env.VITE_RESEMBLE_VOICE_UUID1 || RESEMBLE_VOICE_UUID,
+  'Fenrir': import.meta.env.VITE_RESEMBLE_VOICE_UUID2 || RESEMBLE_VOICE_UUID,
+  'Puck': import.meta.env.VITE_RESEMBLE_VOICE_UUID3 || RESEMBLE_VOICE_UUID,
+  'Charon': import.meta.env.VITE_RESEMBLE_VOICE_UUID4 || RESEMBLE_VOICE_UUID,
+  'Aoede': RESEMBLE_VOICE_UUID, // Fallback
+};
+
 // Voice Profiles Strategy
 const VOICE_PROFILES: Record<string, string> = {
   'Kore': `
@@ -524,15 +533,15 @@ export const generateAudioChunk = async (
   context?: { chunkIndex: number; totalChunks: number; previousChunkEnd?: string }
 ): Promise<{ audioData: string; mimeType: string }> => {
 
-  // Get user's selected voice from localStorage (set via Settings page)
-  const savedVoiceUuid = typeof localStorage !== 'undefined'
-    ? localStorage.getItem('insight_voice_id')
-    : null;
-
   // Try Resemble AI first (much faster ~100ms vs 30s+)
   if (USE_RESEMBLE) {
     try {
-      return await generateAudioChunkResemble(text, savedVoiceUuid || undefined);
+      // Map VoiceId to Resemble UUID: user override > voice map > default
+      const savedVoiceUuid = typeof localStorage !== 'undefined'
+        ? localStorage.getItem('insight_voice_id')
+        : null;
+      const resembleUuid = savedVoiceUuid || RESEMBLE_VOICE_MAP[voice] || RESEMBLE_VOICE_UUID;
+      return await generateAudioChunkResemble(text, resembleUuid);
     } catch (e) {
       console.warn(`🎙️ Resemble failed, falling back to Gemini TTS`);
       // Fall through to Gemini

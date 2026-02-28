@@ -11,7 +11,7 @@ import { growthContext } from '../services/growthContext';
 import { storageService } from '../services/storageService';
 import { supabase, isMockClient } from '../services/supabaseClient';
 import { useResolutionEngine } from '../services/useResolutionEngine';
-import { useMeditationGenerator } from '../services/useMeditationGenerator';
+import { useMeditationGenerator, GenerationState } from '../services/useMeditationGenerator';
 
 const MOCK_SOUNDSCAPE: Soundscape = {
   id: 'default-space',
@@ -43,6 +43,7 @@ interface AppState {
   pendingMeditationConfig: Partial<MeditationConfig> | null;
   setPendingMeditationConfig: React.Dispatch<React.SetStateAction<Partial<MeditationConfig> | null>>;
   currentMeditation: Meditation | undefined;
+  generationState: GenerationState;
 
   // Clinical Registry State
   parts: Part[];
@@ -115,7 +116,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPendingMeditationConfig,
     finalizeMeditationGeneration,
     playMeditation,
-    setMeditations
+    setMeditations,
+    generationState
   } = useMeditationGenerator(soundscapes, activeResolution, setCurrentView, user.supabaseId);
 
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -417,6 +419,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       pendingMeditationConfig,
       setPendingMeditationConfig,
       currentMeditation,
+      generationState,
       isLoading,
 
       // Clinical Registry State

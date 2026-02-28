@@ -19,7 +19,8 @@ export const LoadingGeneration: React.FC = () => {
     activeMeditationId,
     activeResolution,
     isLoading,
-    setPendingMeditationConfig
+    setPendingMeditationConfig,
+    generationState
   } = useApp();
 
   const [hasStarted, setHasStarted] = useState(false);
@@ -139,7 +140,7 @@ export const LoadingGeneration: React.FC = () => {
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
-  // Terminal Line Animation
+  // Terminal Line Animation - Use real generation state when available
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const lineIndex = useRef(0);
 
@@ -155,6 +156,7 @@ export const LoadingGeneration: React.FC = () => {
   const queueLength = activeMeditation?.audioQueue?.length || 0;
   const isGenerating = activeMeditation?.isGenerating || hasStarted;
   const showBeginButton = queueLength > 0;
+  const hasError = generationState.phase === 'error';
 
   // Sync local state with global generation status (Fixes "Stuck on Config" bug)
   useEffect(() => {
@@ -163,23 +165,42 @@ export const LoadingGeneration: React.FC = () => {
     }
   }, [activeMeditation?.isGenerating]);
 
-  // Simulate Matrix Lines
+  // Real progress terminal lines based on generation state
   useEffect(() => {
-    if (isGenerating && !showBeginButton) {
+    if (!isGenerating || showBeginButton || hasError) return;
+
+    const phaseMessages: Record<string, string> = {
+      'greeting': '> GENERATING PERSONALIZED GREETING...',
+      'script': '> COMPOSING MEDITATION SCRIPT...',
+      'tts': `> SYNTHESIZING AUDIO [${generationState.currentBatch}/${generationState.totalBatches}]`,
+      'complete': '> COMPILATION COMPLETE ✓',
+    };
+
+    const currentMsg = phaseMessages[generationState.phase];
+    if (currentMsg) {
+      setTerminalLines(prev => {
+        // Don't add duplicate consecutive messages
+        if (prev[prev.length - 1] === currentMsg) return prev;
+        return [...prev.slice(-4), currentMsg];
+      });
+    }
+  }, [generationState.phase, generationState.currentBatch, isGenerating, showBeginButton, hasError]);
+
+  // Fallback ambient lines only when no real status is available yet
+  useEffect(() => {
+    if (isGenerating && !showBeginButton && !hasError && generationState.phase === 'greeting') {
       const interval = setInterval(() => {
         const selectedName = soundscapes.find(s => s.id === selectedSoundscapeId)?.name || 'UNKNOWN';
         const possibleLines = [
-          `> ANALYZING NEURAL PATTERNS [${Math.floor(Math.random() * 99)}%MATCH]`,
-          `> WEAVING PROTOCOL: ${selectedMethodology}`,
-          `> SYNTHESIZING VOICE LAYERS: ${selectedVoice.toUpperCase()}`,
-          `> LOADING ATMOSPHERE: ${selectedName.toUpperCase()}...`,
-          `> GENERATING SOMATIC INSTRUCTIONS...`
+          `> PROTOCOL: ${selectedMethodology}`,
+          `> VOICE: ${selectedVoice.toUpperCase()}`,
+          `> ATMOSPHERE: ${selectedName.toUpperCase()}`,
         ];
         setTerminalLines(prev => [...prev.slice(-4), possibleLines[Math.floor(Math.random() * possibleLines.length)]]);
-      }, 800);
+      }, 1500);
       return () => clearInterval(interval);
     }
-  }, [isGenerating, showBeginButton, selectedMethodology, selectedVoice, selectedSoundscapeId]);
+  }, [isGenerating, showBeginButton, hasError, generationState.phase, selectedMethodology, selectedVoice, selectedSoundscapeId]);
 
   const handlePreview = async (id: string) => {
     setSelectedSoundscapeId(id);
@@ -258,10 +279,14 @@ export const LoadingGeneration: React.FC = () => {
       console.warn("Audio unlock failed (non-critical)", e);
     }
 
-    if (!pendingMeditationConfig) return;
+    if (!pendingMeditationConfig) {
+      console.warn('No pending config, cannot start');
+      return;
+    }
     if (audioPreviewRef.current) audioPreviewRef.current.pause();
     setPreviewingId(null);
     setHasStarted(true);
+    setTerminalLines([]); // Clear terminal for fresh output
 
     const config: MeditationConfig = {
       focus: focusInput || pendingMeditationConfig.focus || "Focus",
@@ -323,10 +348,10 @@ export const LoadingGeneration: React.FC = () => {
             <div className="w-full space-y-6">
               <div className="space-y-1">
                 <p className="text-primary text-[10px] tracking-[0.2em] uppercase font-bold animate-pulse">
-                  {queueLength > 0 ? ">> TRANSMISSION READY <<" : ">> COMPILING PROTOCOL <<"}
+                  {hasError ? ">> ERROR <<" : queueLength > 0 ? ">> TRANSMISSION READY <<" : ">> COMPILING PROTOCOL <<"}
                 </p>
                 <h2 className="text-2xl font-bold text-white tracking-tight">
-                  {protocol?.name || "Initializing..."} | <span className="text-primary">{queueLength > 0 ? "100%" : "WORKING"}</span>
+                  {hasError ? 'Error' : protocol?.name || "Initializing..."} | <span className="text-primary">{hasError ? '!' : queueLength > 0 ? "100%" : generationState.phase === 'tts' ? `${Math.round((generationState.currentBatch / Math.max(generationState.totalBatches, 1)) * 100)}%` : "WORKING"}</span>
                 </h2>
               </div>
 
@@ -338,8 +363,23 @@ export const LoadingGeneration: React.FC = () => {
                 ))}
               </div>
 
-              {/* BEGIN BUTTON */}
-              {showBeginButton ? (
+              {/* BEGIN BUTTON or ERROR STATE */}
+              {hasError ? (
+                <div className="w-full space-y-4 animate-in fade-in">
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
+                    <p className="text-sm text-red-300 mb-2">{generationState.error}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setHasStarted(false);
+                      setTerminalLines([]);
+                    }}
+                    className="w-full bg-primary text-background-dark py-4 rounded-none font-bold tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-all shadow-[0_0_20px_rgba(74,222,128,0.4)] flex items-center justify-center gap-3 border border-primary skew-x-[-10deg]"
+                  >
+                    <span className="skew-x-[10deg]">Retry Generation</span>
+                  </button>
+                </div>
+              ) : showBeginButton ? (
                 <button
                   onClick={() => setView(ViewState.PLAYER)}
                   className="w-full bg-primary text-background-dark py-4 rounded-none font-bold tracking-[0.2em] uppercase hover:bg-white hover:text-black transition-all shadow-[0_0_20px_rgba(74,222,128,0.4)] flex items-center justify-center gap-3 border border-primary skew-x-[-10deg]"
